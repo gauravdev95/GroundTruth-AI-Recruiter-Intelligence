@@ -34,3 +34,14 @@ class TimestampMixin:
         onupdate=_utcnow,
         nullable=False,
     )
+
+
+class SoftDeleteMixin:
+    """Adds `deleted_at` for user-initiated removal that must not hard-delete history.
+
+    Callers are responsible for filtering `deleted_at IS NULL` where "not deleted"
+    is the intended default — this mixin only adds the column, it does not install
+    a query filter.
+    """
+
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

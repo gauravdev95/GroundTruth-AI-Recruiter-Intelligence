@@ -15,8 +15,8 @@ from sqlalchemy import engine_from_config, pool
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config.config import get_database_settings  # noqa: E402
+from src.db import register_models  # noqa: E402,F401
 from src.db.database import Base  # noqa: E402
-from src.domains.auth import models as auth_models  # noqa: E402,F401
 
 config = context.config
 

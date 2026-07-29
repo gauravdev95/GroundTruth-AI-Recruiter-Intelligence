@@ -18,6 +18,15 @@ from src.domains.auth.models import UserRole
 from src.domains.auth.schemas import CandidateRegisterRequest, LoginRequest, RecruiterRegisterRequest
 
 
+def _error_body_without_request_id(response) -> dict:
+    """Strip the per-request `request_id` so two independent responses can be
+    compared for enumeration-safety (identical error shape/message)."""
+    body = response.json()
+    details = (body.get("error") or {}).get("details") or {}
+    stripped_details = {k: v for k, v in details.items() if k != "request_id"} or None
+    return {**body, "error": {**body["error"], "details": stripped_details}}
+
+
 def _register_candidate(db_session: Session, email: str = "candidate.flow@example.com"):
     payload = CandidateRegisterRequest(
         full_name="Ada Lovelace",
@@ -132,7 +141,7 @@ def test_role_mismatch_rejected(client: TestClient, db_session: Session) -> None
         },
     )
     assert resp.status_code == 403
-    assert resp.json()["code"] == "ROLE_MISMATCH"
+    assert resp.json()["error"]["code"] == "ROLE_MISMATCH"
 
 
 def test_unverified_email_cannot_login(client: TestClient, db_session: Session) -> None:
@@ -149,7 +158,7 @@ def test_unverified_email_cannot_login(client: TestClient, db_session: Session) 
         },
     )
     assert resp.status_code == 403
-    assert resp.json()["code"] == "EMAIL_NOT_VERIFIED"
+    assert resp.json()["error"]["code"] == "EMAIL_NOT_VERIFIED"
 
 
 def test_invalid_otp_rejected(client: TestClient, db_session: Session) -> None:
@@ -159,7 +168,7 @@ def test_invalid_otp_rejected(client: TestClient, db_session: Session) -> None:
         "/api/v1/auth/verify-email/confirm", json={"email": user.email, "otp": "000000"}
     )
     assert resp.status_code == 400
-    assert resp.json()["code"] == "INVALID_OTP"
+    assert resp.json()["error"]["code"] == "INVALID_OTP"
 
 
 def test_login_wrong_password_does_not_leak_existence(client: TestClient, db_session: Session) -> None:
@@ -186,7 +195,7 @@ def test_login_wrong_password_does_not_leak_existence(client: TestClient, db_ses
         },
     )
     assert real_user_resp.status_code == nonexistent_resp.status_code == 401
-    assert real_user_resp.json() == nonexistent_resp.json()
+    assert _error_body_without_request_id(real_user_resp) == _error_body_without_request_id(nonexistent_resp)
 
 
 def test_account_locks_after_repeated_failed_logins(db_session: Session) -> None:
@@ -243,7 +252,7 @@ def test_password_reset_flow_and_session_revocation(client: TestClient, db_sessi
         json={"token": raw_token, "new_password": "AnotherPass3@", "confirm_password": "AnotherPass3@"},
     )
     assert reuse_resp.status_code == 400
-    assert reuse_resp.json()["code"] == "INVALID_OR_EXPIRED_TOKEN"
+    assert reuse_resp.json()["error"]["code"] == "INVALID_OR_EXPIRED_TOKEN"
 
     # New password works.
     new_login_resp = client.post(
@@ -284,7 +293,7 @@ def test_duplicate_registration_rejected(client: TestClient, db_session: Session
         },
     )
     assert resp.status_code == 409
-    assert resp.json()["code"] == "EMAIL_ALREADY_REGISTERED"
+    assert resp.json()["error"]["code"] == "EMAIL_ALREADY_REGISTERED"
 
 
 def test_registration_rate_limited(client: TestClient) -> None:

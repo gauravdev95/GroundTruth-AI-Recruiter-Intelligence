@@ -18,6 +18,8 @@ from src.config.config import get_security_settings
 from src.core.error_handlers import register_error_handlers
 from src.core.logging import configure_logging
 from src.core.middleware import SecurityHeadersMiddleware
+from src.core.request_id import RequestIdMiddleware
+from src.db import register_models  # noqa: F401
 from src.db.database import SessionLocal
 from src.domains.auth.rate_limit import limiter
 from src.domains.auth.router import router as auth_router
@@ -41,6 +43,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(SecurityHeadersMiddleware, hsts=security_settings.app_env == "production")
+# Outermost middleware: wraps everything (including error responses) so
+# every response — success or failure — carries X-Request-ID.
+app.add_middleware(RequestIdMiddleware)
 
 app.include_router(auth_router)
 

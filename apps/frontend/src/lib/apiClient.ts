@@ -56,6 +56,18 @@ export function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/** Registered once by `AuthProvider` on mount. Called when a 401-triggered
+ * refresh attempt fails (session truly expired/revoked, not just the
+ * initial silent refresh-on-load) — the subscriber clears local session
+ * state, which `ProtectedRoute` reacts to. Not a hard redirect here, to
+ * keep this module decoupled from react-router. */
+export function onUnauthorized(handler: UnauthorizedHandler): void {
+  unauthorizedHandler = handler;
+}
+
 type RetryableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
 
 apiClient.interceptors.response.use(
@@ -75,6 +87,7 @@ apiClient.interceptors.response.use(
         originalRequest.headers.set("Authorization", `Bearer ${newToken}`);
         return apiClient(originalRequest);
       }
+      unauthorizedHandler?.();
     }
 
     return Promise.reject(error);

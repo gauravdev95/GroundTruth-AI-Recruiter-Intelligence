@@ -15,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from src.db import register_models  # noqa: F401 — ensures every model is mapper-configured
 from src.db.database import engine, get_db
 from src.domains.auth.rate_limit import limiter
 from src.main import app

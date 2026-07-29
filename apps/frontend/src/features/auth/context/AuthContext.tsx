@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
-import { refreshAccessToken } from "@/lib/apiClient";
+import { onUnauthorized, refreshAccessToken } from "@/lib/apiClient";
 import { setAccessToken } from "@/lib/tokenStore";
 
 import { authApi, type AuthUser } from "../api/authApi";
@@ -37,6 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       clearSession();
     }
+  }, [clearSession]);
+
+  useEffect(() => {
+    onUnauthorized(clearSession);
   }, [clearSession]);
 
   useEffect(() => {

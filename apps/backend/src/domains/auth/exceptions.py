@@ -7,14 +7,12 @@ branch on a stable machine-readable identifier instead of parsing prose.
 
 from __future__ import annotations
 
+from src.core.exceptions import AppError
 
-class AuthError(Exception):
+
+class AuthError(AppError):
     status_code: int = 400
     code: str = "AUTH_ERROR"
-
-    def __init__(self, message: str | None = None) -> None:
-        self.message = message or self.__class__.__doc__ or "Authentication error"
-        super().__init__(self.message)
 
 
 class EmailAlreadyRegistered(AuthError):

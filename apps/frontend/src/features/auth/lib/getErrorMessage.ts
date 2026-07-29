@@ -1,6 +1,8 @@
 import { isAxiosError } from "axios";
 
-/** Backend errors always come back as {"detail": string, "code": string}. */
+import { parseApiError } from "@/lib/apiError";
+
+/** Backend errors come back as {"error": {code, message, details}} — see `lib/apiError.ts`. */
 export function getAuthErrorMessage(
   error: unknown,
   fallback = "Something went wrong. Please try again.",
@@ -9,9 +11,9 @@ export function getAuthErrorMessage(
     if (error.response?.status === 429) {
       return "Too many attempts. Please wait a moment and try again.";
     }
-    const detail = (error.response?.data as { detail?: string } | undefined)?.detail;
-    if (typeof detail === "string" && detail.length > 0) {
-      return detail;
+    const apiError = parseApiError(error);
+    if (apiError) {
+      return apiError.message;
     }
     if (error.request && !error.response) {
       return "Can't reach the server. Check your connection and try again.";

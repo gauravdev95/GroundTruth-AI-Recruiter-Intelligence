@@ -10,9 +10,12 @@ interface ProtectedRouteProps {
 }
 
 /**
- * Role-guarded route wrapper. No Phase 3 dashboards exist yet to guard —
- * this is the primitive those routes will use, exercised today only by
- * the placeholder authenticated landing state.
+ * Role-guarded route wrapper, used by the candidate/recruiter dashboard
+ * shells. Unauthenticated users are sent to "/" — this app's actual
+ * sign-in entry point is the landing page's nav "Login" button +
+ * `RoleSelectModal`; there is no standalone `/login` route. Authenticated
+ * users whose role isn't in `allow` get a dedicated 403 page instead of a
+ * silent redirect, so it's clear *why* they can't see the page.
  */
 export function ProtectedRoute({ allow, children }: ProtectedRouteProps) {
   const { user, isLoading } = useAuthContext();
@@ -25,8 +28,12 @@ export function ProtectedRoute({ allow, children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user || !allow.includes(user.role)) {
+  if (!user) {
     return <Navigate to="/" replace />;
+  }
+
+  if (!allow.includes(user.role)) {
+    return <Navigate to="/403" replace />;
   }
 
   return <>{children}</>;

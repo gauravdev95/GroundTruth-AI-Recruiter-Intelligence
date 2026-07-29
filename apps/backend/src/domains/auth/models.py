@@ -76,8 +76,12 @@ class RecruiterProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
     )
     company_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     user: Mapped["User"] = relationship(back_populates="recruiter_profile")
+    company: Mapped["Company | None"] = relationship(back_populates="recruiter_profiles")  # noqa: F821
 
 
 class RefreshToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
