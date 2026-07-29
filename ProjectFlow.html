@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groundtruth — Recruiter Intelligence Execution Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   GROUNDTRUTH — DESIGN TOKENS
+   Concept: an evidence ledger / verification console.
+   Everything reads like a case file: stamps, chain-of-custody
+   lines, diff markers (claim vs verified), monospace exhibits.
+   ============================================================ */
+:root{
+  --bg: #0a0b0e;
+  --bg-raise: #0e1015;
+  --panel: #12141a;
+  --panel-2: #171a21;
+  --panel-3: #1b1e26;
+  --border: #232733;
+  --border-soft: #1a1d26;
+  --text: #e9ebf1;
+  --text-dim: #b7bdcc;
+  --muted: #838ba0;
+  --muted-2: #5b6274;
+  --gold: #e8a33d;
+  --gold-dim: #7a5a29;
+  --cyan: #49d3c7;
+  --cyan-dim: #2b6b66;
+  --red: #e5566a;
+  --red-dim: #7a2e39;
+  --green: #6bcf8e;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 3px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:15px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    linear-gradient(var(--border-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-soft) 1px, transparent 1px);
+  background-size:64px 64px;
+  background-attachment:fixed;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important;}
+}
+::selection{background:var(--gold); color:#0a0b0e;}
+a{color:inherit;text-decoration:none;}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:600;letter-spacing:-0.01em;}
+.mono{font-family:var(--font-mono);}
+.container{max-width:1320px;margin:0 auto;padding:0 32px;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;}
+::-webkit-scrollbar-thumb:hover{background:var(--muted-2);}
+
+/* ---------- eyebrow / labels ---------- */
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--gold);
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:14px;
+}
+.eyebrow::before{content:"";width:16px;height:1px;background:var(--gold);display:inline-block;}
+
+/* ---------- stamp badge (signature element) ---------- */
+.stamp{
+  --stamp-color: var(--muted-2);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-family:var(--font-mono);
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:0.09em;
+  text-transform:uppercase;
+  color:var(--stamp-color);
+  border:1.5px dashed var(--stamp-color);
+  border-radius:100px;
+  padding:5px 12px;
+  transform:rotate(-3deg);
+  white-space:nowrap;
+  position:relative;
+}
+.stamp::after{
+  content:"";
+  position:absolute;inset:2px;
+  border:1px solid var(--stamp-color);
+  border-radius:100px;
+  opacity:.45;
+}
+.stamp.verified{--stamp-color: var(--green);}
+.stamp.progress{--stamp-color: var(--gold);}
+.stamp.pending{--stamp-color: var(--muted-2);}
+.stamp.risk{--stamp-color: var(--red);}
+
+/* ============================================================
+   TOP NAV
+   ============================================================ */
+.topbar{
+  position:sticky; top:0; z-index:100;
+  background:rgba(10,11,14,0.86);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border-soft);
+}
+.topbar-inner{
+  max-width:1320px;margin:0 auto;padding:14px 32px;
+  display:flex;align-items:center;justify-content:space-between;gap:24px;
+}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-0.01em;}
+.brand-mark{
+  width:26px;height:26px;border:1.5px solid var(--gold);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:11px;color:var(--gold);font-weight:700;
+  transform:rotate(0deg);
+  position:relative;
+}
+.brand-mark::after{content:"";position:absolute;inset:-4px;border:1px solid var(--gold-dim);border-radius:6px;}
+.nav-scroll{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.nav-scroll::-webkit-scrollbar{display:none;}
+.nav-link{
+  font-family:var(--font-mono);font-size:11.5px;color:var(--muted);
+  padding:8px 11px;border-radius:var(--radius);white-space:nowrap;
+  transition:color .15s, background .15s;
+  letter-spacing:0.02em;
+}
+.nav-link:hover{color:var(--text);background:var(--panel-2);}
+.nav-link.active{color:var(--gold);background:var(--panel-2);}
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero{position:relative;padding:110px 0 90px;overflow:hidden;border-bottom:1px solid var(--border-soft);}
+.hero-grid{position:absolute;inset:0;pointer-events:none;opacity:0.5;
+  background-image: radial-gradient(circle at 18% 20%, rgba(232,163,61,0.08), transparent 45%),
+                     radial-gradient(circle at 82% 10%, rgba(73,211,199,0.08), transparent 40%);
+}
+.hero-inner{position:relative;display:grid;grid-template-columns:1.25fr 0.9fr;gap:56px;align-items:end;}
+.hero h1{font-size:clamp(38px,5vw,64px);line-height:1.03;letter-spacing:-0.02em;margin-bottom:22px;}
+.hero h1 .accent{color:var(--gold);}
+.hero-lede{font-size:17px;color:var(--text-dim);max-width:560px;margin-bottom:30px;}
+.hero-cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:36px;}
+.btn{
+  font-family:var(--font-mono);font-size:12.5px;font-weight:600;letter-spacing:0.03em;
+  padding:12px 20px;border-radius:var(--radius);cursor:pointer;border:1px solid transparent;
+  display:inline-flex;align-items:center;gap:8px;transition:transform .15s, border-color .15s, background .15s;
+}
+.btn-primary{background:var(--gold);color:#100c04;}
+.btn-primary:hover{transform:translateY(-1px);background:#f0ae4c;}
+.btn-ghost{border-color:var(--border);color:var(--text-dim);}
+.btn-ghost:hover{border-color:var(--muted-2);color:var(--text);}
+.hero-meta-row{display:flex;gap:28px;flex-wrap:wrap;}
+.hero-meta{font-family:var(--font-mono);}
+.hero-meta .num{font-size:26px;color:var(--text);font-weight:700;}
+.hero-meta .lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;}
+
+/* case-file card in hero */
+.case-file{
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:22px 22px 18px;
+  position:relative;
+}
+.case-file::before{
+  content:"EXHIBIT — CANDIDATE / EVIDENCE";
+  position:absolute;top:-10px;left:16px;background:var(--bg);padding:0 8px;
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.12em;color:var(--muted-2);
+}
+.diff-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed var(--border-soft);font-family:var(--font-mono);font-size:12.5px;}
+.diff-row:last-child{border-bottom:none;}
+.diff-claim{color:var(--red);}
+.diff-claim::before{content:"− CLAIM  ";color:var(--red-dim);}
+.diff-evidence{color:var(--cyan);}
+.diff-evidence::before{content:"+ EVIDENCE  ";color:var(--cyan-dim);}
+
+/* ============================================================
+   SECTION SHELL
+   ============================================================ */
+section{padding:88px 0;border-bottom:1px solid var(--border-soft);}
+.section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;margin-bottom:42px;flex-wrap:wrap;}
+.section-head h2{font-size:clamp(26px,3vw,36px);}
+.section-desc{color:var(--muted);max-width:460px;font-size:14px;}
+
+/* ---------- vision / problem ---------- */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:48px;}
+.pillar-list{display:flex;flex-direction:column;gap:0;margin-top:8px;}
+.pillar{display:flex;gap:16px;padding:18px 0;border-top:1px solid var(--border-soft);}
+.pillar:last-child{border-bottom:1px solid var(--border-soft);}
+.pillar-idx{font-family:var(--font-mono);color:var(--gold);font-size:12px;padding-top:2px;}
+.pillar-title{font-family:var(--font-display);font-size:15.5px;margin-bottom:4px;}
+.pillar-body{color:var(--muted);font-size:13.5px;}
+
+.problem-card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:26px;}
+.problem-card h3{font-size:16px;margin-bottom:10px;}
+.problem-card p{color:var(--muted);font-size:13.5px;}
+.problem-stack{display:flex;flex-direction:column;gap:14px;}
+
+/* ============================================================
+   ARCHITECTURE / FLOW DIAGRAMS
+   ============================================================ */
+.flow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:28px;}
+.flow-step{
+  background:var(--panel-2);border:1px solid var(--border);border-radius:5px;
+  padding:14px 16px;min-width:150px;flex:1;
+  display:flex;flex-direction:column;gap:4px;position:relative;
+}
+.flow-step .ft-label{font-family:var(--font-mono);font-size:9.5px;color:var(--muted-2);letter-spacing:0.08em;text-transform:uppercase;}
+.flow-step .ft-name{font-family:var(--font-display);font-size:13.5px;color:var(--text);}
+.flow-arrow{display:flex;align-items:center;justify-content:center;padding:0 10px;color:var(--gold);font-family:var(--font-mono);font-size:16px;min-width:28px;}
+.flow.vertical{flex-direction:column;}
+.flow.vertical .flow-arrow{padding:6px 0;}
+.diagram-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px;}
+.diagram-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:24px;}
+.diagram-card h4{font-size:14px;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.diagram-card h4::before{content:"◆";color:var(--gold);font-size:10px;}
+
+/* ============================================================
+   ROADMAP OVERVIEW GRID
+   ============================================================ */
+.roadmap-overview{position:relative;}
+.spine{position:relative;padding-left:34px;}
+.spine::before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:1px;background:linear-gradient(var(--border), var(--border) 100%);background-image:repeating-linear-gradient(180deg, var(--border) 0 6px, transparent 6px 12px);}
+.rmap-row{position:relative;display:grid;grid-template-columns:220px 1fr 120px 90px;gap:18px;align-items:center;padding:14px 0;border-bottom:1px solid var(--border-soft);}
+.rmap-row:hover{background:var(--panel);}
+.rmap-node{position:absolute;left:-34px;top:50%;transform:translateY(-50%);width:19px;height:19px;border-radius:50%;background:var(--bg);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;}
+.rmap-row.done .rmap-node{border-color:var(--green);background:var(--green);}
+.rmap-row.active .rmap-node{border-color:var(--gold);box-shadow:0 0 0 4px rgba(232,163,61,0.15);}
+.rmap-phase{font-family:var(--font-mono);font-size:12px;color:var(--muted);}
+.rmap-name{font-family:var(--font-display);font-size:14.5px;}
+.rmap-bar-track{height:5px;background:var(--panel-2);border-radius:3px;overflow:hidden;}
+.rmap-bar-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--cyan));border-radius:3px;}
+.rmap-pct{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-align:right;}
+
+/* ============================================================
+   PHASE EXECUTION CARDS (accordion + tabs)
+   ============================================================ */
+.phase-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden;}
+.phase-head{display:flex;align-items:center;gap:18px;padding:20px 22px;cursor:pointer;user-select:none;}
+.phase-num{font-family:var(--font-mono);font-size:11px;color:var(--gold);border:1px solid var(--gold-dim);border-radius:4px;padding:4px 8px;}
+.phase-titles{flex:1;min-width:0;}
+.phase-titles h3{font-size:17px;margin-bottom:3px;}
+.phase-titles .ph-tag{font-size:12px;color:var(--muted);}
+.phase-progress-mini{width:110px;flex-shrink:0;}
+.phase-progress-mini .rmap-bar-track{height:4px;}
+.phase-timeline-chip{font-family:var(--font-mono);font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:4px 10px;white-space:nowrap;}
+.chev{color:var(--muted);transition:transform .2s;font-size:12px;}
+.phase-card.open .chev{transform:rotate(180deg);}
+.phase-body{max-height:0;overflow:hidden;transition:max-height .3s ease;border-top:1px solid var(--border-soft);}
+.phase-card.open .phase-body{max-height:3200px;}
+.phase-body-inner{padding:22px;}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border-soft);padding-bottom:12px;}
+.tab-btn{font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.04em;text-transform:uppercase;color:var(--muted);background:var(--panel-2);border:1px solid var(--border);border-radius:20px;padding:6px 12px;cursor:pointer;transition:all .15s;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:#100c04;background:var(--gold);border-color:var(--gold);}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;animation:fadein .2s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
+.ul-clean{list-style:none;display:flex;flex-direction:column;gap:9px;}
+.ul-clean li{padding-left:18px;position:relative;font-size:13.5px;color:var(--text-dim);}
+.ul-clean li::before{content:"→";position:absolute;left:0;color:var(--gold);font-size:12px;}
+.dep-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.dep-chip{font-family:var(--font-mono);font-size:11px;color:var(--cyan);border:1px solid var(--cyan-dim);border-radius:20px;padding:5px 11px;}
+.commit-list{display:flex;flex-direction:column;gap:0;}
+.commit-row{display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px dashed var(--border-soft);font-family:var(--font-mono);font-size:12px;}
+.commit-hash{color:var(--gold);flex-shrink:0;}
+.commit-type{color:var(--cyan);flex-shrink:0;}
+.commit-msg{color:var(--text-dim);}
+.folder-tree{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);white-space:pre;line-height:1.75;overflow-x:auto;background:var(--panel-2);border:1px solid var(--border-soft);border-radius:6px;padding:16px;}
+.doc-list{display:flex;flex-wrap:wrap;gap:8px;}
+.doc-chip{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);border:1px solid var(--border);border-radius:4px;padding:6px 10px;background:var(--panel-2);}
+.doc-chip::before{content:"⌗ ";color:var(--muted-2);}
+.test-list{display:flex;flex-direction:column;gap:8px;}
+.test-row{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-dim);}
+.checkbox{width:15px;height:15px;border:1.5px solid var(--border);border-radius:3px;flex-shrink:0;display:inline-block;position:relative;}
+.checkbox.checked{border-color:var(--green);background:var(--green);}
+.checkbox.checked::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#0a0b0e;font-weight:700;}
+.note-block{background:var(--panel-2);border-left:2px solid var(--gold);border-radius:0 6px 6px 0;padding:14px 16px;font-size:13px;color:var(--text-dim);}
+.meta-strip{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:20px;font-family:var(--font-mono);font-size:11.5px;color:var(--muted);}
+.meta-strip b{color:var(--text);}
+
+/* ============================================================
+   SPRINT / MILESTONE / RISK / DEPLOY / CHANGELOG
+   ============================================================ */
+.sprint-track{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;}
+.sprint-card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px;}
+.sprint-card .sp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.sprint-card h4{font-size:13.5px;}
+.sprint-card .sp-weeks{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);}
+.sprint-card p{color:var(--muted);font-size:12.5px;}
+
+.milestone-line{position:relative;padding:20px 0;}
+.milestone-track{position:relative;height:2px;background:var(--border);margin:60px 20px 0;}
+.milestone-pt{position:absolute;top:-6px;width:14px;height:14px;border-radius:50%;background:var(--bg);border:2px solid var(--gold);}
+.milestone-pt .m-label{position:absolute;top:-58px;left:50%;transform:translateX(-50%);width:150px;text-align:center;}
+.milestone-pt .m-label .m-date{font-family:var(--font-mono);font-size:10px;color:var(--muted);display:block;}
+.milestone-pt .m-label .m-name{font-family:var(--font-display);font-size:12.5px;}
+.milestone-pt .m-below{position:absolute;top:22px;left:50%;transform:translateX(-50%);width:150px;text-align:center;font-size:11px;color:var(--muted-2);font-family:var(--font-mono);}
+
+.risk-table{width:100%;border-collapse:collapse;}
+.risk-table th{text-align:left;font-family:var(--font-mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted-2);padding:10px 14px;border-bottom:1px solid var(--border);}
+.risk-table td{padding:14px;border-bottom:1px solid var(--border-soft);font-size:13px;color:var(--text-dim);vertical-align:top;}
+.risk-level{font-family:var(--font-mono);font-size:10.5px;padding:3px 9px;border-radius:20px;font-weight:700;letter-spacing:0.04em;}
+.risk-level.high{color:var(--red);border:1px solid var(--red-dim);}
+.risk-level.med{color:var(--gold);border:1px solid var(--gold-dim);}
+.risk-level.low{color:var(--cyan);border:1px solid var(--cyan-dim);}
+
+.deploy-pipe{display:flex;gap:0;overflow-x:auto;padding-bottom:8px;}
+.deploy-stage{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:16px 18px;min-width:170px;flex-shrink:0;position:relative;}
+.deploy-stage + .deploy-stage{margin-left:22px;}
+.deploy-stage + .deploy-stage::before{content:"";position:absolute;left:-22px;top:50%;width:22px;height:1px;background:var(--border);}
+.deploy-stage h4{font-size:13px;margin-bottom:6px;}
+.deploy-stage p{font-size:11.5px;color:var(--muted);}
+
+.changelog-item{display:grid;grid-template-columns:110px 70px 1fr;gap:16px;padding:16px 0;border-bottom:1px solid var(--border-soft);}
+.changelog-item .cl-date{font-family:var(--font-mono);font-size:11.5px;color:var(--muted);}
+.changelog-item .cl-tag{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;color:var(--cyan);align-self:start;}
+.changelog-item .cl-desc{font-size:13.5px;color:var(--text-dim);}
+
+.future-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
+.future-card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:20px;}
+.future-card .fc-eta{font-family:var(--font-mono);font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
+.future-card h4{font-size:14.5px;margin-bottom:8px;}
+.future-card p{font-size:12.5px;color:var(--muted);}
+
+/* progress tracker overall */
+.tracker-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px;}
+.tracker-stat{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:20px;}
+.tracker-stat .t-num{font-family:var(--font-display);font-size:32px;color:var(--text);}
+.tracker-stat .t-lbl{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;}
+.ring-wrap{display:flex;align-items:center;gap:36px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:28px;}
+.ring{position:relative;width:150px;height:150px;flex-shrink:0;}
+.ring svg{transform:rotate(-90deg);}
+.ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring-label .r-num{font-family:var(--font-display);font-size:26px;}
+.ring-label .r-txt{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);text-transform:uppercase;}
+.legend{display:flex;flex-direction:column;gap:10px;font-family:var(--font-mono);font-size:12px;}
+.legend-item{display:flex;align-items:center;gap:8px;}
+.legend-dot{width:9px;height:9px;border-radius:2px;}
+
+/* dependency graph */
+.dep-graph{display:flex;flex-direction:column;gap:10px;}
+.dep-graph-row{display:grid;grid-template-columns:190px 1fr;gap:16px;align-items:center;}
+.dep-graph-name{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);text-align:right;}
+.dep-graph-bars{display:flex;gap:6px;flex-wrap:wrap;}
+.dep-graph-bars .db{font-family:var(--font-mono);font-size:10.5px;color:var(--bg);background:var(--muted-2);border-radius:3px;padding:4px 8px;}
+.dep-graph-bars .db.self{background:var(--gold);color:#100c04;}
+
+/* footer */
+footer{padding:50px 0;text-align:center;color:var(--muted-2);font-family:var(--font-mono);font-size:11.5px;}
+
+/* responsive */
+@media (max-width: 980px){
+  .hero-inner{grid-template-columns:1fr;}
+  .two-col{grid-template-columns:1fr;}
+  .diagram-grid{grid-template-columns:1fr;}
+  .rmap-row{grid-template-columns:1fr;gap:6px;}
+  .tracker-grid{grid-template-columns:repeat(2,1fr);}
+  .milestone-track{margin:60px 10px 0;}
+}
+@media (max-width: 600px){
+  .container{padding:0 18px;}
+  section{padding:56px 0;}
+  .hero{padding:70px 0 50px;}
+}
+
+/* fade-in-on-scroll */
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease, transform .5s ease;}
+.reveal.in{opacity:1;transform:translateY(0);}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     TOP NAV
+============================================================ -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="brand-mark">G</span>Groundtruth</div>
+    <nav class="nav-scroll" id="navScroll">
+      <a class="nav-link" href="#vision">Vision</a>
+      <a class="nav-link" href="#problem">Problem</a>
+      <a class="nav-link" href="#architecture">Architecture</a>
+      <a class="nav-link" href="#roadmap">Roadmap</a>
+      <a class="nav-link" href="#phases">Phases</a>
+      <a class="nav-link" href="#sprints">Sprints</a>
+      <a class="nav-link" href="#commits">Commits</a>
+      <a class="nav-link" href="#docs">Docs</a>
+      <a class="nav-link" href="#dependencies">Dependencies</a>
+      <a class="nav-link" href="#diagrams">Diagrams</a>
+      <a class="nav-link" href="#tracker">Tracker</a>
+      <a class="nav-link" href="#milestones">Milestones</a>
+      <a class="nav-link" href="#risk">Risk</a>
+      <a class="nav-link" href="#deploy">Deploy</a>
+      <a class="nav-link" href="#changelog">Changelog</a>
+      <a class="nav-link" href="#future">Future</a>
+    </nav>
+  </div>
+</div>
+
+<!-- ============================================================
+     HERO
+============================================================ -->
+<section class="hero" style="border-top:none;padding-top:64px;">
+  <div class="hero-grid"></div>
+  <div class="container hero-inner">
+    <div>
+      <div class="eyebrow">Recruiter Intelligence · Execution Console</div>
+      <h1>Stop hiring on<br><span class="accent">claims.</span> Start hiring<br>on <span class="accent">evidence.</span></h1>
+      <p class="hero-lede">Groundtruth turns resumes into testable hypotheses — then verifies every one against real commits, real repositories, and a repository-grounded AI interview. This console tracks the build, day one to production.</p>
+      <div class="hero-cta-row">
+        <a href="#roadmap" class="btn btn-primary">View execution roadmap →</a>
+        <a href="#architecture" class="btn btn-ghost">See system architecture</a>
+      </div>
+      <div class="hero-meta-row">
+        <div class="hero-meta"><div class="num mono">20</div><div class="lbl">Build phases</div></div>
+        <div class="hero-meta"><div class="num mono">01</div><div class="lbl">Phases in motion</div></div>
+        <div class="hero-meta"><div class="num mono">140+</div><div class="lbl">Tracked deliverables</div></div>
+        <div class="hero-meta"><div class="num mono">Day 1</div><div class="lbl">Current checkpoint</div></div>
+      </div>
+    </div>
+    <div class="case-file">
+      <div class="diff-row"><span class="diff-claim">"5 years React, expert in distributed systems"</span></div>
+      <div class="diff-row"><span class="diff-evidence">14 merged PRs across 3 production repos, avg. review cycle 1.2d</span></div>
+      <div class="diff-row"><span class="diff-claim">"Built scalable microservices at scale"</span></div>
+      <div class="diff-row"><span class="diff-evidence">Repo-grounded interview: correctly explained own retry/backoff logic</span></div>
+      <div class="diff-row"><span class="diff-claim">"Strong ownership of backend architecture"</span></div>
+      <div class="diff-row"><span class="diff-evidence">Contribution graph: 78% of core service commits, 0 reverted merges</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     VISION
+============================================================ -->
+<section id="vision">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <div class="eyebrow">Mission &amp; Vision</div>
+        <h2>Engineering evidence,<br>not engineering claims.</h2>
+      </div>
+      <p class="section-desc">Groundtruth analyzes real project work, GitHub repositories, technical contributions, project-specific AI interviews, coding profiles, and interview-consistent experience evidence — then compresses all of it into a single explainable evidence vector per candidate.</p>
+    </div>
+    <div class="two-col">
+      <div class="reveal">
+        <h3 style="font-size:19px;margin-bottom:14px;">Core philosophy</h3>
+        <p style="color:var(--muted);font-size:14.5px;max-width:460px;">Don't trust claims. Verify engineering ability through evidence. Every score Groundtruth produces must be traceable back to a commit, a diff, a repository, or a specific answer given in a grounded interview — never a black box.</p>
+        <div class="pillar-list">
+          <div class="pillar"><div class="pillar-idx">01</div><div><div class="pillar-title">Verify, don't trust</div><div class="pillar-body">Resume claims are hypotheses. Repository and interview evidence either confirms or contradicts them.</div></div></div>
+          <div class="pillar"><div class="pillar-idx">02</div><div><div class="pillar-title">Explainability over scoring</div><div class="pillar-body">Every ranking ships with the exact evidence trail a recruiter can inspect and defend.</div></div></div>
+          <div class="pillar"><div class="pillar-idx">03</div><div><div class="pillar-title">Grounded, not generic</div><div class="pillar-body">AI interviews are generated from the candidate's own repositories — no generic question banks.</div></div></div>
+        </div>
+      </div>
+      <div class="reveal">
+        <h3 style="font-size:19px;margin-bottom:14px;">Who this is built for</h3>
+        <div class="problem-stack">
+          <div class="problem-card"><h3>Technical recruiters &amp; TA teams</h3><p>Screen for engineering ability without needing to read code themselves.</p></div>
+          <div class="problem-card"><h3>Engineering managers</h3><p>Validate a shortlist against real contribution history before a single interview slot is spent.</p></div>
+          <div class="problem-card"><h3>Startups &amp; scaleups</h3><p>Hire senior-caliber engineers fast, without a senior-heavy interview loop.</p></div>
+          <div class="problem-card"><h3>University hiring teams</h3><p>Assess early-career candidates on demonstrated project work, not GPA and buzzwords.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     PROBLEM STATEMENT
+============================================================ -->
+<section id="problem">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Problem Statement</div><h2>Resumes are marketing copy.<br>Hiring shouldn't run on it.</h2></div>
+      <p class="section-desc">Technical hiring today is bottlenecked by unverifiable self-reporting, expensive human screening, and interview loops that test performance under pressure — not real engineering ability.</p>
+    </div>
+    <div class="diagram-grid">
+      <div class="diagram-card reveal">
+        <h4>What breaks today</h4>
+        <ul class="ul-clean">
+          <li>Recruiters can't independently verify technical claims at the volume they screen.</li>
+          <li>Take-home tests and whiteboard interviews measure interview skill, not job skill.</li>
+          <li>Strong GitHub profiles get buried under keyword-matched resumes.</li>
+          <li>Engineering managers spend hours on candidates who fail basic technical depth checks.</li>
+          <li>There is no explainable record of *why* a candidate was ranked highly.</li>
+        </ul>
+      </div>
+      <div class="diagram-card reveal">
+        <h4>What Groundtruth changes</h4>
+        <ul class="ul-clean">
+          <li>Every skill claim is checked against commit history, contribution patterns, and code ownership.</li>
+          <li>AI interviews are generated from the candidate's own repositories — impossible to game generically.</li>
+          <li>Coding profile and experience evidence corroborate (or contradict) the resume automatically.</li>
+          <li>Recruiters search and rank on a single explainable evidence vector, not a gut feeling.</li>
+          <li>Every hiring decision ships with a traceable evidence trail.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     ARCHITECTURE — core workflow + product architecture
+============================================================ -->
+<section id="architecture">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Product Architecture</div><h2>The core evidence pipeline</h2></div>
+      <p class="section-desc">One continuous pipeline turns a raw candidate profile into an explainable, ranked hiring recommendation.</p>
+    </div>
+    <div class="flow vertical reveal" id="coreFlow"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     ROADMAP OVERVIEW
+============================================================ -->
+<section id="roadmap">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Complete Development Roadmap</div><h2>20 phases, Day 1 to production</h2></div>
+      <p class="section-desc">Chain-of-custody view of the build. Each node below expands into a full case file in the Phase-wise Execution section.</p>
+    </div>
+    <div class="spine reveal" id="roadmapSpine"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     PHASE-WISE EXECUTION (main content)
+============================================================ -->
+<section id="phases">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Phase-wise Execution</div><h2>The full case file, per phase</h2></div>
+      <p class="section-desc">Objectives, features, tasks, deliverables, dependencies, git plan, folder structure, docs, testing checklist, timeline, status and notes — for all 20 phases.</p>
+    </div>
+    <div id="phaseCards"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SPRINT PLANNING
+============================================================ -->
+<section id="sprints">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Sprint Planning</div><h2>Two-week execution cadence</h2></div>
+      <p class="section-desc">Phases are broken into two-week sprints, grouped by pipeline stage.</p>
+    </div>
+    <div class="sprint-track reveal" id="sprintTrack"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     GIT COMMIT TIMELINE
+============================================================ -->
+<section id="commits">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Git Commit Timeline</div><h2>Chain of custody for the codebase</h2></div>
+      <p class="section-desc">Planned commit checkpoints across the whole build, in conventional-commit style.</p>
+    </div>
+    <div class="commit-list reveal" id="globalCommits"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     DOCUMENTATION TREE
+============================================================ -->
+<section id="docs">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Documentation Tree</div><h2>Every phase, documented</h2></div>
+      <p class="section-desc">Canonical docs structure maintained alongside the codebase.</p>
+    </div>
+    <div class="folder-tree reveal" id="docsTree"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FEATURE DEPENDENCIES
+============================================================ -->
+<section id="dependencies">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Feature Dependencies</div><h2>What blocks what</h2></div>
+      <p class="section-desc">Downstream phases that consume a given phase's output. Gold marker is the phase itself.</p>
+    </div>
+    <div class="dep-graph reveal" id="depGraph"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SYSTEM ARCHITECTURE DIAGRAMS
+============================================================ -->
+<section id="diagrams">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">System Architecture Diagrams</div><h2>Backend, frontend, AI &amp; data workflows</h2></div>
+      <p class="section-desc">Backend workflow, frontend workflow, AI workflow, database design, API flow, repository analysis flow, recruiter workflow and candidate workflow.</p>
+    </div>
+    <div class="diagram-grid" id="diagramGrid"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     PROGRESS TRACKER
+============================================================ -->
+<section id="tracker">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Progress Tracker</div><h2>Where the build stands today</h2></div>
+      <p class="section-desc">Aggregated across all 20 phases.</p>
+    </div>
+    <div class="tracker-grid reveal" id="trackerGrid"></div>
+    <div class="ring-wrap reveal" id="ringWrap"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MILESTONE TIMELINE
+============================================================ -->
+<section id="milestones">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Milestone Timeline</div><h2>Key delivery checkpoints</h2></div>
+      <p class="section-desc">Major go/no-go checkpoints from kickoff to GA.</p>
+    </div>
+    <div class="milestone-line reveal">
+      <div class="milestone-track" id="milestoneTrack"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     RISK MANAGEMENT
+============================================================ -->
+<section id="risk">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Risk Management</div><h2>Known risks &amp; mitigations</h2></div>
+      <p class="section-desc">Tracked at the platform level, reviewed every sprint.</p>
+    </div>
+    <div style="overflow-x:auto;" class="reveal">
+      <table class="risk-table" id="riskTable"></table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     DEPLOYMENT PIPELINE
+============================================================ -->
+<section id="deploy">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Deployment Pipeline</div><h2>From commit to production</h2></div>
+      <p class="section-desc">Every merge to main flows through this pipeline before reaching candidates and recruiters.</p>
+    </div>
+    <div class="deploy-pipe reveal" id="deployPipe"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     CHANGELOG
+============================================================ -->
+<section id="changelog">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Changelog</div><h2>Build log</h2></div>
+      <p class="section-desc">Running record, most recent first.</p>
+    </div>
+    <div id="changelogList" class="reveal"></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FUTURE ROADMAP
+============================================================ -->
+<section id="future" style="border-bottom:none;">
+  <div class="container">
+    <div class="section-head reveal">
+      <div><div class="eyebrow">Future Roadmap</div><h2>Beyond v1</h2></div>
+      <p class="section-desc">Directional — sequenced after core platform GA.</p>
+    </div>
+    <div class="future-grid reveal" id="futureGrid"></div>
+  </div>
+</section>
+
+<footer>
+  GROUNDTRUTH © 2026 — INTERNAL EXECUTION DASHBOARD — CONFIDENTIAL — GENERATED FOR PROJECT TRACKING
+</footer>
+
+<script>
+/* ============================================================
+   DATA MODEL
+============================================================ */
+const STATUS = {
+  DONE: {key:'done', label:'Verified', stamp:'verified'},
+  ACTIVE: {key:'active', label:'In Progress', stamp:'progress'},
+  PENDING: {key:'pending', label:'Pending', stamp:'pending'},
+};
+
+const phases = [
+{
+  n:1, name:"Research & Product Planning", tag:"Market, users, evidence taxonomy", status:'ACTIVE', progress:55, weeks:"Wk 1–2",
+  objectives:["Define the evidence taxonomy (repo, contribution, interview, coding profile, experience).","Validate the problem with 15+ technical recruiters and 10+ engineering managers.","Size the market across SaaS, enterprise, and university hiring segments.","Lock the v1 scope: which evidence sources ship first."],
+  features:["Recruiter discovery interview program","Competitive teardown (ATS + skills-assessment incumbents)","Evidence taxonomy specification v1","Candidate + recruiter persona set"],
+  tasks:["Draft and run 25 discovery interview scripts","Map existing ATS/assessment competitor feature sets","Define MVP evidence sources vs. roadmap sources","Write the product requirements document (PRD)","Define success metrics: time-to-shortlist, false-positive rate"],
+  deliverables:["PRD v1","Evidence taxonomy spec","Persona deck","Competitive landscape doc","Success metrics framework"],
+  dependencies:[],
+  commits:[["a1f92c3","docs","add product requirements document v1"],["b04e7d1","docs","define evidence taxonomy spec"],["c7a441e","docs","persona and competitive research summary"]],
+  folder:"docs/\n├── 01-research/\n│   ├── prd-v1.md\n│   ├── evidence-taxonomy.md\n│   ├── personas.md\n│   ├── competitive-landscape.md\n│   └── success-metrics.md",
+  docs:["prd-v1.md","evidence-taxonomy.md","personas.md","interview-notes/"],
+  testing:[["Discovery interview script peer-reviewed",true],["PRD reviewed by eng + design + GTM",true],["Evidence taxonomy validated against 3 sample profiles",false]],
+  notes:"Recruiter interviews are surfacing a strong signal: false positives on 'senior' titles are the #1 pain point, more than screening volume.",
+  next:"Finalize MVP evidence source list and hand off to System Architecture (Phase 2)."
+},
+{
+  n:2, name:"System Architecture", tag:"Platform topology, data flow, tech stack", status:'PENDING', progress:15, weeks:"Wk 2–3",
+  objectives:["Design the platform's service topology and data flow end to end.","Select the core stack across API, workers, storage, vector DB, and AI orchestration.","Define the evidence pipeline contract between ingestion, scoring, and search."],
+  features:["Service topology diagram","Tech stack decision record (ADR)","Data flow spec: candidate → evidence vector → ranking","Multi-tenant architecture for recruiter orgs"],
+  tasks:["Draft high-level architecture diagram (API, workers, queues, storage)","Select DB: Postgres for core, vector DB for evidence embeddings","Define async job architecture for repo analysis workloads","Write ADRs for framework, hosting, and AI provider choices","Design multi-tenant data isolation model"],
+  deliverables:["Architecture Decision Records (ADRs)","System topology diagram","Data flow specification","Tech stack lock document"],
+  dependencies:["Phase 1"],
+  commits:[["d29b810","docs","architecture decision records: stack selection"],["e63c204","chore","scaffold monorepo structure"],["f18a7b5","docs","data flow spec: ingestion to ranking"]],
+  folder:"docs/\n├── 02-architecture/\n│   ├── adr/\n│   │   ├── 0001-tech-stack.md\n│   │   ├── 0002-vector-db.md\n│   │   └── 0003-multi-tenancy.md\n│   ├── system-topology.md\n│   └── data-flow.md",
+  docs:["adr/0001-tech-stack.md","system-topology.md","data-flow.md","multi-tenancy.md"],
+  testing:[["Architecture reviewed with staff engineer",false],["Load assumptions validated for repo-analysis workers",false],["Multi-tenant isolation model threat-modeled",false]],
+  notes:"Leaning toward a queue-based worker architecture for repository analysis since GitHub API rate limits make synchronous scoring impractical at scale.",
+  next:"Lock ADRs, then unblock Phase 3 (Auth) and Phase 5 (Repository Intelligence Engine) in parallel."
+},
+{
+  n:3, name:"Authentication & User Management", tag:"Recruiter orgs, candidate accounts, RBAC", status:'PENDING', progress:0, weeks:"Wk 3–4",
+  objectives:["Ship secure authentication for both candidate and recruiter user types.","Support multi-seat recruiter organizations with role-based access.","Enable OAuth sign-in via GitHub, given its centrality to the product."],
+  features:["Email + OAuth (GitHub, Google) authentication","Recruiter org & team seat management","Role-based access control (Admin, Recruiter, Hiring Manager, Viewer)","Candidate self-serve account and consent management"],
+  tasks:["Implement auth service with JWT + refresh token rotation","Build GitHub OAuth flow (reused later for repo access scopes)","Design org/team/seat data model","Build RBAC middleware and permission matrix","Build candidate data-consent and privacy controls"],
+  deliverables:["Auth service (API)","RBAC permission matrix","Org & seat management UI","Candidate consent flow"],
+  dependencies:["Phase 2"],
+  commits:[["10c5e2a","feat","auth service with JWT + refresh rotation"],["21d6f3b","feat","GitHub OAuth integration"],["32e704c","feat","org, team and seat data model"],["43f815d","feat","RBAC middleware and permission matrix"]],
+  folder:"services/\n├── auth-service/\n│   ├── src/routes/\n│   ├── src/oauth/github.ts\n│   ├── src/rbac/\n│   └── src/models/\n│       ├── org.ts\n│       ├── seat.ts\n│       └── user.ts",
+  docs:["auth-flow.md","rbac-matrix.md","github-oauth-scopes.md","consent-and-privacy.md"],
+  testing:[["OAuth flow tested against GitHub sandbox app",false],["RBAC matrix covers all 4 roles x all resources",false],["Token rotation + revocation tested",false],["Candidate consent withdrawal deletes derived evidence",false]],
+  notes:"GitHub OAuth scope needs to be minimal at signup (public repo read) with a clear, separate consent step before any private repo access is ever requested.",
+  next:"Ship candidate + recruiter auth in parallel; candidate auth unblocks Phase 4."
+},
+{
+  n:4, name:"Candidate Platform", tag:"Profile, repo linking, evidence status", status:'PENDING', progress:0, weeks:"Wk 4–6",
+  objectives:["Give candidates a self-serve profile where they connect evidence sources.","Make the evidence-building process transparent and controllable by the candidate.","Surface a candidate-facing view of their own evidence vector."],
+  features:["Candidate profile builder","GitHub repository linking & permission scoping","Coding profile linking (LeetCode, Codeforces, HackerRank)","Evidence completeness meter","Candidate-facing evidence summary"],
+  tasks:["Build profile creation and editing flows","Build repo connect/disconnect UI with per-repo visibility toggle","Integrate coding-profile linking with verification pings","Build evidence completeness scoring UI","Build notification flow for interview invitations"],
+  deliverables:["Candidate profile web app","Repo linking flow","Coding profile integrations UI","Evidence completeness widget"],
+  dependencies:["Phase 3"],
+  commits:[["54a926e","feat","candidate profile builder"],["65ba037","feat","github repo linking with scoped permissions"],["76cb148","feat","coding profile linking flow"],["87dc259","feat","evidence completeness meter"]],
+  folder:"apps/\n├── candidate-web/\n│   ├── src/pages/profile/\n│   ├── src/pages/connect-repos/\n│   ├── src/pages/coding-profiles/\n│   └── src/components/EvidenceMeter.tsx",
+  docs:["candidate-onboarding.md","repo-linking-permissions.md","coding-profile-providers.md"],
+  testing:[["Repo connect/disconnect updates evidence pipeline in <1min",false],["Candidate can revoke access and see evidence removed",false],["Completeness meter matches backend evidence vector state",false]],
+  notes:"Candidates repeatedly asked in early usability tests to see *why* their evidence score changed — this shapes the design of the completeness widget.",
+  next:"Once repo linking ships, hand off to Phase 5 for ingestion and analysis."
+},
+{
+  n:5, name:"Repository Intelligence Engine", tag:"GitHub ingestion & static analysis", status:'PENDING', progress:0, weeks:"Wk 6–8",
+  objectives:["Ingest and index connected GitHub repositories reliably at scale.","Extract structural signal: languages, frameworks, architecture patterns, code quality markers.","Respect GitHub API rate limits with a resilient queue-based worker fleet."],
+  features:["Repo ingestion pipeline (clone, parse, index)","Language & framework detection","Code quality heuristics (test coverage signal, complexity, structure)","Architecture pattern detection (monorepo, microservices, MVC, etc.)"],
+  tasks:["Build repo clone + sandboxed static analysis workers","Integrate language/framework detectors per ecosystem","Build code-quality heuristic scoring (lint signal, test presence, complexity)","Build architecture pattern classifier","Build rate-limit-aware GitHub API client with backoff"],
+  deliverables:["Repository ingestion service","Static analysis worker fleet","Code quality heuristics module","Architecture pattern classifier"],
+  dependencies:["Phase 4"],
+  commits:[["98ed36a","feat","repo ingestion pipeline with sandboxed clone"],["a9fe47b","feat","language and framework detection"],["b10f58c","feat","code quality heuristics module"],["c2106ad","feat","rate-limit-aware GitHub API client"]],
+  folder:"services/\n├── repo-intelligence/\n│   ├── src/ingestion/\n│   ├── src/analyzers/\n│   │   ├── language.ts\n│   │   ├── quality.ts\n│   │   └── architecture.ts\n│   └── src/workers/clone-worker.ts",
+  docs:["ingestion-pipeline.md","quality-heuristics.md","architecture-detection.md","rate-limit-strategy.md"],
+  testing:[["Ingestion succeeds on top 20 languages' sample repos",false],["Worker fleet handles GitHub secondary rate limits gracefully",false],["Quality heuristics validated against 50 hand-labeled repos",false]],
+  notes:"Static analysis needs a hard sandbox boundary — no repo code should ever execute unsandboxed inside the analysis workers.",
+  next:"Feed structural output into Phase 6 (Contribution Analysis)."
+},
+{
+  n:6, name:"Contribution Analysis Engine", tag:"Commit graph, ownership, collaboration signal", status:'PENDING', progress:0, weeks:"Wk 8–10",
+  objectives:["Analyze commit history to measure real ownership vs. surface-level contribution.","Detect collaboration patterns: PR review activity, merge conflict resolution, pairing signal.","Separate solo side-projects from meaningful team contribution."],
+  features:["Commit graph analysis & ownership attribution","PR review + collaboration signal extraction","Contribution consistency & cadence scoring","Fork/clone vs. original-work detection"],
+  tasks:["Build commit graph parser with author/co-author attribution","Extract PR review comments, approval patterns, revert rates","Score contribution consistency over time windows","Detect copied/forked repos to avoid false ownership credit","Build per-repo ownership percentage calculator"],
+  deliverables:["Contribution analysis service","Ownership attribution model","Collaboration signal extractor","Fork/originality detector"],
+  dependencies:["Phase 5"],
+  commits:[["d3217be","feat","commit graph parser with ownership attribution"],["e4328cf","feat","PR review and collaboration signal extraction"],["f5439d0","feat","contribution consistency scoring"],["06540e1","feat","fork and originality detector"]],
+  folder:"services/\n├── contribution-analysis/\n│   ├── src/graph/\n│   ├── src/ownership/\n│   ├── src/collaboration/\n│   └── src/originality/",
+  docs:["ownership-model.md","collaboration-signals.md","originality-detection.md"],
+  testing:[["Ownership % validated against known ground-truth repos",false],["Fork detector correctly excludes unmodified forks",false],["Collaboration signal correlates with manual PR review",false]],
+  notes:"Ownership attribution has to account for squash-merged PRs losing individual commit authorship — this needs PR-level, not just commit-level, analysis.",
+  next:"Combine structural + contribution signal into Phase 7 (Skill Evidence Engine)."
+},
+{
+  n:7, name:"Skill Evidence Engine", tag:"Skill extraction & confidence scoring", status:'PENDING', progress:0, weeks:"Wk 10–12",
+  objectives:["Translate repository and contribution signal into concrete, named skill evidence.","Assign a confidence score to every skill claim, backed by specific evidence.","Reconcile resume-claimed skills against extracted evidence (agree / contradict / unverifiable)."],
+  features:["Skill extraction from code, dependencies, and commit messages","Skill confidence scoring model","Resume-claim reconciliation engine","Skill evidence citation (link every skill to its source commit/file)"],
+  tasks:["Build skill taxonomy mapped to languages, frameworks, and practices","Build extraction pipeline from dependency manifests + code patterns","Build confidence scoring combining recency, depth, and ownership","Build resume-to-evidence reconciliation diff engine","Build citation linking from skill → source artifact"],
+  deliverables:["Skill taxonomy","Skill extraction pipeline","Confidence scoring model","Resume reconciliation engine"],
+  dependencies:["Phase 6"],
+  commits:[["1765f22","feat","skill taxonomy and extraction pipeline"],["2876034","feat","skill confidence scoring model"],["3987145","feat","resume-to-evidence reconciliation engine"],["4a98256","feat","skill evidence citation linking"]],
+  folder:"services/\n├── skill-evidence/\n│   ├── src/taxonomy/\n│   ├── src/extraction/\n│   ├── src/confidence/\n│   └── src/reconciliation/",
+  docs:["skill-taxonomy.md","confidence-scoring.md","reconciliation-rules.md"],
+  testing:[["Extraction pipeline covers top 30 skills in taxonomy",false],["Confidence scores correlate with recruiter manual review",false],["Reconciliation correctly flags contradicted resume claims",false]],
+  notes:"Confidence scoring intentionally decays with recency — a skill last evidenced 4 years ago should not score the same as one evidenced last quarter.",
+  next:"Skill evidence feeds directly into the AI interview generator in Phase 8."
+},
+{
+  n:8, name:"Repository-Grounded AI Interview Engine", tag:"Project-specific AI interviews", status:'PENDING', progress:0, weeks:"Wk 12–15",
+  objectives:["Generate interview questions grounded in the candidate's own repository and code.","Detect inconsistency between claimed authorship and actual understanding.","Produce a structured, explainable interview transcript with evidence-linked scoring."],
+  features:["Repo-grounded question generation per candidate","Live AI interview session (text or voice)","Answer-consistency scoring against source code","Interview transcript with evidence citations"],
+  tasks:["Build question generation prompting pipeline from skill evidence + code context","Build interview session runtime (turn-taking, follow-ups, time-boxing)","Build answer scoring against expected reasoning grounded in the actual diff","Build transcript renderer with inline code citations","Add anti-cheating signal detection (paste patterns, response latency)"],
+  deliverables:["Interview question generator","Interview session runtime","Answer-consistency scorer","Evidence-linked transcript UI"],
+  dependencies:["Phase 7"],
+  commits:[["5ba9367","feat","repo-grounded question generation pipeline"],["6cba478","feat","AI interview session runtime"],["7dcb589","feat","answer-consistency scoring against source"],["8edc690","feat","evidence-linked transcript renderer"]],
+  folder:"services/\n├── ai-interview/\n│   ├── src/question-gen/\n│   ├── src/session-runtime/\n│   ├── src/scoring/\n│   └── src/transcript/",
+  docs:["question-generation-prompting.md","session-runtime.md","consistency-scoring.md","anti-cheat-signals.md"],
+  testing:[["Questions verified relevant to candidate's actual code in 95%+ of samples",false],["Consistency scorer flags known mismatched-authorship test cases",false],["Session runtime handles disconnects and resume gracefully",false]],
+  notes:"This is the highest-leverage and highest-risk module — question quality directly determines whether recruiters trust the entire evidence vector.",
+  next:"Once stable, integrate transcript scores into the Evidence Vector Engine (Phase 11)."
+},
+{
+  n:9, name:"Coding Profile Integration", tag:"LeetCode, Codeforces, HackerRank, etc.", status:'PENDING', progress:0, weeks:"Wk 15–16",
+  objectives:["Corroborate algorithmic and problem-solving ability via external coding platforms.","Normalize scores across platforms into a comparable signal.","Detect and discount inactive or copy-solved profiles."],
+  features:["Coding platform connectors (LeetCode, Codeforces, HackerRank, Kaggle)","Cross-platform score normalization","Problem-solving consistency & difficulty-adjusted scoring","Suspicious-activity detection (solution copying patterns)"],
+  tasks:["Build connectors for each supported coding platform's public API/scrape-safe data","Build normalization model across differing scoring systems","Build difficulty-adjusted consistency scoring","Build anomaly detection for implausible solve velocity"],
+  deliverables:["Coding platform connector suite","Score normalization model","Anomaly detection module"],
+  dependencies:["Phase 4"],
+  commits:[["9fed7a1","feat","coding platform connector suite"],["a0fe8b2","feat","cross-platform score normalization"],["b1af9c3","feat","solve-velocity anomaly detection"]],
+  folder:"services/\n├── coding-profiles/\n│   ├── src/connectors/\n│   │   ├── leetcode.ts\n│   │   ├── codeforces.ts\n│   │   └── hackerrank.ts\n│   ├── src/normalization/\n│   └── src/anomaly/",
+  docs:["platform-connectors.md","normalization-model.md","anomaly-detection.md"],
+  testing:[["Connectors handle platform API changes with graceful degradation",false],["Normalization validated against 100 cross-platform profiles",false],["Anomaly detector flags known copy-solve test accounts",false]],
+  notes:"Coding profile signal is treated as corroborating evidence only — it never overrides repository or interview evidence on its own.",
+  next:"Feed normalized scores into Phase 11 alongside repository and interview evidence."
+},
+{
+  n:10, name:"Experience Evidence Engine", tag:"Employment history consistency", status:'PENDING', progress:0, weeks:"Wk 16–18",
+  objectives:["Cross-check resume-stated experience against timeline-consistent public evidence.","Flag timeline gaps, inflated titles, or inconsistent role claims.","Keep this module strictly corroborative — never punitive without human review."],
+  features:["Timeline consistency checker (dates, overlaps, gaps)","Role-seniority plausibility scoring against evidence volume","Public evidence corroboration (contribution activity during claimed employment window)","Human-review flagging (never auto-reject)"],
+  tasks:["Build timeline parser and overlap/gap detector","Build seniority-plausibility model referencing evidence density","Cross-reference commit activity windows against claimed employment dates","Build a flag-for-review workflow, explicitly never an auto-reject path"],
+  deliverables:["Timeline consistency checker","Seniority plausibility model","Flag-for-review workflow"],
+  dependencies:["Phase 7"],
+  commits:[["c2b0ad4","feat","timeline consistency checker"],["d3c1be5","feat","seniority plausibility scoring"],["e4d2cf6","feat","flag-for-review workflow (non-punitive)"]],
+  folder:"services/\n├── experience-evidence/\n│   ├── src/timeline/\n│   ├── src/plausibility/\n│   └── src/review-flagging/",
+  docs:["timeline-consistency.md","plausibility-model.md","review-flagging-policy.md"],
+  testing:[["Timeline checker correctly handles overlapping contract roles",false],["Plausibility model reviewed for bias across career-gap scenarios",false],["Flags always route to human review, never auto-reject",false]],
+  notes:"This module carries real fairness risk (career gaps, career changers, non-traditional paths) — every flag is corroborative context for a recruiter, never a score penalty by default.",
+  next:"Feed corroboration signal, clearly labeled, into the Evidence Vector Engine."
+},
+{
+  n:11, name:"Evidence Vector Engine", tag:"Unified, explainable candidate representation", status:'PENDING', progress:0, weeks:"Wk 18–20",
+  objectives:["Combine repository, contribution, skill, interview, coding-profile and experience evidence into one vector.","Preserve full explainability — every dimension must trace back to source evidence.","Version the vector schema so scoring changes are auditable over time."],
+  features:["Multi-source evidence embedding & aggregation","Weighted evidence fusion model","Explainability layer (evidence → dimension → citation)","Vector schema versioning"],
+  tasks:["Design the evidence vector schema across all evidence sources","Build fusion model with configurable per-source weighting","Build the explainability trace linking each dimension to its evidence","Build vector storage in the vector DB with versioned schema","Build recompute pipeline for when new evidence arrives"],
+  deliverables:["Evidence vector schema","Fusion model","Explainability trace layer","Vector storage & recompute pipeline"],
+  dependencies:["Phase 7","Phase 8","Phase 9","Phase 10"],
+  commits:[["f5e3d07","feat","evidence vector schema v1"],["06f4e18","feat","weighted evidence fusion model"],["17052f9","feat","explainability trace layer"],["281630a","feat","vector recompute pipeline"]],
+  folder:"services/\n├── evidence-vector/\n│   ├── src/schema/\n│   ├── src/fusion/\n│   ├── src/explainability/\n│   └── src/recompute/",
+  docs:["vector-schema.md","fusion-weighting.md","explainability-trace.md"],
+  testing:[["Every vector dimension traces to at least one citation",false],["Recompute triggers correctly on new evidence arrival",false],["Schema version migration tested on sample vector set",false]],
+  notes:"This is the platform's core IP — the fusion weighting model needs a documented, defensible rationale for every weight, reviewable by a non-engineer recruiter.",
+  next:"Expose the vector to the Recruiter Intelligence Platform (Phase 12) for search and ranking."
+},
+{
+  n:12, name:"Recruiter Intelligence Platform", tag:"Recruiter workspace & workflows", status:'PENDING', progress:0, weeks:"Wk 20–22",
+  objectives:["Ship the primary recruiter-facing workspace for reviewing candidate evidence.","Support pipeline stages, notes, and collaborative review across a hiring team.","Make every evidence claim inspectable in two clicks or fewer."],
+  features:["Candidate evidence profile view","Pipeline & stage management","Collaborative notes and team review","Evidence citation drill-down UI"],
+  tasks:["Build candidate evidence profile UI with drill-down citations","Build pipeline stage board (Sourced → Screened → Interviewed → Offer)","Build collaborative notes with @mentions and role visibility","Build audit log of recruiter actions on each candidate"],
+  deliverables:["Recruiter workspace web app","Pipeline management UI","Collaborative review tools","Evidence drill-down UI"],
+  dependencies:["Phase 11"],
+  commits:[["392741b","feat","recruiter workspace shell and navigation"],["4a3852c","feat","candidate evidence profile view"],["5b4963d","feat","pipeline stage board"],["6c5a74e","feat","collaborative notes and audit log"]],
+  folder:"apps/\n├── recruiter-web/\n│   ├── src/pages/candidate/[id].tsx\n│   ├── src/pages/pipeline/\n│   ├── src/components/EvidenceDrilldown.tsx\n│   └── src/components/PipelineBoard.tsx",
+  docs:["recruiter-workspace-ia.md","pipeline-stage-model.md","citation-drilldown-ux.md"],
+  testing:[["Every evidence claim in the UI links to its source citation",false],["Pipeline board updates reflect in real time across seats",false],["Audit log captures all state-changing recruiter actions",false]],
+  notes:"Usability priority: a recruiter with zero coding background must be able to explain a candidate's evidence score to a hiring manager unaided.",
+  next:"Layer job-aware search on top in Phase 13 and 14."
+},
+{
+  n:13, name:"Job Requirement Intelligence", tag:"Parsing job descriptions into structured need", status:'PENDING', progress:0, weeks:"Wk 22–23",
+  objectives:["Parse unstructured job descriptions into structured, evidence-comparable requirements.","Distinguish must-have from nice-to-have signal.","Map job requirements onto the same skill taxonomy used for candidate evidence."],
+  features:["Job description parser (structured requirement extraction)","Requirement-to-taxonomy mapping","Must-have vs nice-to-have classification","Job requirement editing UI for recruiters"],
+  tasks:["Build JD parsing pipeline mapped to the shared skill taxonomy","Build must-have/nice-to-have classifier","Build recruiter-editable structured requirement UI","Validate parser against 200 real job descriptions across roles"],
+  deliverables:["JD parsing pipeline","Requirement taxonomy mapping","Structured requirement editor UI"],
+  dependencies:["Phase 7","Phase 12"],
+  commits:[["7d6b85f","feat","job description parsing pipeline"],["8e7c960","feat","requirement-to-taxonomy mapping"],["9f8da71","feat","structured requirement editor UI"]],
+  folder:"services/\n├── job-intelligence/\n│   ├── src/parsing/\n│   ├── src/taxonomy-mapping/\n│   └── src/classification/",
+  docs:["jd-parsing-pipeline.md","requirement-taxonomy-mapping.md"],
+  testing:[["Parser accuracy validated against 200 hand-labeled JDs",false],["Must-have classification agrees with recruiter labeling 90%+",false]],
+  notes:"JD quality varies wildly across customers — parser needs a confident 'ask recruiter to clarify' fallback rather than silently guessing.",
+  next:"Structured job requirements power Phase 14's hybrid search."
+},
+{
+  n:14, name:"Hybrid Candidate Search", tag:"Keyword + vector-semantic search", status:'PENDING', progress:0, weeks:"Wk 23–25",
+  objectives:["Let recruiters search candidates by structured filters and semantic evidence similarity.","Combine exact filters (location, years, must-haves) with vector similarity search.","Return fast, relevant results even across large candidate pools."],
+  features:["Structured filter search (location, seniority, must-haves)","Vector-semantic search over evidence vectors","Hybrid re-ranking combining both signals","Saved searches & search alerts"],
+  tasks:["Build structured filter query builder","Integrate vector similarity search against the evidence vector store","Build hybrid re-ranking combining filter match + semantic similarity","Build saved search and new-match alerting","Load test search latency at target candidate pool sizes"],
+  deliverables:["Hybrid search service","Search query builder UI","Saved search & alerts feature"],
+  dependencies:["Phase 11","Phase 13"],
+  commits:[["a09eb82","feat","structured filter query builder"],["b1afc93","feat","vector-semantic search integration"],["c2b0da4","feat","hybrid re-ranking model"],["d3c1eb5","feat","saved search and alerting"]],
+  folder:"services/\n├── search/\n│   ├── src/filters/\n│   ├── src/vector-search/\n│   ├── src/hybrid-rank/\n│   └── src/alerts/",
+  docs:["hybrid-search-design.md","reranking-model.md","search-latency-benchmarks.md"],
+  testing:[["p95 search latency under 400ms at 250k candidate pool",false],["Hybrid rank outperforms filter-only in relevance eval",false],["Saved search alerts fire within 5 min of new matching evidence",false]],
+  notes:"Early relevance testing shows pure vector search over-indexes on repo volume — hybrid re-ranking needs to normalize for evidence completeness, not just similarity.",
+  next:"Feed search results into Phase 15 for final evidence-based ranking within a job context."
+},
+{
+  n:15, name:"Evidence-Based Ranking Engine", tag:"Job-aware candidate ranking", status:'PENDING', progress:0, weeks:"Wk 25–27",
+  objectives:["Rank a candidate pool against a specific job's structured requirements.","Produce a ranked list with a full, per-candidate explainability breakdown.","Support recruiter feedback loops to tune ranking weights over time."],
+  features:["Job-aware ranking model","Per-candidate explainability breakdown","Recruiter feedback capture (thumbs up/down with reason)","Ranking weight tuning per organization"],
+  tasks:["Build job-aware scoring combining evidence vector + requirement match","Build explainability breakdown UI per ranked candidate","Build feedback capture and weight-tuning feedback loop","Build per-org ranking weight configuration","Benchmark ranking quality against recruiter gold-standard shortlists"],
+  deliverables:["Job-aware ranking model","Explainability breakdown UI","Feedback-driven tuning loop"],
+  dependencies:["Phase 11","Phase 13","Phase 14"],
+  commits:[["e4d2fc6","feat","job-aware evidence ranking model"],["f5e3ad7","feat","per-candidate explainability breakdown"],["06f4be8","feat","recruiter feedback capture and tuning loop"]],
+  folder:"services/\n├── ranking/\n│   ├── src/job-aware-scoring/\n│   ├── src/explainability/\n│   └── src/feedback-loop/",
+  docs:["ranking-model.md","explainability-breakdown.md","feedback-tuning.md"],
+  testing:[["Ranking benchmarked against 10 recruiter gold-standard shortlists",false],["Explainability breakdown covers 100% of ranking weight",false],["Feedback loop measurably improves ranking precision over 4 weeks",false]],
+  notes:"Ranking explainability is treated as a hard requirement, not a nice-to-have — no ranked list ships without a full per-candidate breakdown.",
+  next:"Surface ranked results and quality metrics in the Analytics Dashboard (Phase 16)."
+},
+{
+  n:16, name:"Analytics Dashboard", tag:"Org-level hiring &amp; evidence analytics", status:'PENDING', progress:0, weeks:"Wk 27–28",
+  objectives:["Give hiring leaders visibility into pipeline health and evidence-driven outcomes.","Track time-to-shortlist, evidence completeness, and ranking-to-hire correlation.","Support exportable reporting for hiring leadership and university partners."],
+  features:["Pipeline funnel analytics","Evidence quality & completeness reporting","Ranking-to-hire outcome correlation","Exportable reports"],
+  tasks:["Build pipeline funnel visualization by stage and role","Build evidence completeness distribution reporting","Build ranking-to-hire outcome correlation tracking","Build CSV/PDF export for leadership reporting"],
+  deliverables:["Analytics dashboard UI","Reporting export module","Outcome correlation tracking"],
+  dependencies:["Phase 12","Phase 15"],
+  commits:[["17053f9","feat","pipeline funnel analytics"],["281630a","feat","evidence completeness reporting"],["39274 1b","feat","ranking-to-hire outcome correlation"]],
+  folder:"apps/\n├── recruiter-web/\n│   └── src/pages/analytics/\n│       ├── funnel.tsx\n│       ├── evidence-quality.tsx\n│       └── outcomes.tsx",
+  docs:["analytics-metrics-definitions.md","export-formats.md"],
+  testing:[["Funnel metrics match manual pipeline audit",false],["Export produces accurate CSV/PDF at org scale",false]],
+  notes:"Outcome correlation view intentionally ships with a confidence interval, not a single number — sample sizes early on will be small per organization.",
+  next:"Stabilize before entering the hardening pass in Phase 17."
+},
+{
+  n:17, name:"Testing & Quality Assurance", tag:"Hardening pass across the platform", status:'PENDING', progress:0, weeks:"Wk 28–30",
+  objectives:["Systematically harden every module before production launch.","Establish automated regression coverage across critical evidence-scoring paths.","Run bias and fairness review across the Experience Evidence and Ranking engines."],
+  features:["End-to-end regression suite","Load & performance testing across ingestion and search","Bias/fairness audit across scoring modules","Security penetration test"],
+  tasks:["Build E2E test suite covering candidate → evidence → ranking flow","Run load tests against repo ingestion and hybrid search at scale","Commission an external bias/fairness audit of scoring models","Run a third-party security penetration test","Fix and re-verify all P0/P1 findings"],
+  deliverables:["E2E regression suite","Load test report","Bias/fairness audit report","Penetration test report"],
+  dependencies:["Phase 1","Phase 2","Phase 3","Phase 4","Phase 5","Phase 6","Phase 7","Phase 8","Phase 9","Phase 10","Phase 11","Phase 12","Phase 13","Phase 14","Phase 15","Phase 16"],
+  commits:[["4a3862c","test","end-to-end regression suite for evidence pipeline"],["5b4973d","test","load test harness for ingestion and search"],["6c5a84e","docs","bias and fairness audit report"],["7d6b95f","fix","remediate penetration test findings"]],
+  folder:"tests/\n├── e2e/\n├── load/\n├── audits/\n│   ├── bias-fairness-report.md\n│   └── pentest-report.md",
+  docs:["e2e-coverage-map.md","load-test-report.md","bias-fairness-report.md","pentest-report.md"],
+  testing:[["E2E suite covers all 20 phase integration points",false],["Load test meets p95 latency targets under 3x expected load",false],["All P0 bias/fairness and security findings remediated",false]],
+  notes:"Fairness audit is scheduled before, not after, GA — findings here can require model changes upstream in Phases 10, 11 and 15.",
+  next:"Green light from QA gates Phase 18 (Deployment & Production)."
+},
+{
+  n:18, name:"Deployment & Production", tag:"Launch infrastructure &amp; rollout", status:'PENDING', progress:0, weeks:"Wk 30–31",
+  objectives:["Stand up production infrastructure with staged rollout capability.","Establish CI/CD with automated gates for every deploy.","Ship a controlled beta rollout before general availability."],
+  features:["Production infra (containerized services, managed DB, vector store)","CI/CD pipeline with staged environments","Feature-flagged rollout system","Beta cohort onboarding"],
+  tasks:["Provision production infrastructure across services","Build CI/CD pipeline: lint → test → build → staging → prod gate","Implement feature flags for staged rollout","Onboard a beta cohort of design-partner recruiting orgs","Run production readiness review"],
+  deliverables:["Production infrastructure","CI/CD pipeline","Feature flag system","Beta rollout plan"],
+  dependencies:["Phase 17"],
+  commits:[["8e7ca60","chore","production infrastructure provisioning"],["9f8db71","ci","CI/CD pipeline with staged gates"],["a09fc82","feat","feature flag rollout system"],["b1a0d93","chore","production readiness review sign-off"]],
+  folder:"infra/\n├── terraform/\n├── ci/\n│   └── pipeline.yml\n└── feature-flags/\n    └── config.yml",
+  docs:["production-readiness-checklist.md","cicd-pipeline.md","rollout-plan.md"],
+  testing:[["Staging environment mirrors production config",false],["Rollback tested and completes in under 5 minutes",false],["Beta cohort onboarded with monitoring in place",false]],
+  notes:"Beta rollout will run for 3–4 weeks with 5 design-partner orgs before flipping to general availability.",
+  next:"Move into steady-state operations in Phase 19."
+},
+{
+  n:19, name:"Monitoring & Maintenance", tag:"Observability, on-call, cost management", status:'PENDING', progress:0, weeks:"Wk 31+ (ongoing)",
+  objectives:["Establish full observability across services, queues, and AI model calls.","Set up on-call rotation and incident response process.","Track and control AI inference cost per candidate evaluated."],
+  features:["Service + infra monitoring & alerting","AI model call tracing & cost dashboard","Incident response runbooks","Scheduled data quality audits"],
+  tasks:["Instrument services with tracing and structured logging","Build AI inference cost dashboard per candidate/org","Write incident response runbooks per service","Set up on-call rotation and paging","Schedule recurring evidence data-quality audits"],
+  deliverables:["Observability stack","Cost dashboard","Incident runbooks","On-call rotation"],
+  dependencies:["Phase 18"],
+  commits:[["c2b1ea4","chore","observability stack and structured logging"],["d3c2fb5","feat","AI inference cost dashboard"],["e4d3ac6","docs","incident response runbooks"]],
+  folder:"infra/\n├── observability/\n│   ├── dashboards/\n│   └── alerts/\n└── runbooks/",
+  docs:["observability-setup.md","cost-dashboard.md","incident-runbooks.md","on-call-rotation.md"],
+  testing:[["Alerting verified against synthetic incident drills",false],["Cost dashboard reconciled against provider billing",false],["Runbooks validated in a live game-day exercise",false]],
+  notes:"Cost-per-candidate is tracked explicitly because AI interview generation is the most inference-heavy path in the platform.",
+  next:"Ongoing — feeds learnings back into Future Roadmap priorities."
+},
+{
+  n:20, name:"Future Roadmap", tag:"Post-GA expansion", status:'PENDING', progress:0, weeks:"Post-GA",
+  objectives:["Sequence high-leverage capabilities for after core platform stability.","Expand evidence sources beyond code (design, data science, DevOps disciplines).","Explore deeper ATS integrations and enterprise workflow embedding."],
+  features:["Non-code evidence sources (data science notebooks, infra-as-code, design systems)","Native ATS integrations (Greenhouse, Lever, Ashby)","Team-fit and collaboration-style evidence","Candidate-side coaching based on evidence gaps"],
+  tasks:["Scope evidence taxonomy extensions for non-traditional engineering roles","Design ATS integration architecture and partner program","Prototype team-fit evidence from collaboration graph analysis","Design candidate-facing evidence-gap coaching flows"],
+  deliverables:["Roadmap RFC per expansion area","ATS integration partner program","Team-fit prototype"],
+  dependencies:["Phase 19"],
+  commits:[],
+  folder:"docs/\n└── 20-future-roadmap/\n    ├── non-code-evidence-rfc.md\n    ├── ats-integrations-rfc.md\n    └── team-fit-prototype.md",
+  docs:["non-code-evidence-rfc.md","ats-integrations-rfc.md","team-fit-prototype.md"],
+  testing:[["RFCs reviewed with design-partner customers",false],["ATS integration architecture validated with a pilot partner",false]],
+  notes:"Sequencing intentionally waits for GA stability data — expansion priorities will be set by what beta cohort feedback actually surfaces.",
+  next:"Prioritize based on beta cohort demand signal post-GA."
+},
+];
+
+/* ============================================================
+   RENDER: CORE FLOW (hero pipeline)
+============================================================ */
+const coreFlowSteps = [
+  ["Input","Candidate"],
+  ["Ingest","GitHub Repository Analysis"],
+  ["Analyze","Contribution Analysis"],
+  ["Extract","Skill Evidence Extraction"],
+  ["Interview","Repository-Grounded AI Interview"],
+  ["Corroborate","Coding Profile Evidence"],
+  ["Corroborate","Experience Evidence"],
+  ["Fuse","Evidence Vector"],
+  ["Serve","Recruiter Intelligence Engine"],
+  ["Interpret","Job Understanding"],
+  ["Retrieve","Hybrid Candidate Search"],
+  ["Rank","Evidence-Based Ranking"],
+  ["Output","Explainable Hiring Decision Support"],
+];
+function renderCoreFlow(){
+  const el = document.getElementById('coreFlow');
+  el.innerHTML = coreFlowSteps.map((s,i)=>{
+    const step = `<div class="flow-step"><div class="ft-label">${s[0]}</div><div class="ft-name">${s[1]}</div></div>`;
+    const arrow = i < coreFlowSteps.length-1 ? `<div class="flow-arrow">↓</div>` : '';
+    return step+arrow;
+  }).join('');
+}
+
+/* ============================================================
+   RENDER: ROADMAP SPINE (overview)
+============================================================ */
+function renderSpine(){
+  const el = document.getElementById('roadmapSpine');
+  el.innerHTML = phases.map(p=>{
+    const st = STATUS[p.status];
+    const cls = p.status==='DONE'?'done':(p.status==='ACTIVE'?'active':'');
+    return `<div class="rmap-row ${cls}" onclick="jumpToPhase(${p.n})" style="cursor:pointer;">
+      <div class="rmap-node"></div>
+      <div class="rmap-phase">PHASE ${String(p.n).padStart(2,'0')}</div>
+      <div><div class="rmap-name">${p.name}</div><div style="font-size:12px;color:var(--muted);margin-top:2px;">${p.tag}</div></div>
+      <div class="rmap-bar-track"><div class="rmap-bar-fill" style="width:${p.progress}%;"></div></div>
+      <div class="rmap-pct">${p.progress}%</div>
+    </div>`;
+  }).join('');
+}
+function jumpToPhase(n){
+  document.getElementById('phases').scrollIntoView({behavior:'smooth'});
+  setTimeout(()=>{
+    const card = document.getElementById('phase-card-'+n);
+    if(card){ if(!card.classList.contains('open')) card.querySelector('.phase-head').click();
+      card.scrollIntoView({behavior:'smooth', block:'start'}); }
+  }, 400);
+}
+
+/* ============================================================
+   RENDER: PHASE CARDS
+============================================================ */
+const TAB_DEFS = [
+  ['obj','Objectives'],['feat','Features'],['task','Tasks'],['del','Deliverables'],
+  ['dep','Dependencies'],['git','Git Plan'],['folder','Folder'],['docs','Docs'],
+  ['test','Testing'],['notes','Notes & Next'],
+];
+function renderPhaseCards(){
+  const el = document.getElementById('phaseCards');
+  el.innerHTML = phases.map(p=>{
+    const st = STATUS[p.status];
+    const tabsHtml = TAB_DEFS.map((t,i)=>`<button class="tab-btn ${i===0?'active':''}" data-tab="${t[0]}-${p.n}" onclick="switchTab(${p.n},'${t[0]}')">${t[1]}</button>`).join('');
+
+    const paneObj = `<ul class="ul-clean">${p.objectives.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+    const paneFeat = `<ul class="ul-clean">${p.features.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+    const paneTask = `<ul class="ul-clean">${p.tasks.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+    const paneDel = `<ul class="ul-clean">${p.deliverables.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+    const paneDep = p.dependencies.length ? `<div class="dep-chips">${p.dependencies.map(x=>`<span class="dep-chip">${x}</span>`).join('')}</div>` : `<div class="note-block">No upstream dependencies — this phase can start immediately.</div>`;
+    const paneGit = p.commits.length ? `<div class="commit-list">${p.commits.map(c=>`<div class="commit-row"><span class="commit-hash">${c[0]}</span><span class="commit-type">${c[1]}:</span><span class="commit-msg">${c[2]}</span></div>`).join('')}</div>` : `<div class="note-block">Commit plan to be scoped once upstream phases are locked.</div>`;
+    const paneFolder = `<div class="folder-tree">${p.folder}</div>`;
+    const paneDocs = `<div class="doc-list">${p.docs.map(d=>`<span class="doc-chip">${d}</span>`).join('')}</div>`;
+    const paneTest = `<div class="test-list">${p.testing.map(t=>`<div class="test-row"><span class="checkbox ${t[1]?'checked':''}"></span>${t[0]}</div>`).join('')}</div>`;
+    const paneNotes = `<div class="note-block" style="margin-bottom:14px;"><b class="mono" style="color:var(--gold);font-size:11px;letter-spacing:0.06em;">NOTES —</b> ${p.notes}</div><div class="note-block" style="border-left-color:var(--cyan);"><b class="mono" style="color:var(--cyan);font-size:11px;letter-spacing:0.06em;">NEXT STEPS —</b> ${p.next}</div>`;
+
+    return `<div class="phase-card ${p.status==='ACTIVE'?'open':''}" id="phase-card-${p.n}">
+      <div class="phase-head" onclick="this.parentElement.classList.toggle('open')">
+        <div class="phase-num">P${String(p.n).padStart(2,'0')}</div>
+        <div class="phase-titles">
+          <h3>${p.name}</h3>
+          <div class="ph-tag">${p.tag}</div>
+        </div>
+        <div class="phase-progress-mini"><div class="rmap-bar-track"><div class="rmap-bar-fill" style="width:${p.progress}%;"></div></div></div>
+        <div class="phase-timeline-chip">${p.weeks}</div>
+        <div class="stamp ${st.stamp}">${st.label}</div>
+        <div class="chev">▾</div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-body-inner">
+          <div class="meta-strip">
+            <span>Completion: <b>${p.progress}%</b></span>
+            <span>Timeline: <b>${p.weeks}</b></span>
+            <span>Status: <b>${st.label}</b></span>
+            <span>Dependencies: <b>${p.dependencies.length || 'None'}</b></span>
+          </div>
+          <div class="tabs">${tabsHtml}</div>
+          <div class="tab-pane active" id="obj-${p.n}">${paneObj}</div>
+          <div class="tab-pane" id="feat-${p.n}">${paneFeat}</div>
+          <div class="tab-pane" id="task-${p.n}">${paneTask}</div>
+          <div class="tab-pane" id="del-${p.n}">${paneDel}</div>
+          <div class="tab-pane" id="dep-${p.n}">${paneDep}</div>
+          <div class="tab-pane" id="git-${p.n}">${paneGit}</div>
+          <div class="tab-pane" id="folder-${p.n}">${paneFolder}</div>
+          <div class="tab-pane" id="docs-${p.n}">${paneDocs}</div>
+          <div class="tab-pane" id="test-${p.n}">${paneTest}</div>
+          <div class="tab-pane" id="notes-${p.n}">${paneNotes}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function switchTab(n, key){
+  const card = document.getElementById('phase-card-'+n);
+  card.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab === key+'-'+n));
+  card.querySelectorAll('.tab-pane').forEach(p=>p.classList.toggle('active', p.id === key+'-'+n));
+}
+
+/* ============================================================
+   RENDER: SPRINTS
+============================================================ */
+function renderSprints(){
+  const el = document.getElementById('sprintTrack');
+  const sprints = [
+    ["Sprint 0–1","Wk 1–2","Foundations","Research, planning, evidence taxonomy lock."],
+    ["Sprint 1–2","Wk 2–4","Platform base","System architecture, auth, org/RBAC."],
+    ["Sprint 2–3","Wk 4–8","Candidate side","Candidate platform + repository ingestion."],
+    ["Sprint 3–5","Wk 8–15","Evidence core","Contribution analysis, skill evidence, AI interview engine."],
+    ["Sprint 5–6","Wk 15–20","Corroboration","Coding profiles, experience evidence, evidence vector fusion."],
+    ["Sprint 6–8","Wk 20–27","Recruiter surface","Recruiter platform, job intelligence, hybrid search, ranking."],
+    ["Sprint 8–9","Wk 27–30","Insight &amp; hardening","Analytics dashboard, QA and fairness audits."],
+    ["Sprint 9–10","Wk 30–31+","Launch &amp; ops","Deployment, monitoring, beta rollout."],
+  ];
+  el.innerHTML = sprints.map(s=>`<div class="sprint-card"><div class="sp-head"><h4>${s[0]}</h4><span class="sp-weeks mono">${s[1]}</span></div><div style="font-family:var(--font-mono);font-size:11px;color:var(--cyan);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">${s[2]}</div><p>${s[3]}</p></div>`).join('');
+}
+
+/* ============================================================
+   RENDER: GLOBAL COMMITS (flatten all phase commits + a few kickoff ones)
+============================================================ */
+function renderGlobalCommits(){
+  const el = document.getElementById('globalCommits');
+  let all = [["000000a","init","project scaffold — groundtruth monorepo"]];
+  phases.forEach(p=> p.commits.forEach(c=> all.push(c)) );
+  el.innerHTML = all.map(c=>`<div class="commit-row"><span class="commit-hash">${c[0]}</span><span class="commit-type">${c[1]}:</span><span class="commit-msg">${c[2]}</span></div>`).join('');
+}
+
+/* ============================================================
+   RENDER: DOCS TREE (aggregate)
+============================================================ */
+function renderDocsTree(){
+  const el = document.getElementById('docsTree');
+  let tree = "docs/\n";
+  phases.forEach(p=>{
+    tree += `├── ${String(p.n).padStart(2,'0')}-${p.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')}/\n`;
+    p.docs.forEach((d,i)=>{
+      const last = i===p.docs.length-1;
+      tree += `│   ${last?'└──':'├──'} ${d}\n`;
+    });
+  });
+  el.textContent = tree;
+}
+
+/* ============================================================
+   RENDER: DEPENDENCY GRAPH
+============================================================ */
+function renderDepGraph(){
+  const el = document.getElementById('depGraph');
+  el.innerHTML = phases.map(p=>{
+    const downstream = phases.filter(o=> o.dependencies.some(d=> d === `Phase ${p.n}`) ).map(o=>`P${String(o.n).padStart(2,'0')}`);
+    const bars = `<span class="db self">P${String(p.n).padStart(2,'0')}</span>` + downstream.map(d=>`<span class="db">→ ${d}</span>`).join('');
+    return `<div class="dep-graph-row"><div class="dep-graph-name">${p.name}</div><div class="dep-graph-bars">${bars}</div></div>`;
+  }).join('');
+}
+
+/* ============================================================
+   RENDER: SYSTEM DIAGRAMS
+============================================================ */
+const systemDiagrams = [
+  ["Backend Workflow", ["API Gateway","Auth Middleware","Service Router","Worker Queue (BullMQ)","Domain Services","Postgres + Vector DB"]],
+  ["Frontend Workflow", ["Candidate / Recruiter Web App","API Client Layer","State & Cache","Realtime Updates (WS)","Rendered UI"]],
+  ["AI Workflow", ["Evidence Context Builder","Prompt Orchestration","Model Inference (LLM)","Response Validation","Evidence Citation Binder"]],
+  ["Database Design", ["Postgres: users, orgs, jobs, pipeline","Vector DB: evidence embeddings","Object Storage: repo snapshots","Redis: queues & cache"]],
+  ["API Flow", ["Client Request","Auth + Rate Limit","Service Handler","Evidence/Ranking Query","Response + Citations"]],
+  ["Repository Analysis Flow", ["Repo Linked","Sandboxed Clone","Static Analysis","Contribution Graph","Skill Evidence Output"]],
+  ["Recruiter Workflow", ["Post Job","Job Requirement Parsing","Hybrid Search Candidates","Review Evidence & Rank","Interview / Advance / Hire"]],
+  ["Candidate Workflow", ["Create Profile","Connect Repos & Profiles","Evidence Builds Automatically","Repo-Grounded AI Interview","View Evidence Summary"]],
+];
+function renderDiagrams(){
+  const el = document.getElementById('diagramGrid');
+  el.innerHTML = systemDiagrams.map(d=>{
+    const steps = d[1].map((s,i)=> `<div class="flow-step" style="min-width:0;"><div class="ft-name" style="font-size:12.5px;">${s}</div></div>` + (i<d[1].length-1?`<div class="flow-arrow" style="min-width:0;padding:4px 0;">↓</div>`:'')).join('');
+    return `<div class="diagram-card"><h4>${d[0]}</h4><div class="flow vertical" style="padding:16px;gap:0;">${steps}</div></div>`;
+  }).join('');
+}
+
+/* ============================================================
+   RENDER: PROGRESS TRACKER
+============================================================ */
+function renderTracker(){
+  const total = phases.length;
+  const done = phases.filter(p=>p.status==='DONE').length;
+  const active = phases.filter(p=>p.status==='ACTIVE').length;
+  const pending = phases.filter(p=>p.status==='PENDING').length;
+  const avgProgress = Math.round(phases.reduce((a,p)=>a+p.progress,0)/total);
+
+  document.getElementById('trackerGrid').innerHTML = `
+    <div class="tracker-stat"><div class="t-num mono">${total}</div><div class="t-lbl">Total phases</div></div>
+    <div class="tracker-stat"><div class="t-num mono" style="color:var(--green);">${done}</div><div class="t-lbl">Verified complete</div></div>
+    <div class="tracker-stat"><div class="t-num mono" style="color:var(--gold);">${active}</div><div class="t-lbl">In progress</div></div>
+    <div class="tracker-stat"><div class="t-num mono" style="color:var(--muted);">${pending}</div><div class="t-lbl">Pending</div></div>
+  `;
+
+  const circumference = 2*Math.PI*62;
+  const offset = circumference * (1 - avgProgress/100);
+  document.getElementById('ringWrap').innerHTML = `
+    <div class="ring">
+      <svg width="150" height="150">
+        <circle cx="75" cy="75" r="62" fill="none" stroke="var(--panel-2)" stroke-width="10"/>
+        <circle cx="75" cy="75" r="62" fill="none" stroke="url(#gradRing)" stroke-width="10" stroke-linecap="round"
+          stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"/>
+        <defs><linearGradient id="gradRing" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#e8a33d"/><stop offset="100%" stop-color="#49d3c7"/>
+        </linearGradient></defs>
+      </svg>
+      <div class="ring-label"><div class="r-num mono">${avgProgress}%</div><div class="r-txt">Overall build</div></div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--green);"></span>Verified complete — ${done} phase(s)</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--gold);"></span>In progress — ${active} phase(s)</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--muted-2);"></span>Pending — ${pending} phase(s)</div>
+      <div style="color:var(--muted);max-width:340px;margin-top:6px;">Overall build percentage is the mean completion across all 20 phases, weighted equally.</div>
+    </div>
+  `;
+}
+
+/* ============================================================
+   RENDER: MILESTONES
+============================================================ */
+function renderMilestones(){
+  const milestones = [
+    ["Wk 2","Product Locked","PRD + taxonomy signed off"],
+    ["Wk 6","Auth + Candidate Live","Candidates can connect repos"],
+    ["Wk 12","Skill Evidence v1","First explainable skill scores"],
+    ["Wk 15","AI Interview Beta","Repo-grounded interviews live"],
+    ["Wk 20","Evidence Vector Live","Unified candidate representation"],
+    ["Wk 27","Recruiter Platform GA-ready","Search + ranking complete"],
+    ["Wk 31","Production Launch","Beta cohort onboarded"],
+  ];
+  const el = document.getElementById('milestoneTrack');
+  el.innerHTML = milestones.map((m,i)=>{
+    const pct = (i/(milestones.length-1))*100;
+    return `<div class="milestone-pt" style="left:${pct}%;">
+      <div class="m-label"><span class="m-date">${m[0]}</span><span class="m-name">${m[1]}</span></div>
+      <div class="m-below">${m[2]}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ============================================================
+   RENDER: RISK TABLE
+============================================================ */
+function renderRisks(){
+  const risks = [
+    ["High","GitHub API rate limits at scale","Queue-based ingestion, exponential backoff, per-org fair-share throttling.","Phase 5"],
+    ["High","AI interview questions feel generic or gameable","Ground every question in candidate-specific code diffs; continuous quality eval against held-out repos.","Phase 8"],
+    ["High","Bias in experience/timeline evidence","External fairness audit before GA; flags route to human review, never auto-reject.","Phase 10, 17"],
+    ["Med","Evidence vector fusion weights lack transparency","Documented, recruiter-reviewable weighting rationale; versioned schema.","Phase 11"],
+    ["Med","Search latency degrades at large candidate pools","Load testing with target-scale synthetic pools; hybrid re-rank caching.","Phase 14"],
+    ["Med","AI inference cost scales faster than revenue per seat","Cost-per-candidate dashboard; caching + selective re-analysis instead of full recompute.","Phase 19"],
+    ["Low","Coding platform APIs change without notice","Connector abstraction layer with graceful degradation and alerting.","Phase 9"],
+    ["Low","Candidate privacy/consent complexity across regions","Consent-first repo linking; full data deletion on revoke.","Phase 3, 4"],
+  ];
+  const el = document.getElementById('riskTable');
+  el.innerHTML = `<thead><tr><th>Severity</th><th>Risk</th><th>Mitigation</th><th>Owning phase</th></tr></thead>
+  <tbody>${risks.map(r=>`<tr><td><span class="risk-level ${r[0]==='High'?'high':r[0]==='Med'?'med':'low'}">${r[0].toUpperCase()}</span></td><td>${r[1]}</td><td>${r[2]}</td><td class="mono" style="color:var(--muted);">${r[3]}</td></tr>`).join('')}</tbody>`;
+}
+
+/* ============================================================
+   RENDER: DEPLOY PIPELINE
+============================================================ */
+function renderDeployPipe(){
+  const stages = [
+    ["Commit","Push to feature branch, conventional commits enforced"],
+    ["CI Checks","Lint, type-check, unit tests"],
+    ["Preview Deploy","Ephemeral environment per PR"],
+    ["Staging","Full integration + E2E suite"],
+    ["Approval Gate","Required review + QA sign-off"],
+    ["Production","Blue/green rollout with feature flags"],
+    ["Monitor","Error budgets, tracing, cost dashboard"],
+  ];
+  document.getElementById('deployPipe').innerHTML = stages.map(s=>`<div class="deploy-stage"><h4>${s[0]}</h4><p>${s[1]}</p></div>`).join('');
+}
+
+/* ============================================================
+   RENDER: CHANGELOG
+============================================================ */
+function renderChangelog(){
+  const log = [
+    ["Day 1","Setup","Groundtruth execution dashboard initialized. Roadmap, phases and tracking scaffolded for all 20 phases."],
+    ["Day 1","Planning","Evidence taxonomy drafted covering repository, contribution, skill, interview, coding-profile and experience sources."],
+    ["Day 1","Planning","Recruiter and engineering-manager discovery interview program kicked off."],
+    ["Day 0","Kickoff","Project charter approved. Mission, vision and core philosophy locked: verify, don't trust."],
+  ];
+  document.getElementById('changelogList').innerHTML = log.map(l=>`<div class="changelog-item"><div class="cl-date mono">${l[0]}</div><div class="cl-tag">${l[1]}</div><div class="cl-desc">${l[2]}</div></div>`).join('');
+}
+
+/* ============================================================
+   RENDER: FUTURE ROADMAP
+============================================================ */
+function renderFuture(){
+  const items = [
+    ["Post-GA · Q1","Non-code evidence sources","Extend evidence taxonomy to data science, DevOps/IaC, and design systems disciplines."],
+    ["Post-GA · Q1","Native ATS integrations","Greenhouse, Lever and Ashby integrations for two-way pipeline sync."],
+    ["Post-GA · Q2","Team-fit evidence","Collaboration-graph analysis to surface working-style compatibility signal."],
+    ["Post-GA · Q2","Candidate evidence coaching","Help candidates understand and close evidence gaps ethically."],
+    ["Post-GA · Q3","Enterprise workflow embedding","Deep embedding into enterprise hiring workflows and approval chains."],
+    ["Post-GA · Q3","University partnership program","Structured evidence pathways for early-career and campus hiring."],
+  ];
+  document.getElementById('futureGrid').innerHTML = items.map(i=>`<div class="future-card"><div class="fc-eta">${i[0]}</div><h4>${i[1]}</h4><p>${i[2]}</p></div>`).join('');
+}
+
+/* ============================================================
+   INIT + SCROLL BEHAVIOR
+============================================================ */
+function init(){
+  renderCoreFlow();
+  renderSpine();
+  renderPhaseCards();
+  renderSprints();
+  renderGlobalCommits();
+  renderDocsTree();
+  renderDepGraph();
+  renderDiagrams();
+  renderTracker();
+  renderMilestones();
+  renderRisks();
+  renderDeployPipe();
+  renderChangelog();
+  renderFuture();
+
+  // scroll reveal
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, {threshold:0.1});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  // active nav link on scroll
+  const navLinks = [...document.querySelectorAll('.nav-link')];
+  const sections = navLinks.map(l=>document.querySelector(l.getAttribute('href'))).filter(Boolean);
+  window.addEventListener('scroll', ()=>{
+    let current = sections[0];
+    for(const s of sections){ if(s.getBoundingClientRect().top - 120 <= 0) current = s; }
+    navLinks.forEach(l=> l.classList.toggle('active', l.getAttribute('href') === '#'+current.id));
+  });
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
