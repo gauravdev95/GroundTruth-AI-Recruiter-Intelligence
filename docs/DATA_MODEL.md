@@ -29,6 +29,41 @@ one feature at a time.
 existing `recruiter_profiles` (adds `company_id`). Everything else in this document is design
 only — no model, no migration — until its own phase starts.
 
+### 0.2.1 Implemented by the student profile builder (Part C)
+
+Migration `c3f1a9d47b02`, models in `src/domains/student/models.py`:
+
+- **ALTER `candidate_profiles`** — section 1 fields (`headline`, `college`, `degree`, `branch`,
+  `graduation_year`, `location`, `target_role`) plus the derived `profile_strength` and
+  `is_discoverable`. All section-1 fields are nullable: the builder is a multi-sitting flow, so
+  a partially filled profile is a valid persisted state. `degree`/`branch`/`target_role` are
+  native enums (`degree_type`, `branch`, `target_role`) rather than free text, because
+  recruiters filter on them.
+- **`github_accounts`**, **`coding_platform_accounts`**, **`certificates`** — as designed in §3,
+  with one deviation: `github_accounts.github_user_id` is **nullable**. The builder only
+  receives a username/URL; resolving GitHub's stable numeric id needs an API call owned by the
+  verification worker. It stays `UNIQUE` — Postgres allows many NULLs under a unique index, so
+  the constraint binds once a worker fills it in.
+- **`projects`** *(new — not in §3)* — section 3 accepts "a repo URL **or** a described
+  project". §3's `repositories` cannot hold the latter: it is GitHub-shaped
+  (`github_repo_id BIGINT NOT NULL`, `is_fork`, `primary_language`) and only populatable from
+  the GitHub API. `projects` carries a `kind` discriminator (`repository|described`) with a
+  nullable `repo_url`. **`repositories` remains unbuilt**, reserved for the GitHub-sync phase.
+- **`experiences`** — as designed in §3, plus `employment_type` (`internship|freelance|
+  part_time`) and a `technologies text[]`, neither of which §3 included.
+
+A shared `verification_status` enum (`unverified|pending|verified|rejected`) is used by
+`github_accounts`, `coding_platform_accounts`, `projects` and `certificates`.
+
+**`evidence_records` is deliberately still unbuilt.** It is a derived *scoring* hub: it carries
+`weight NUMERIC NOT NULL` and a `source_type` naming finished artifacts (`repository_analysis`,
+`coding_platform_snapshot`), and it has no `status` column. At claim time no analysis or
+snapshot exists and no weight is computable, so speculative rows there would break the §0.5
+guarantee that every evidence record traces back to concrete analyzed evidence. Pending
+verification is instead tracked by each claim row's own `verification_status` plus an
+`async_jobs` row (`status=pending`) — see `src/domains/student/evidence.py`. Phase II workers
+write `evidence_records` once a real analysis or snapshot exists.
+
 ### 0.3 Soft-delete strategy
 
 A row is soft-deleted (not the same as `is_active`/`revoked_at`, which are domain states) when

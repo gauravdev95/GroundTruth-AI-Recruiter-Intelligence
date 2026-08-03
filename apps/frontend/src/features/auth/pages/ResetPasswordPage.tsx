@@ -48,8 +48,8 @@ export function ResetPasswordPage() {
       <AuthLayout title="Password updated">
         <SuccessScreen title="All set" description="Your password has been reset. You can now log in.">
           <Link
-            to="/login/candidate"
-            className="mt-2 rounded-xl bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
+            to="/login"
+            className="mt-2 rounded bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-hover"
           >
             Go to login
           </Link>
@@ -84,7 +84,7 @@ export function ResetPasswordPage() {
         <button
           type="submit"
           disabled={resetPassword.isPending}
-          className="mt-1 flex items-center justify-center rounded-xl bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-1 flex items-center justify-center rounded bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {resetPassword.isPending ? "Updating…" : "Reset password"}
         </button>

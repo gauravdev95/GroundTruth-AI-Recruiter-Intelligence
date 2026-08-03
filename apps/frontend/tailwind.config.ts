@@ -4,6 +4,27 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      /**
+       * The same six tokens the landing page's stylesheet defines, exposed to
+       * Tailwind so auth and dashboard screens share one identity with it.
+       *
+       * `verified` and `flagged` keep their landing meaning everywhere: green
+       * is proven by an artefact, amber is claimed but unchecked. Outside that
+       * meaning they are only ever used for focus rings, never for decoration.
+       */
+      colors: {
+        ink: { DEFAULT: "#0A1628", hover: "#12233C" },
+        paper: "#EDF0F4",
+        panel: "#FBFCFD",
+        rule: "#D3DAE3",
+        verified: "#0E7C55",
+        flagged: "#9A5B08",
+      },
+      fontFamily: {
+        display: ["Archivo", "system-ui", "sans-serif"],
+        sans: ["Inter", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "monospace"],
+      },
       keyframes: {
         "fade-in": {
           from: { opacity: "0" },

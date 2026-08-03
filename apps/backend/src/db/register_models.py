@@ -16,4 +16,10 @@ from __future__ import annotations
 from src.domains.auth import models as _auth_models  # noqa: F401
 from src.domains.company import models as _company_models  # noqa: F401
 from src.domains.skills import models as _skills_models  # noqa: F401
+from src.domains.resume import models as _resume_models  # noqa: F401
+from src.domains.student import models as _student_models  # noqa: F401
+from src.domains.interview import models as _interview_models  # noqa: F401
+from src.domains.recruiter import models as _recruiter_models  # noqa: F401
+from src.domains.matching import models as _matching_models  # noqa: F401
+from src.domains.pipeline import models as _pipeline_models  # noqa: F401
 from src.platform import models as _platform_models  # noqa: F401

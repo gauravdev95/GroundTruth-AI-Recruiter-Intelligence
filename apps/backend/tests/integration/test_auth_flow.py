@@ -85,10 +85,20 @@ def test_candidate_full_auth_flow(client: TestClient, db_session: Session) -> No
     assert me_resp.json()["email"] == "candidate.flow@example.com"
 
     # Refresh rotates both the refresh token and the CSRF token.
+    old_refresh_cookie = login_resp.cookies["refresh_token"]
     csrf_token = login_resp.cookies["csrf_token"]
     refresh_resp = client.post("/api/v1/auth/refresh", headers={"X-CSRF-Token": csrf_token})
     assert refresh_resp.status_code == 200
-    assert refresh_resp.json()["access_token"] != access_token
+    # Not `!= access_token`: JWT `iat`/`exp` are integer-second NumericDate
+    # claims (RFC 7519), so two tokens for the same user minted within the
+    # same wall-clock second are byte-identical — a real possibility now
+    # that this suite runs fast against a local test database, and not a
+    # security property worth asserting anyway. The refresh *token* rotating
+    # is the actual replay defense; assert that instead, plus that the new
+    # access token genuinely works.
+    new_access_token = refresh_resp.json()["access_token"]
+    assert client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {new_access_token}"}).status_code == 200
+    assert refresh_resp.cookies["refresh_token"] != old_refresh_cookie
 
     # The stale CSRF token from before rotation must no longer work.
     stale_csrf_resp = client.post("/api/v1/auth/logout", headers={"X-CSRF-Token": csrf_token})
@@ -142,6 +152,28 @@ def test_role_mismatch_rejected(client: TestClient, db_session: Session) -> None
     )
     assert resp.status_code == 403
     assert resp.json()["error"]["code"] == "ROLE_MISMATCH"
+
+
+def test_login_without_expected_role_succeeds_and_reports_role(
+    client: TestClient, db_session: Session
+) -> None:
+    """The unified `/login` page sends no `expected_role` — the role comes back
+    on the session instead, and is what the client redirects on. A candidate
+    signing in through it must not be treated as a role mismatch."""
+    _register_and_verify_candidate(db_session, email="roleagnostic@example.com")
+
+    resp = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "roleagnostic@example.com",
+            "password": "StrongPass1!",
+            "captcha_token": "test",
+            "remember_me": False,
+        },
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["user"]["role"] == "candidate"
 
 
 def test_unverified_email_cannot_login(client: TestClient, db_session: Session) -> None:

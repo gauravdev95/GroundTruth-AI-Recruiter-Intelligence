@@ -21,6 +21,39 @@ CSRF_COOKIE_NAME = "csrf_token"
 CSRF_HEADER_NAME = "X-CSRF-Token"
 
 
+def resolve_user_from_access_token(db: Session, token: str) -> User | None:
+    """Access token in, `User` out — or `None` for any reason the token does
+    not identify a usable account (bad signature, expired, wrong token type,
+    unknown subject, deactivated user).
+
+    Extracted from `get_current_user` so the WebSocket handshake
+    (`src/realtime/router.py`) authenticates through *this* function rather
+    than a second implementation of the same checks. A socket that accepted a
+    refresh token, or one that kept working after an account was
+    deactivated, would be a real authentication bypass — and the way that
+    happens is a parallel code path drifting from this one.
+
+    Returns `None` rather than raising `HTTPException`: a WebSocket cannot
+    answer with an HTTP status once it has been accepted, so the two callers
+    need to fail in different ways. The decision itself is shared; only its
+    presentation differs.
+    """
+    try:
+        payload = decode_access_token(token)
+    except jwt.InvalidTokenError:
+        return None
+
+    try:
+        user_id = uuid.UUID(payload["sub"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    user = db.get(User, user_id)
+    if user is None or not user.is_active:
+        return None
+    return user
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     db: Session = Depends(get_db),
@@ -28,16 +61,8 @@ def get_current_user(
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
-    try:
-        payload = decode_access_token(credentials.credentials)
-    except jwt.InvalidTokenError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
-        ) from exc
-
-    user_id = uuid.UUID(payload["sub"])
-    user = db.get(User, user_id)
-    if user is None or not user.is_active:
+    user = resolve_user_from_access_token(db, credentials.credentials)
+    if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
     return user
 

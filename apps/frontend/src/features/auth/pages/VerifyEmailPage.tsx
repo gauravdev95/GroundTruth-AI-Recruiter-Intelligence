@@ -8,14 +8,12 @@ import { OtpInput } from "../components/OtpInput";
 import { SuccessScreen } from "../components/SuccessScreen";
 import { useResendOtp, useVerifyEmail } from "../hooks/useAuth";
 import { getAuthErrorMessage } from "../lib/getErrorMessage";
-import type { UserRole } from "../api/authApi";
 
 const OTP_VALIDITY_SECONDS = 600;
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const email = searchParams.get("email") ?? "";
-  const role = (searchParams.get("role") as UserRole | null) ?? "candidate";
 
   const verifyEmail = useVerifyEmail();
   const resendOtp = useResendOtp();
@@ -52,8 +50,8 @@ export function VerifyEmailPage() {
       <AuthLayout title="Email verified">
         <SuccessScreen title="You're all set" description="Your email has been verified successfully.">
           <Link
-            to={`/login/${role}`}
-            className="mt-2 rounded-xl bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
+            to="/login"
+            className="mt-2 rounded bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-hover"
           >
             Continue to login
           </Link>
@@ -72,7 +70,7 @@ export function VerifyEmailPage() {
       }
     >
       <div className="flex flex-col items-center gap-5">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-verified text-verified">
           <MailCheck size={22} />
         </div>
 

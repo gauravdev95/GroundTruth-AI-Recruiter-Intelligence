@@ -25,6 +25,62 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
 
 
+class DegreeType(str, enum.Enum):
+    """Controlled vocabulary so recruiters can filter on degree exactly."""
+
+    BTECH = "btech"
+    BE = "be"
+    BSC = "bsc"
+    BCA = "bca"
+    MTECH = "mtech"
+    MSC = "msc"
+    MCA = "mca"
+    MBA = "mba"
+    PHD = "phd"
+    OTHER = "other"
+
+
+class Branch(str, enum.Enum):
+    """Controlled vocabulary for academic branch — kept filterable, not free text."""
+
+    CSE = "cse"
+    IT = "it"
+    ECE = "ece"
+    EEE = "eee"
+    MECHANICAL = "mechanical"
+    CIVIL = "civil"
+    CHEMICAL = "chemical"
+    AIML = "aiml"
+    DATA_SCIENCE = "data_science"
+    OTHER = "other"
+
+
+class TargetRole(str, enum.Enum):
+    """Controlled vocabulary for the role a candidate is targeting."""
+
+    BACKEND = "backend"
+    FRONTEND = "frontend"
+    FULLSTACK = "fullstack"
+    MOBILE = "mobile"
+    DATA_ENGINEER = "data_engineer"
+    DATA_SCIENTIST = "data_scientist"
+    ML_ENGINEER = "ml_engineer"
+    DEVOPS = "devops"
+    QA = "qa"
+    SECURITY = "security"
+    OTHER = "other"
+
+
+class OnboardingChoice(str, enum.Enum):
+    """How a student answered the one-time "Upload Resume vs. Build Manually"
+    fork. There is no `SKIPPED`: the fork has no dismiss action, because both
+    answers lead somewhere useful and neither is a commitment — a student who
+    picks `RESUME_UPLOAD` and abandons the upload still lands in the builder."""
+
+    RESUME_UPLOAD = "resume_upload"
+    MANUAL_ENTRY = "manual_entry"
+
+
 class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """The single authentication identity shared by every role."""
 
@@ -55,7 +111,14 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 
 class CandidateProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """Candidate-specific profile data. Auth fields stay on User."""
+    """Candidate-specific profile data. Auth fields stay on User.
+
+    Every profile-builder field is nullable: the builder is explicitly a
+    multi-sitting flow, so a half-filled profile is a valid persisted state.
+    Completeness is expressed by `profile_strength`/`is_discoverable`, both
+    of which are **server-computed only** — see
+    `src/domains/student/completeness.py`. No request schema exposes them.
+    """
 
     __tablename__ = "candidate_profiles"
 
@@ -64,7 +127,54 @@ class CandidateProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
 
+    # --- Section 1: Basic Information ---
+    headline: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    college: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    degree: Mapped[DegreeType | None] = mapped_column(
+        SAEnum(DegreeType, name="degree_type", native_enum=True), nullable=True, index=True
+    )
+    branch: Mapped[Branch | None] = mapped_column(
+        SAEnum(Branch, name="branch", native_enum=True), nullable=True, index=True
+    )
+    graduation_year: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    location: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    target_role: Mapped[TargetRole | None] = mapped_column(
+        SAEnum(TargetRole, name="target_role", native_enum=True), nullable=True, index=True
+    )
+
+    # --- Onboarding ---
+    # Which lane the student picked at the "Upload Resume vs. Build Manually"
+    # fork. NULL means they have not answered it yet, which is what makes the
+    # fork show exactly once: the answer is durable server state, so it
+    # survives a new device or a cleared browser, and picking "build manually"
+    # counts as answered even though it writes no profile data yet. Recording
+    # *which* lane rather than a bare boolean costs nothing and says why the
+    # fork is done.
+    onboarding_choice: Mapped[OnboardingChoice | None] = mapped_column(
+        SAEnum(OnboardingChoice, name="onboarding_choice", native_enum=True), nullable=True
+    )
+
+    # --- Derived discoverability state (never client-supplied) ---
+    profile_strength: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_discoverable: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+
     user: Mapped["User"] = relationship(back_populates="candidate_profile")
+
+    github_accounts: Mapped[list["GithubAccount"]] = relationship(  # noqa: F821
+        back_populates="candidate_profile", cascade="all, delete-orphan"
+    )
+    coding_platform_accounts: Mapped[list["CodingPlatformAccount"]] = relationship(  # noqa: F821
+        back_populates="candidate_profile", cascade="all, delete-orphan"
+    )
+    projects: Mapped[list["Project"]] = relationship(  # noqa: F821
+        back_populates="candidate_profile", cascade="all, delete-orphan"
+    )
+    certificates: Mapped[list["Certificate"]] = relationship(  # noqa: F821
+        back_populates="candidate_profile", cascade="all, delete-orphan"
+    )
+    experiences: Mapped[list["Experience"]] = relationship(  # noqa: F821
+        back_populates="candidate_profile", cascade="all, delete-orphan"
+    )
 
 
 class RecruiterProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):

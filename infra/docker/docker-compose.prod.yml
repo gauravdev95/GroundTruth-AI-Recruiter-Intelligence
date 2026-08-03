@@ -1,0 +1,165 @@
+# Deployable topology: web, api, and workers as separate services/images,
+# so `docker compose -f docker-compose.prod.yml up --scale worker-verification=3`
+# scales one tier without touching the others — the whole reason
+# `celery_app.py`'s queues are split by workload shape (see its module
+# docstring) rather than one worker consuming everything.
+#
+# Depends on infra/docker/docker-compose.yml's postgres/redis/minio for a
+# fully local run: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up`.
+# A real deployment swaps DATABASE_URL/CELERY_BROKER_URL/S3_ENDPOINT_URL to
+# managed services and drops those three from the local file instead.
+
+x-backend-env: &backend-env
+  # `.env` is written for a developer running the app directly on the host
+  # against docker-compose's *published* ports (`localhost:5432`, etc.) —
+  # loaded first for every non-connection setting (secrets, feature flags,
+  # provider keys), then every container-to-container address is
+  # overridden below to the compose service name instead, since a
+  # container's own "localhost" is itself, never a sibling container.
+  env_file:
+    - ../../apps/backend/.env
+  environment:
+    APP_ENV: production
+    DEBUG: "false"
+    DATABASE_URL: postgresql+psycopg://groundtruth:groundtruth@postgres:5432/groundtruth
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+    CELERY_RESULT_BACKEND: redis://redis:6379/2
+    SMTP_HOST: mailhog
+    SMTP_PORT: "1025"
+    S3_ENDPOINT_URL: http://minio:9000
+
+services:
+  migrate:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile
+    <<: *backend-env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile
+    <<: *backend-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # LLM/network-bound: resume import, job-requirement extraction, the AI
+  # interview. Slowest and most likely to need independent scaling.
+  worker-extraction:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile
+    <<: *backend-env
+    command: ["celery", "-A", "src.jobs.celery_app:celery_app", "worker", "--loglevel=info", "-Q", "extraction", "--concurrency=4"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # CMD-SHELL, not CMD: the exec form has no shell, so $HOSTNAME would be
+      # passed to celery literally as the node name and every check would fail
+      # with "No nodes replied" even while the worker is perfectly healthy.
+      test: ["CMD-SHELL", "celery -A src.jobs.celery_app:celery_app inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # Third-party verification checks (GitHub, Codeforces, LeetCode,
+  # HackerRank, certificate reachability) — network-bound, rate-limited
+  # per-host independently of the LLM work above.
+  worker-verification:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile
+    <<: *backend-env
+    command: ["celery", "-A", "src.jobs.celery_app:celery_app", "worker", "--loglevel=info", "-Q", "verification", "--concurrency=8"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # CMD-SHELL, not CMD: the exec form has no shell, so $HOSTNAME would be
+      # passed to celery literally as the node name and every check would fail
+      # with "No nodes replied" even while the worker is perfectly healthy.
+      test: ["CMD-SHELL", "celery -A src.jobs.celery_app:celery_app inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # Embedding calls + the rank-fusion computation, plus the low-volume
+  # dead-letter recorder (`dead_letter` queue) riding along here rather
+  # than getting its own always-on service.
+  worker-matching:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile
+    <<: *backend-env
+    command: ["celery", "-A", "src.jobs.celery_app:celery_app", "worker", "--loglevel=info", "-Q", "matching,dead_letter", "--concurrency=4"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # CMD-SHELL, not CMD: the exec form has no shell, so $HOSTNAME would be
+      # passed to celery literally as the node name and every check would fail
+      # with "No nodes replied" even while the worker is perfectly healthy.
+      test: ["CMD-SHELL", "celery -A src.jobs.celery_app:celery_app inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../../apps/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
+        VITE_RECAPTCHA_SITE_KEY: ${VITE_RECAPTCHA_SITE_KEY:-}
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    healthcheck:
+      # 127.0.0.1, not "localhost" — see the Dockerfile's HEALTHCHECK comment
+      # for why "localhost" reproducibly connection-refused in this image.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped

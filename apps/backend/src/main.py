@@ -1,10 +1,7 @@
-"""FastAPI application entrypoint.
-
-Phase 2 mounts the authentication domain router; other domains
-(student, recruiter) remain unmounted until their own phases.
-"""
+"""FastAPI application entrypoint."""
 
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,11 +20,42 @@ from src.db import register_models  # noqa: F401
 from src.db.database import SessionLocal
 from src.domains.auth.rate_limit import limiter
 from src.domains.auth.router import router as auth_router
+from src.domains.interview.router import router as interview_router
+from src.domains.matching.router import recruiter_matches_router, student_feed_router
+from src.domains.pipeline.router import notifications_router, recruiter_router as pipeline_recruiter_router, student_router as pipeline_student_router
+from src.domains.recruiter.router import router as recruiter_jobs_router
+from src.domains.resume.router import router as student_resume_router
+from src.domains.student.github_router import router as student_github_router
+from src.domains.student.router import router as student_profile_router
+from src.jobs.router import router as jobs_router
+from src.realtime.bus import subscriber as realtime_subscriber
+from src.realtime.router import router as realtime_router
 
 security_settings = get_security_settings()
 configure_logging(debug=security_settings.app_env == "development")
 
-app = FastAPI(title="GroundTruth AI")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Owns the realtime Redis subscriber's lifetime.
+
+    Started here rather than lazily on the first WebSocket connection so a
+    broken Redis surfaces in the startup log instead of the first time a
+    student opens a dashboard — and stopped on shutdown so a reloading dev
+    server doesn't leave an orphaned reader task holding a subscription.
+
+    Note that `TestClient(app)` used as a context manager runs this too,
+    which is why `tests/conftest.py`'s `client` fixture does exactly that:
+    the tests exercise the same startup path production uses.
+    """
+    await realtime_subscriber.start()
+    try:
+        yield
+    finally:
+        await realtime_subscriber.stop()
+
+
+app = FastAPI(title="GroundTruth AI", lifespan=lifespan)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -48,6 +76,18 @@ app.add_middleware(SecurityHeadersMiddleware, hsts=security_settings.app_env == 
 app.add_middleware(RequestIdMiddleware)
 
 app.include_router(auth_router)
+app.include_router(student_profile_router)
+app.include_router(student_github_router)
+app.include_router(student_resume_router)
+app.include_router(interview_router)
+app.include_router(recruiter_jobs_router)
+app.include_router(recruiter_matches_router)
+app.include_router(student_feed_router)
+app.include_router(pipeline_student_router)
+app.include_router(pipeline_recruiter_router)
+app.include_router(notifications_router)
+app.include_router(jobs_router)
+app.include_router(realtime_router)
 
 
 @app.get("/")

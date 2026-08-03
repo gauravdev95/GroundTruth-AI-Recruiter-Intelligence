@@ -1,22 +1,51 @@
-import { Route } from "react-router-dom";
+import { lazy } from "react";
+import { Navigate, Route } from "react-router-dom";
 
-import { CandidateLoginPage } from "./pages/CandidateLoginPage";
-import { CandidateSignupPage } from "./pages/CandidateSignupPage";
-import { ForbiddenPage } from "./pages/ForbiddenPage";
-import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
-import { OAuthCallbackPage } from "./pages/OAuthCallbackPage";
-import { RecruiterLoginPage } from "./pages/RecruiterLoginPage";
-import { RecruiterSignupPage } from "./pages/RecruiterSignupPage";
-import { ResetPasswordPage } from "./pages/ResetPasswordPage";
-import { VerifyEmailPage } from "./pages/VerifyEmailPage";
+/**
+ * Every auth page is code-split.
+ *
+ * These were static imports, which put nine form pages — plus react-hook-form,
+ * zod and the resolver bridge — into the entry chunk that the landing route has
+ * to download before it can paint. Nobody arriving at `/` needs the reset-password
+ * form. One `<Suspense>` boundary around the root `<Routes>` in App.tsx covers
+ * all of them.
+ */
+const LoginPage = lazy(() => import("./pages/LoginPage").then((m) => ({ default: m.LoginPage })));
+const SignupPage = lazy(() => import("./pages/SignupPage").then((m) => ({ default: m.SignupPage })));
+const ForgotPasswordPage = lazy(() =>
+  import("./pages/ForgotPasswordPage").then((m) => ({ default: m.ForgotPasswordPage })),
+);
+const ResetPasswordPage = lazy(() =>
+  import("./pages/ResetPasswordPage").then((m) => ({ default: m.ResetPasswordPage })),
+);
+const VerifyEmailPage = lazy(() =>
+  import("./pages/VerifyEmailPage").then((m) => ({ default: m.VerifyEmailPage })),
+);
+const OAuthCallbackPage = lazy(() =>
+  import("./pages/OAuthCallbackPage").then((m) => ({ default: m.OAuthCallbackPage })),
+);
+const ForbiddenPage = lazy(() =>
+  import("./pages/ForbiddenPage").then((m) => ({ default: m.ForbiddenPage })),
+);
 
 /** Spread directly inside the root <Routes> in App.tsx. */
 export const authRoutes = (
   <>
-    <Route path="/login/candidate" element={<CandidateLoginPage />} />
-    <Route path="/signup/candidate" element={<CandidateSignupPage />} />
-    <Route path="/login/recruiter" element={<RecruiterLoginPage />} />
-    <Route path="/signup/recruiter" element={<RecruiterSignupPage />} />
+    <Route path="/login" element={<LoginPage />} />
+    <Route path="/signup" element={<SignupPage />} />
+
+    {/*
+      The four role-split pages these replaced were live long enough to be
+      bookmarked and to appear in verification emails already sent, so they
+      redirect rather than 404. Sign-in no longer needs a role at all; sign-up
+      still does, and carries it through as a query parameter so the merged
+      page opens on the lane the old URL named.
+    */}
+    <Route path="/login/candidate" element={<Navigate to="/login" replace />} />
+    <Route path="/login/recruiter" element={<Navigate to="/login" replace />} />
+    <Route path="/signup/candidate" element={<Navigate to="/signup" replace />} />
+    <Route path="/signup/recruiter" element={<Navigate to="/signup?role=recruiter" replace />} />
+
     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/verify-email" element={<VerifyEmailPage />} />

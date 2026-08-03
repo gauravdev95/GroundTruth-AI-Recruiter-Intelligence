@@ -32,7 +32,12 @@ class AsyncJobStatus(str, enum.Enum):
 
 
 class AsyncJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """Durable status record for a background job, keyed independently of any task queue ID."""
+    """Durable status record for a background job, keyed independently of any task queue ID.
+
+    This row — not the Celery result backend — is what the UI polls. A broker
+    flush loses task ids; this survives one, which is the reason
+    `docs/DATA_MODEL.md` §7 specifies a table rather than relying on the queue.
+    """
 
     __tablename__ = "async_jobs"
 
@@ -47,6 +52,19 @@ class AsyncJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Correlates a row with the queue for operational debugging. Nullable and
+    # rewritten on every retry — never used to *find* the job, since a broker
+    # flush would orphan it.
+    celery_task_id: Mapped[str | None] = mapped_column(String(155), nullable=True, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set once retries are exhausted. `status=FAILED AND dead_lettered_at IS NOT
+    # NULL` is the dead-letter queue as a query — failures stay inspectable and
+    # requeueable rather than disappearing.
+    dead_lettered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
 
 
 class AuditLog(UUIDPrimaryKeyMixin, Base):

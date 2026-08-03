@@ -1,0 +1,118 @@
+# Local development dependencies for GroundTruth.
+#
+# Postgres already had an init script under infra/docker/postgres; Redis (Celery
+# broker + result backend) and MinIO (S3-compatible object storage) are added
+# here so `docker compose up` provisions everything the backend needs.
+#
+# MinIO speaks the S3 API, so the same storage adapter serves it in development
+# and real S3/R2 in production — only the endpoint and credentials change.
+#
+# The `postgres` image is `pgvector/pgvector`, not plain `postgres` — the
+# plain image has no `vector` extension compiled in, so
+# `infra/docker/postgres/init.sql`'s `CREATE EXTENSION IF NOT EXISTS vector`
+# would fail on first boot. This was a real, previously-undetected defect:
+# nothing had ever actually started this container against the extension-
+# requiring init script until this pass's smoke run needed it to.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: groundtruth-postgres
+    environment:
+      POSTGRES_USER: groundtruth
+      POSTGRES_PASSWORD: groundtruth
+      POSTGRES_DB: groundtruth
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U groundtruth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Entirely separate from `postgres` above — the whole point is that a test
+  # run can *never* reach a database anything else depends on, dev or prod.
+  # Own port (5433) and own named volume so `make test-db-up` can be started,
+  # wiped, and torn down independently of the dev stack.
+  postgres-test:
+    image: pgvector/pgvector:pg16
+    container_name: groundtruth-postgres-test
+    environment:
+      POSTGRES_USER: groundtruth_test
+      POSTGRES_PASSWORD: groundtruth_test
+      POSTGRES_DB: groundtruth_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U groundtruth_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Captures every outbound email locally — SMTP on 1025, web UI on 8025 —
+  # so `src/core/mail/backends.py`'s SMTPMailer (selected via MAIL_BACKEND=smtp)
+  # has something real to talk to in development without sending anything anywhere.
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: groundtruth-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  redis:
+    image: redis:7-alpine
+    container_name: groundtruth-redis
+    ports:
+      - "6379:6379"
+    # Broker state is rebuildable — `async_jobs` is the durable record — so
+    # persistence is deliberately off here to keep local restarts fast.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: groundtruth-minio
+    environment:
+      MINIO_ROOT_USER: groundtruth
+      MINIO_ROOT_PASSWORD: groundtruth-dev-secret
+    ports:
+      - "9000:9000"   # S3 API — matches S3_ENDPOINT_URL
+      - "9001:9001"   # Web console
+    command: ["server", "/data", "--console-address", ":9001"]
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Creates the resume bucket once MinIO is up, then exits. Resumes are personal
+  # data, so the bucket is left private — reads go through presigned URLs.
+  minio-init:
+    image: minio/mc:latest
+    container_name: groundtruth-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 groundtruth groundtruth-dev-secret &&
+      mc mb --ignore-existing local/groundtruth-resumes &&
+      echo 'bucket ready'
+      "
+
+volumes:
+  postgres_data:
+  postgres_test_data:
+  minio_data:

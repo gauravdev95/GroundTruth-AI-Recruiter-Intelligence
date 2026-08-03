@@ -1,0 +1,87 @@
+import { Input } from "@/components";
+
+import type { CodingPlatformType } from "../../api/profileApi";
+import { CODING_PLATFORM_OPTIONS } from "../../constants";
+import { FieldToggle } from "./FieldToggle";
+
+export interface HandleState {
+  included: boolean;
+  value: string;
+  fromResume: boolean;
+}
+
+export interface TechnicalFieldsState {
+  github: HandleState;
+  platforms: Record<CodingPlatformType, HandleState>;
+}
+
+interface TechnicalReviewProps {
+  fields: TechnicalFieldsState;
+  errors: { github?: string; platforms?: string };
+  onGithubChange: (next: Partial<HandleState>) => void;
+  onPlatformChange: (platform: CodingPlatformType, next: Partial<HandleState>) => void;
+}
+
+/**
+ * Section 2 review.
+ *
+ * Confirming anything here queues a verification job for it — the same thing a
+ * manual save does — so the copy says so rather than letting a student assume
+ * an imported handle is already proven.
+ */
+export function TechnicalReview({
+  fields,
+  errors,
+  onGithubChange,
+  onPlatformChange,
+}: TechnicalReviewProps) {
+  return (
+    <div className="space-y-3">
+      <FieldToggle
+        label="GitHub username"
+        included={fields.github.included}
+        fromResume={fields.github.fromResume}
+        onToggle={(included) => onGithubChange({ included })}
+        error={errors.github}
+      >
+        <Input
+          placeholder="ada"
+          value={fields.github.value}
+          onChange={(event) => onGithubChange({ value: event.target.value })}
+        />
+      </FieldToggle>
+
+      {CODING_PLATFORM_OPTIONS.map((option) => {
+        const platform = option.value as CodingPlatformType;
+        const state = fields.platforms[platform];
+        return (
+          <FieldToggle
+            key={platform}
+            label={`${option.label} handle`}
+            included={state.included}
+            fromResume={state.fromResume}
+            onToggle={(included) => onPlatformChange(platform, { included })}
+          >
+            <Input
+              placeholder="your_handle"
+              value={state.value}
+              onChange={(event) => onPlatformChange(platform, { value: event.target.value })}
+            />
+          </FieldToggle>
+        );
+      })}
+
+      {errors.platforms ? (
+        <p role="alert" className="text-xs text-red-500">
+          {errors.platforms}
+        </p>
+      ) : null}
+
+      <p className="rounded-xl border border-rule bg-panel px-3 py-2 text-xs text-slate-500">
+        Importing these queues them for verification — exactly as saving them by hand would. They
+        stay <span className="font-medium text-flagged">pending</span> until GroundTruth has checked
+        them.
+      </p>
+    </div>
+  );
+}

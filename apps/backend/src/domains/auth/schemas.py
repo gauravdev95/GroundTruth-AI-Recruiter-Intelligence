@@ -124,7 +124,14 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1)
     captcha_token: str = Field(min_length=1)
     remember_me: bool = False
-    expected_role: UserRole
+    # Optional since the sign-in page became a single role-agnostic `/login`:
+    # the caller no longer declares which lane it thinks the account is in, and
+    # the role is read off the issued session instead. Still honoured when
+    # supplied — a role-specific entry point (a deep link into the recruiter
+    # lane, say) can still assert its expectation and get the explicit
+    # "this account is a Candidate" message rather than a silent cross-lane
+    # login.
+    expected_role: UserRole | None = None
 
     @field_validator("email")
     @classmethod

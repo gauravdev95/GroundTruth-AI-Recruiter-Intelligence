@@ -94,7 +94,7 @@ export function OtpInput({
             onKeyDown={(e) => handleKeyDown(index, e)}
             onPaste={handlePaste}
             aria-label={`Digit ${index + 1} of ${length}`}
-            className="h-12 w-10 rounded-lg border border-slate-300 bg-white text-center text-lg font-semibold text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 sm:h-14 sm:w-12"
+            className="h-12 w-10 rounded border border-slate-300 bg-white text-center text-lg font-semibold text-slate-900 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25 sm:h-14 sm:w-12"
           />
         ))}
       </div>
@@ -102,7 +102,7 @@ export function OtpInput({
         type="button"
         onClick={handleResend}
         disabled={secondsLeft > 0 || isResending || disabled}
-        className="text-sm font-medium text-indigo-600 transition hover:text-indigo-500 disabled:cursor-not-allowed disabled:text-slate-300"
+        className="text-sm font-medium text-ink underline decoration-rule underline-offset-2 transition hover:decoration-ink disabled:cursor-not-allowed disabled:text-slate-300"
       >
         {secondsLeft > 0 ? `Resend code in ${secondsLeft}s` : isResending ? "Sending…" : "Resend code"}
       </button>

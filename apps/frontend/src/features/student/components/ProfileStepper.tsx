@@ -1,0 +1,66 @@
+import { cn } from "@/lib/utils";
+
+import type { ProfileCompleteness, SectionKey } from "../api/profileApi";
+import { SECTIONS } from "../constants";
+import { SectionBadges } from "./SectionBadges";
+
+interface ProfileStepperProps {
+  completeness: ProfileCompleteness;
+  activeSection: SectionKey;
+  onSelect: (section: SectionKey) => void;
+}
+
+/**
+ * Every step is always reachable. The builder is explicitly a multi-sitting
+ * flow, so gating later steps behind earlier ones would only stop a student
+ * from filling in what they have to hand.
+ */
+export function ProfileStepper({ completeness, activeSection, onSelect }: ProfileStepperProps) {
+  const byKey = new Map(completeness.sections.map((section) => [section.key, section]));
+
+  return (
+    <nav aria-label="Profile sections">
+      <ol className="space-y-1">
+        {SECTIONS.map((meta, index) => {
+          const section = byKey.get(meta.key);
+          const isActive = meta.key === activeSection;
+
+          return (
+            <li key={meta.key}>
+              <button
+                type="button"
+                onClick={() => onSelect(meta.key)}
+                aria-current={isActive ? "step" : undefined}
+                className={cn(
+                  "w-full rounded-xl border px-3 py-2.5 text-left transition",
+                  isActive
+                    ? "border-ink bg-white shadow-sm"
+                    : "border-transparent hover:border-rule hover:bg-white/60",
+                )}
+              >
+                <span className="flex items-start gap-2.5">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[11px]",
+                      isActive ? "bg-ink text-white" : "bg-rule text-slate-600",
+                    )}
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-ink">
+                      {meta.title}
+                      {meta.isMandatory ? <span className="ml-1 text-flagged">*</span> : null}
+                    </span>
+                    {section ? <span className="mt-1 block">{<SectionBadges section={section} />}</span> : null}
+                  </span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}

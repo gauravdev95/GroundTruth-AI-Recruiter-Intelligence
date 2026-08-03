@@ -20,7 +20,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
           id={id}
           type="checkbox"
           aria-invalid={Boolean(error)}
-          className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 bg-white text-indigo-600 accent-indigo-600 focus:ring-2 focus:ring-indigo-500/30"
+          className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 bg-white text-verified accent-verified focus:ring-2 focus:ring-verified/30"
         />
         <span>{label}</span>
       </label>

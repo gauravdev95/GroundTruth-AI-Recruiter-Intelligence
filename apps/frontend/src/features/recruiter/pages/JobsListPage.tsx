@@ -1,0 +1,93 @@
+import { Briefcase, Plus } from "lucide-react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+
+import { Button, EmptyState, ErrorState, Skeleton } from "@/components";
+import { DeadLetterBanner } from "@/features/jobs";
+
+import { JobForm } from "../components/JobForm";
+import { JobStatusBadge } from "../components/JobStatusBadge";
+import { useCreateJob, useJobs } from "../hooks/useJobs";
+
+export function JobsListPage() {
+  const jobs = useJobs();
+  const createJob = useCreateJob();
+  const [creating, setCreating] = useState(false);
+
+  if (jobs.isPending) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+
+  if (jobs.isError) {
+    return (
+      <ErrorState
+        title="Could not load your job postings"
+        description="Something went wrong."
+        action={
+          <Button type="button" variant="secondary" size="sm" onClick={() => void jobs.refetch()}>
+            Try again
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <header className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-semibold text-ink">Job postings</h1>
+          <p className="mt-1 text-sm text-slate-500">Create a role, confirm what GroundTruth extracts, publish.</p>
+        </div>
+        <Button type="button" onClick={() => setCreating((v) => !v)}>
+          <Plus size={16} aria-hidden="true" /> New job
+        </Button>
+      </header>
+
+      <DeadLetterBanner />
+
+      {creating ? (
+        <JobForm
+          submitLabel="Create draft"
+          isSaving={createJob.isPending}
+          onSubmit={(payload) =>
+            createJob.mutate(payload, { onSuccess: () => setCreating(false) })
+          }
+        />
+      ) : null}
+
+      {jobs.data && jobs.data.length === 0 && !creating ? (
+        <EmptyState
+          icon={Briefcase}
+          title="No job postings yet"
+          description="Create your first job to start finding matched candidates."
+        />
+      ) : null}
+
+      <ul className="space-y-3">
+        {jobs.data?.map((job) => (
+          <li key={job.id}>
+            <Link
+              to={`/recruiter/jobs/${job.id}`}
+              className="flex items-center justify-between gap-4 rounded-2xl border border-rule bg-white p-5 transition hover:border-ink"
+            >
+              <div>
+                <p className="font-medium text-ink">{job.title}</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {job.job_type.replace("_", " ")} · {job.experience_level}
+                  {job.location ? ` · ${job.location}` : job.is_remote ? " · Remote" : ""}
+                </p>
+              </div>
+              <JobStatusBadge status={job.status} />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

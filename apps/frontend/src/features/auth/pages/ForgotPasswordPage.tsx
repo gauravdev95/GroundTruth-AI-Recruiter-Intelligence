@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { AlertBanner } from "../components/AlertBanner";
 import { AuthLayout } from "../components/AuthLayout";
@@ -10,11 +10,8 @@ import { SuccessScreen } from "../components/SuccessScreen";
 import { useForgotPassword } from "../hooks/useAuth";
 import { getAuthErrorMessage } from "../lib/getErrorMessage";
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from "../schemas/authSchemas";
-import type { UserRole } from "../api/authApi";
 
 export function ForgotPasswordPage() {
-  const [searchParams] = useSearchParams();
-  const role = (searchParams.get("role") as UserRole | null) ?? "candidate";
   const forgotPassword = useForgotPassword();
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -42,8 +39,8 @@ export function ForgotPasswordPage() {
           description="If an account with that email exists, we've sent a link to reset your password."
         >
           <Link
-            to={`/login/${role}`}
-            className="mt-2 rounded-xl bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
+            to="/login"
+            className="mt-2 rounded bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-hover"
           >
             Back to login
           </Link>
@@ -57,7 +54,7 @@ export function ForgotPasswordPage() {
       title="Forgot your password?"
       subtitle="Enter your email and we'll send you a reset link."
       footer={
-        <Link to={`/login/${role}`} className="font-medium text-indigo-600 hover:text-indigo-500">
+        <Link to="/login" className="font-medium text-ink underline decoration-rule underline-offset-2 transition hover:decoration-ink">
           Back to login
         </Link>
       }
@@ -77,7 +74,7 @@ export function ForgotPasswordPage() {
         <button
           type="submit"
           disabled={forgotPassword.isPending}
-          className="mt-1 flex items-center justify-center rounded-xl bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-1 flex items-center justify-center rounded bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {forgotPassword.isPending ? "Sending…" : "Send reset link"}
         </button>

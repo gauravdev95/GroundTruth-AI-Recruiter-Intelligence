@@ -6,6 +6,7 @@ import uuid
 
 import jwt
 import pytest
+from jwt.utils import base64url_decode
 
 from src.domains.auth.security import (
     create_access_token,
@@ -45,10 +46,32 @@ def test_access_token_round_trip() -> None:
 
 
 def test_access_token_tampered_signature_rejected() -> None:
+    """Flips a character in the *middle* of the signature segment, and
+    asserts the decoded signature bytes really changed before relying on the
+    rejection.
+
+    The previous version rewrote the last two base64url characters, which is
+    intermittently a no-op. An HS256 signature is 32 bytes = 43 base64url
+    characters; the final character encodes only 4 significant bits, its
+    low 2 bits being padding. So `'a'` (011010) and `'b'` (011011) in the
+    last position decode to identical bytes — a token ending in `"ab"`
+    "tampered" to `"aa"` verified fine and the test failed roughly one run
+    in a few hundred. Every character before the last carries 6 significant
+    bits, so a middle-of-segment flip always changes the signature.
+    """
     token = create_access_token(user_id=uuid.uuid4(), role="candidate")
-    tampered = token[:-2] + ("aa" if token[-2:] != "aa" else "bb")
+    header, payload, signature = token.split(".")
+
+    index = len(signature) // 2
+    original = signature[index]
+    # Two candidates so the replacement is never equal to what was there.
+    flipped = "A" if original != "A" else "B"
+    tampered_signature = signature[:index] + flipped + signature[index + 1 :]
+
+    assert base64url_decode(tampered_signature) != base64url_decode(signature)
+
     with pytest.raises(jwt.InvalidTokenError):
-        decode_access_token(tampered)
+        decode_access_token(f"{header}.{payload}.{tampered_signature}")
 
 
 def test_opaque_token_is_unique_and_hash_is_deterministic() -> None:

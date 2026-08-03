@@ -5,7 +5,26 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
-    "strict": true
+    "strict": true,
+
+    /*
+     * Send this project's output somewhere harmless.
+     *
+     * `composite` implies declaration emit, and with no `outDir` that wrote
+     * `vite.config.js` and `vite.config.d.ts` straight back next to the source —
+     * both of which ended up committed. Vite resolves its config by extension
+     * order and tries `vite.config.js` BEFORE `vite.config.ts`, so the compiled
+     * copy shadowed the file it was compiled from: editing the `.ts` had no
+     * effect until someone happened to re-run `tsc -b`.
+     *
+     * `noEmit` is not an option here — TypeScript rejects it for a referenced
+     * project with TS6310 ("may not disable emit"), reported against the
+     * `references` entry in tsconfig.json. Redirecting the emit achieves the
+     * same thing: Vite compiles this config itself at startup, so nothing ever
+     * reads what lands in node_modules.
+     */
+    "outDir": "./node_modules/.tmp/tsconfig-node",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig-node/tsconfig.node.tsbuildinfo"
   },
   "include": ["vite.config.ts"]
 }

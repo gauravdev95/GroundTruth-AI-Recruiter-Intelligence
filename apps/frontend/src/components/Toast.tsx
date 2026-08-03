@@ -21,7 +21,7 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 const VARIANT_STYLES: Record<ToastVariant, string> = {
   success: "border-emerald-200 bg-emerald-50 text-emerald-800",
   error: "border-red-200 bg-red-50 text-red-800",
-  info: "border-indigo-200 bg-indigo-50 text-indigo-800",
+  info: "border-rule bg-paper text-ink",
 };
 
 const VARIANT_ICONS: Record<ToastVariant, typeof Info> = {
@@ -61,7 +61,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               key={toast.id}
               role="status"
               className={cn(
-                "pointer-events-auto flex w-full max-w-sm animate-slide-up items-start gap-2 rounded-xl border p-3 text-sm shadow-lg",
+                "pointer-events-auto flex w-full max-w-sm animate-slide-up items-start gap-2 rounded border p-3 text-sm shadow-lg",
                 VARIANT_STYLES[toast.variant],
               )}
             >

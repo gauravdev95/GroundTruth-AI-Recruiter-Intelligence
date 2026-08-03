@@ -57,7 +57,10 @@ export interface LoginPayload {
   password: string;
   captcha_token: string;
   remember_me: boolean;
-  expected_role: UserRole;
+  /** Optional, and the unified `/login` page omits it: the role comes back on
+   * the issued session rather than being asserted up front. The server still
+   * enforces it when present, for any caller that does know the lane. */
+  expected_role?: UserRole;
 }
 
 export const authApi = {

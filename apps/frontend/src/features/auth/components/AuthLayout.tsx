@@ -11,39 +11,19 @@ interface AuthLayoutProps {
 
 function BrandMark() {
   return (
-    <Link to="/" className="inline-flex items-center gap-2 text-white/90" aria-label="GroundTruth AI — home">
+    <Link to="/" className="inline-flex items-center gap-2 text-ink" aria-label="GroundTruth — home">
       <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path
-          d="M10 9 L4 16 L10 23"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M22 9 L28 16 L22 23"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <path d="M10 9 L4 16 L10 23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="square" />
+        <path d="M22 9 L28 16 L22 23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="square" />
         <path
           d="M11.5 16.2 L15 19.6 L20.5 12"
-          stroke="url(#authg)"
-          strokeWidth="2.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          stroke="#0E7C55"
+          strokeWidth="2.4"
+          strokeLinecap="square"
         />
-        <circle cx="11.5" cy="16.2" r="1.5" fill="url(#authg)" />
-        <defs>
-          <linearGradient id="authg" x1="11" y1="20" x2="21" y2="12" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#5E8BFF" />
-            <stop offset="1" stopColor="#9B6BFF" />
-          </linearGradient>
-        </defs>
       </svg>
-      <span className="text-[15px] font-semibold tracking-tight text-slate-900">
-        GroundTruth <span className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] bg-clip-text text-transparent">AI</span>
+      <span className="font-display text-[15px] font-bold tracking-tight text-ink">
+        GroundTruth
       </span>
     </Link>
   );
@@ -51,15 +31,12 @@ function BrandMark() {
 
 export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#F6F7F9] px-4 py-10 sm:py-16">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-40 -top-40 h-96 w-96 animate-float rounded-full bg-indigo-400/20 blur-3xl" />
-        <div
-          className="absolute -bottom-40 -right-40 h-96 w-96 animate-float rounded-full bg-violet-400/20 blur-3xl"
-          style={{ animationDelay: "-3s" }}
-        />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(79,70,229,0.06),transparent_60%)]" />
-      </div>
+    <div className="relative flex min-h-screen items-start justify-center bg-paper px-4 pb-12 pt-24 sm:pb-16 sm:pt-28">
+      {/* Hairline blueprint grid, carried over from the landing page. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(#D3DAE3_1px,transparent_1px),linear-gradient(90deg,#D3DAE3_1px,transparent_1px)] [background-size:64px_64px] [mask-image:radial-gradient(60%_55%_at_50%_45%,#000_20%,transparent_80%)]"
+      />
 
       <div className="absolute left-6 top-6 sm:left-8 sm:top-8">
         <BrandMark />
@@ -72,10 +49,10 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
         <ArrowLeft size={15} /> Back to home
       </Link>
 
-      <div className="relative z-10 w-full max-w-md animate-scale-in">
-        <div className="rounded-3xl border border-slate-200 bg-white/90 p-7 shadow-xl shadow-slate-900/5 backdrop-blur-xl sm:p-9">
+      <div className="relative z-10 my-auto w-full max-w-md animate-scale-in">
+        <div className="rounded border border-rule bg-panel p-7 sm:p-9">
           <div className="mb-7 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
+            <h1 className="font-display text-2xl font-bold tracking-tight text-ink">{title}</h1>
             {subtitle ? <p className="mt-2 text-sm text-slate-500">{subtitle}</p> : null}
           </div>
           {children}

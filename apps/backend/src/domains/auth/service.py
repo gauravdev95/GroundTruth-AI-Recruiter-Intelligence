@@ -17,7 +17,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.config.config import get_security_settings
-from src.domains.auth.email import send_password_reset_email, send_verification_otp_email
+from src.core.mail.service import send_password_reset_email, send_verification_otp_email
+from src.domains.company.service import get_or_create_company
 from src.domains.auth.exceptions import (
     AccountInactive,
     AccountLocked,
@@ -106,12 +107,13 @@ def register_recruiter(db: Session, payload: RecruiterRegisterRequest) -> tuple[
     )
     db.add(user)
     db.flush()
-    db.add(RecruiterProfile(user_id=user.id, company_name=payload.company_name))
+    company = get_or_create_company(db, name=payload.company_name, recruiter_email=payload.company_email)
+    db.add(RecruiterProfile(user_id=user.id, company_name=payload.company_name, company_id=company.id))
     db.commit()
     db.refresh(user)
 
     otp = _issue_otp(db, user)
-    logger.info("recruiter_registered", user_id=str(user.id))
+    logger.info("recruiter_registered", user_id=str(user.id), company_id=str(company.id))
     return user, otp, int(OTP_VALIDITY.total_seconds())
 
 
@@ -219,7 +221,7 @@ def authenticate(db: Session, payload: LoginRequest) -> User:
         db.commit()
         raise InvalidCredentials()
 
-    if user.role != payload.expected_role:
+    if payload.expected_role is not None and user.role != payload.expected_role:
         raise RoleMismatch(
             f"This account is registered as a {user.role.value.capitalize()}. "
             f"Please use {user.role.value.capitalize()} login."

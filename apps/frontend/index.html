@@ -3,17 +3,181 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="theme-color" content="#060814" />
+
+    <title>GroundTruth — AI-verified talent marketplace</title>
     <meta
       name="description"
-      content="GroundTruth AI verifies engineering talent through GitHub repository analysis, adaptive AI interviews, and evidence-backed candidate search."
+      content="GroundTruth reads your actual repositories, confirms what you personally wrote, and interviews you on your own source — then turns the result into a profile a recruiter can act on."
     />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="GroundTruth" />
+    <meta property="og:title" content="GroundTruth — AI-verified talent marketplace" />
+    <meta
+      property="og:description"
+      content="Your code is your résumé now. Seven verification stages between a claim and a credential, and one interview on your own source code."
+    />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="GroundTruth — AI-verified talent marketplace" />
+    <meta
+      name="twitter:description"
+      content="Every skill proven by code, contribution, or a recorded technical answer."
+    />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="mask-icon" href="/favicon.svg" color="#4F46E5" />
-    <title>GroundTruth AI</title>
+    <link rel="mask-icon" href="/favicon.svg" color="#7C5CFF" />
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      The hero, in static markup, inside #root.
+
+      This app is client-rendered, so #root was empty until React had
+      downloaded, parsed and run — which put the headline, and therefore LCP,
+      behind the bundle. Everything below is styled entirely by the stylesheet
+      already linked in <head>, so it paints as soon as the CSS arrives, with no
+      JavaScript involved.
+
+      React replaces it on mount with the identical markup plus the animated
+      console. That is why every class here matches the real component, and why
+      nothing in the copy column animates in: an animated headline would replay
+      when React took over, and a visible-then-hidden element would flash.
+
+      It doubles as the no-JavaScript fallback, which is why there is no
+      separate <noscript> hero — two copies of the same markup would drift.
+
+      MIRRORS components/Backdrop.tsx, components/Nav.tsx and components/Hero.tsx.
+      A change to any of the three has to be made here too.
+    -->
+    <div id="root">
+      <div class="gt">
+        <a class="skip-link" href="#main">Skip to content</a>
+
+        <!-- Five fixed layers. Markup and CSS only — no script behind any of
+             it, so the page's whole visual world is up on the first paint. -->
+        <div class="gt-bg" aria-hidden="true">
+          <span class="gt-glow gt-glow-a"></span>
+          <span class="gt-glow gt-glow-b"></span>
+          <span class="gt-glow gt-glow-c"></span>
+          <span class="gt-stars"></span>
+          <span class="gt-grid"></span>
+          <span class="gt-beam"></span>
+        </div>
+
+        <nav class="nav">
+          <div class="wrap nav-in">
+            <a href="#top" class="logo" aria-label="GroundTruth — home">GroundTruth</a>
+
+            <div class="nav-links">
+              <a href="#verification">How it works</a>
+              <a href="#assessment">Evidence</a>
+              <a href="#matching">Matching</a>
+              <a href="#access">Security</a>
+            </div>
+
+            <div class="nav-right">
+              <a class="nav-login" href="/login">Log in</a>
+              <a class="btn nav-cta" href="/signup"
+                ><span class="btn-label">Get verified</span
+                ><span class="btn-arrow" aria-hidden="true">→</span></a
+              >
+            </div>
+
+            <button
+              type="button"
+              class="nav-burger"
+              aria-expanded="false"
+              aria-controls="nav-sheet"
+              aria-label="Open menu"
+            >
+              <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true">
+                <path
+                  d="M0 1 H20 M0 7 H20 M0 13 H14"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  fill="none"
+                />
+              </svg>
+            </button>
+          </div>
+        </nav>
+
+        <header class="hero" id="top">
+          <div class="wrap hero-in">
+            <div class="hero-copy">
+              <p class="coord mono">§00 / THESIS</p>
+
+              <p class="pill hero-pill">
+                <span class="pill-mark" aria-hidden="true">◈</span>
+                Not a test score. Not a resume claim. Real code, reviewed.
+              </p>
+
+              <h1 class="h1">
+                Your <span class="accent">code</span> is your résumé
+                <span class="accent">now</span>.
+              </h1>
+
+              <p class="hero-lead">
+                GroundTruth reads your actual repositories, confirms what you personally wrote, and
+                interviews you on your own source — then turns the result into a profile a recruiter
+                can act on.
+              </p>
+
+              <div class="hero-ctas">
+                <a class="btn" href="/signup"
+                  ><span class="btn-label">Build a verified profile</span
+                  ><span class="btn-arrow" aria-hidden="true">→</span></a
+                >
+                <a class="btn btn-2" href="#verification"
+                  ><span class="btn-label">▷ See how it works</span></a
+                >
+              </div>
+
+              <dl class="hero-caps">
+                <div>
+                  <dt class="hero-cap-value mono num">7</dt>
+                  <dd class="hero-cap-label">Verification stages</dd>
+                </div>
+                <div>
+                  <dt class="hero-cap-value mono num">1536-dim</dt>
+                  <dd class="hero-cap-label">Shared vector space</dd>
+                </div>
+                <div>
+                  <dt class="hero-cap-value mono num">5–7</dt>
+                  <dd class="hero-cap-label">Questions from your own code</dd>
+                </div>
+                <div>
+                  <dt class="hero-cap-value mono num">4</dt>
+                  <dd class="hero-cap-label">Evidence sources</dd>
+                  <dd class="hero-cap-detail mono">code · commits · contests · certificates</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="hero-right">
+              <!--
+                The console's frame and the sample-data label only. Its contents
+                are the sequence's first beat and belong to the component — but
+                the frame has to be here, because the scene React mounts into
+                must not resize anything around it.
+              -->
+              <div class="hc-scene">
+                <div class="hc" aria-hidden="true">
+                  <div class="hc-head">
+                    <span class="hc-dot"></span>
+                    <span class="mono hc-repo">candidate/payments-api · main</span>
+                    <span class="hc-state"><span class="badge badge-neutral">Scanning</span></span>
+                  </div>
+                </div>
+                <p class="hc-sample">Sample profile</p>
+              </div>
+            </div>
+          </div>
+        </header>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

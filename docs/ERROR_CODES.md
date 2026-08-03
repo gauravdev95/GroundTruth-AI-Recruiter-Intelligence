@@ -57,6 +57,37 @@ frontend code; `message` may change wording over time and should not be pattern-
 | `OAUTH_NOT_CONFIGURED` | 503 | Google OAuth credentials not set in this environment |
 | `OAUTH_ERROR` | 400 | Google OAuth exchange/consent failed |
 
+## Student domain — GitHub OAuth (`src/domains/student/github_oauth.py`)
+
+| Code | HTTP status | Meaning |
+|---|---|---|
+| `GITHUB_OAUTH_NOT_CONFIGURED` | 503 | GitHub OAuth credentials not set in this environment |
+| `GITHUB_OAUTH_ERROR` | 400 | GitHub OAuth exchange/consent failed, or the state token was invalid/expired |
+
+## Verification domain (`src/domains/verification/exceptions.py`)
+
+These are internal to `src/jobs/tasks/verification.py` and are not raised
+across an HTTP boundary — listed here because they drive the same
+retryable/deterministic split as the LLM domain's errors, and because
+`verification_payload.error` (surfaced read-only in the profile-section
+responses) contains their message text when a check fails.
+
+| Code | Meaning |
+|---|---|
+| `VERIFICATION_SERVICE_UNAVAILABLE` | Third-party API timed out, refused, or 5xx'd. Transient — retried, then leaves the claim `UNVERIFIED` |
+| `VERIFICATION_RATE_LIMITED` | This worker's own rate limit for that third-party API was hit. Transient |
+| `VERIFICATION_CLAIM_NOT_FOUND` | The claimed username/handle/URL does not exist. Deterministic — resolves the claim to `REJECTED`, not a job failure |
+
+## Interview domain (`src/domains/interview/exceptions.py`)
+
+| Code | HTTP status | Meaning |
+|---|---|---|
+| `REPOSITORY_NOT_VERIFIED` | 409 | Starting an interview on a project whose GitHub verification isn't `VERIFIED` yet |
+| `INTERVIEW_ALREADY_EXISTS` | 409 | An interview for this `(candidate, project)` pair is already in progress or completed |
+| `INTERVIEW_NOT_READY` | 409 | Question generation hasn't finished yet (`status=PENDING`) |
+| `QUESTION_ALREADY_ANSWERED` | 409 | Resubmitting an answer to a question that already has one — answers are immutable |
+| `INTERVIEW_NOT_COMPLETE` | 409 | Requesting the evidence report before evaluation has finished |
+
 ## Note on rate limiting
 
 `slowapi`'s `RateLimitExceeded` is handled by its own bundled handler

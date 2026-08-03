@@ -1,5 +1,6 @@
 import { LogOut, Menu, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
@@ -17,13 +18,17 @@ export interface DashboardShellProps {
   userEmail: string;
   onLogout: () => void;
   isLoggingOut?: boolean;
+  /** Rendered in the header, left of the user menu — the notification bell.
+   * Optional so non-dashboard consumers of this shell aren't forced to wire
+   * one in. */
+  headerExtra?: ReactNode;
 }
 
 /** Generic Sidebar + Topbar + user menu + responsive shell, shared by the
  * candidate (`features/student/`) and recruiter (`features/recruiter/`)
  * dashboards — role-specific nav items are passed in, content renders
  * through `<Outlet />` from whichever nested route matched. */
-export function DashboardShell({ navItems, userName, userEmail, onLogout, isLoggingOut }: DashboardShellProps) {
+export function DashboardShell({ navItems, userName, userEmail, onLogout, isLoggingOut, headerExtra }: DashboardShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const nav = (
@@ -36,8 +41,8 @@ export function DashboardShell({ navItems, userName, userEmail, onLogout, isLogg
           onClick={() => setMobileNavOpen(false)}
           className={({ isActive }) =>
             cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
-              isActive ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100",
+              "flex items-center gap-3 rounded px-3 py-2.5 text-sm font-medium transition",
+              isActive ? "bg-paper text-ink" : "text-slate-600 hover:bg-slate-100",
             )
           }
         >
@@ -50,7 +55,7 @@ export function DashboardShell({ navItems, userName, userEmail, onLogout, isLogg
 
   const brand = (
     <span className="text-[15px] font-semibold tracking-tight text-slate-900">
-      GroundTruth <span className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] bg-clip-text text-transparent">AI</span>
+      GroundTruth
     </span>
   );
 
@@ -91,12 +96,13 @@ export function DashboardShell({ navItems, userName, userEmail, onLogout, isLogg
             <Menu size={22} />
           </button>
           <div className="hidden lg:block" />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            {headerExtra}
             <div className="hidden text-right sm:block">
               <div className="text-sm font-medium text-slate-900">{userName}</div>
               <div className="text-xs text-slate-500">{userEmail}</div>
             </div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] text-sm font-semibold text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white">
               {userName.slice(0, 1).toUpperCase() || "?"}
             </div>
             <button
@@ -105,7 +111,7 @@ export function DashboardShell({ navItems, userName, userEmail, onLogout, isLogg
               disabled={isLoggingOut}
               aria-label="Log out"
               title="Log out"
-              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-60"
+              className="rounded p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-60"
             >
               <LogOut size={18} />
             </button>

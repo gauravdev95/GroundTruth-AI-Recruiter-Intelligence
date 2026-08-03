@@ -1,10 +1,14 @@
-import { LayoutDashboard } from "lucide-react";
+import { BarChart3, Briefcase } from "lucide-react";
 
 import { DashboardShell, type DashboardNavItem } from "@/components";
 import { useAuthContext } from "@/features/auth";
 import { useLogout } from "@/features/auth/hooks/useAuth";
+import { NotificationBell } from "@/features/notifications";
 
-const NAV_ITEMS: DashboardNavItem[] = [{ label: "Overview", icon: LayoutDashboard, to: "/recruiter" }];
+const NAV_ITEMS: DashboardNavItem[] = [
+  { label: "Job postings", icon: Briefcase, to: "/recruiter/jobs" },
+  { label: "Analytics", icon: BarChart3, to: "/recruiter/analytics" },
+];
 
 export function RecruiterDashboardLayout() {
   const { user } = useAuthContext();
@@ -17,6 +21,7 @@ export function RecruiterDashboardLayout() {
       userEmail={user?.email ?? ""}
       onLogout={() => logout.mutate()}
       isLoggingOut={logout.isPending}
+      headerExtra={<NotificationBell applicationHref={(id) => `/recruiter/applications/${id}`} />}
     />
   );
 }

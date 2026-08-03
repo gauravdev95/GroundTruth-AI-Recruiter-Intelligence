@@ -13,7 +13,15 @@ module.exports = {
     ecmaFeatures: { jsx: true },
   },
   plugins: ["@typescript-eslint", "react-refresh"],
-  ignorePatterns: ["dist", "node_modules", ".eslintrc.cjs"],
+  // vite.config.js / .d.ts are emitted by `tsc -b` from vite.config.ts —
+  // generated output, not source, so it is not linted.
+  ignorePatterns: [
+    "dist",
+    "node_modules",
+    ".eslintrc.cjs",
+    "vite.config.js",
+    "vite.config.d.ts",
+  ],
   rules: {
     "react-refresh/only-export-components": [
       "warn",
