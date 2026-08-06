@@ -36,6 +36,46 @@ export function useUpdateJob(jobId: string) {
   });
 }
 
+/**
+ * Create the draft, then hand it to extraction — the single action behind
+ * Screen 1's "Extract requirements" button.
+ *
+ * One mutation rather than two chained from an `onSuccess`, so the button has
+ * one pending state and the page has one error to render. The two calls stay
+ * separate endpoints underneath because they are separate job states, and the
+ * draft surviving a failed extraction is the point: `error.jobId` carries the
+ * id of the job that *was* created, so the caller can route the recruiter to
+ * their draft instead of losing everything they typed.
+ */
+export class ExtractionStartFailed extends Error {
+  constructor(
+    readonly jobId: string,
+    readonly cause: unknown,
+  ) {
+    super("The job was saved as a draft, but extraction could not be started.");
+    this.name = "ExtractionStartFailed";
+  }
+}
+
+export function useCreateAndExtractJob() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: JobCreatePayload) => {
+      const job = await jobsApi.create(payload);
+      try {
+        await jobsApi.submit(job.id);
+      } catch (error) {
+        throw new ExtractionStartFailed(job.id, error);
+      }
+      return job;
+    },
+    // Invalidated on settle rather than on success: a job that was created
+    // and then failed to start extracting is still a job, and leaving it off
+    // the recruiter's list would make it look like nothing had happened.
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: queryKeys.recruiterJobs.all() }),
+  });
+}
+
 export function useSubmitJob(jobId: string) {
   const queryClient = useQueryClient();
   return useMutation({

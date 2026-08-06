@@ -16,27 +16,25 @@ export function useLogin() {
   });
 }
 
+/*
+ * Both register hooks set the session on success, exactly as `useLogin` does.
+ * Registration signs the new account in — there is no verification step
+ * between creating the account and using it, so leaving the session unset
+ * here would strand a signed-in user on a page that thinks they are anonymous.
+ */
 export function useCandidateRegister() {
+  const { setSession } = useAuthContext();
   return useMutation({
     mutationFn: (payload: CandidateRegisterPayload) => authApi.registerCandidate(payload),
+    onSuccess: (data) => setSession(data.user, data.access_token),
   });
 }
 
 export function useRecruiterRegister() {
+  const { setSession } = useAuthContext();
   return useMutation({
     mutationFn: (payload: RecruiterRegisterPayload) => authApi.registerRecruiter(payload),
-  });
-}
-
-export function useVerifyEmail() {
-  return useMutation({
-    mutationFn: ({ email, otp }: { email: string; otp: string }) => authApi.verifyEmailConfirm(email, otp),
-  });
-}
-
-export function useResendOtp() {
-  return useMutation({
-    mutationFn: (email: string) => authApi.verifyEmailResend(email),
+    onSuccess: (data) => setSession(data.user, data.access_token),
   });
 }
 

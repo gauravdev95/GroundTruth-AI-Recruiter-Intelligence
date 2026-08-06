@@ -59,7 +59,7 @@ def stub_broker(monkeypatch):
 
 
 def _candidate(db_session: Session, email: str = "gh.oauth@example.com") -> tuple[str, CandidateProfile]:
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace",
@@ -71,7 +71,6 @@ def _candidate(db_session: Session, email: str = "gh.oauth@example.com") -> tupl
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     token = create_access_token(user_id=user.id, role=user.role.value)
     profile = db_session.execute(
         select(CandidateProfile).where(CandidateProfile.user_id == user.id)

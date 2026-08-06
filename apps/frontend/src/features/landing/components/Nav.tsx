@@ -1,304 +1,185 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { Menu, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-import { useAuthContext } from "@/features/auth/context/AuthContext";
+import { DURATION, EASE, useReducedMotionSafe } from "@/design/motion";
+import { cn } from "@/lib/utils";
 
-import { CTA, NAV, ROUTES } from "../content/landing";
-import { SPRING, observeIntersection, useIsNarrow, useMagnetic, useReducedMotionSafe } from "../lib/motion";
-import { Logo } from "./Logo";
-
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+import { NAV, NAV_LINKS } from "../content/landing";
+import { Button } from "./ui/Button";
+import { Container } from "./ui/Container";
 
 /**
- * Hoisted so its identity is stable. Mapping this inline would hand
- * `useActiveSection` a new array on every render, tearing down and rebuilding
- * four IntersectionObserver registrations each time.
- */
-const NAV_HREFS = NAV.links.map((link) => link.href);
-
-/**
- * Which section the reader is currently in, for the nav's active underline.
+ * Scroll distance after which the nav stops being transparent.
  *
- * Uses the page's shared observer registry with a band around the viewport's
- * middle, so "active" means "crossing the centre of the screen" rather than
- * "touching an edge". When two sections qualify, the earlier one in document
- * order wins, which stops the indicator flickering between neighbours.
+ * Deliberately short. The switch should happen as the hero's top edge leaves,
+ * not when the hero does — a bar that is still transparent halfway down a white
+ * section has invisible links in it.
  */
-function useActiveSection(hrefs: readonly string[]): string | null {
-  const [active, setActive] = useState<string | null>(null);
-
-  useEffect(() => {
-    const stops: Array<() => void> = [];
-    const visible = new Set<string>();
-
-    for (const href of hrefs) {
-      const element = document.getElementById(href.slice(1));
-      if (!element) continue;
-
-      stops.push(
-        observeIntersection(
-          element,
-          (isIntersecting) => {
-            if (isIntersecting) visible.add(href);
-            else visible.delete(href);
-            setActive(hrefs.find((candidate) => visible.has(candidate)) ?? null);
-          },
-          { rootMargin: "-45% 0px -45% 0px" },
-        ),
-      );
-    }
-
-    return () => stops.forEach((stop) => stop());
-  }, [hrefs]);
-
-  return active;
-}
-
-interface NavItemProps {
-  href: string;
-  label: string;
-  active: boolean;
-  reduced: boolean;
-}
+const SOLID_AFTER = 80;
 
 /**
- * A nav link with a small magnetic pull toward the pointer.
+ * The wordmark. A filled dot, then the name.
  *
- * Its own component purely so the hook can be called once per link without
- * calling hooks inside a loop. Displacement is capped at 4px — enough to feel
- * responsive, not enough to read as gelatinous — and the shared hook already
- * disables it on touch and under reduced motion.
+ * The dot is electric blue, not the hero's orange. Orange on this page means
+ * "a verification event on the constellation" and it lives inside the hero for
+ * that reason; the nav outlives the hero by twelve sections, so a permanent
+ * orange mark would carry the meaning somewhere it cannot be true.
  */
-function NavItem({ href, label, active, reduced }: NavItemProps) {
-  const ref = useMagnetic<HTMLAnchorElement>(4);
-
+function Wordmark({ solid }: { solid: boolean }) {
   return (
-    <a href={href} ref={ref} aria-current={active ? "true" : undefined}>
-      {label}
-      {/*
-        `layoutId` makes this one underline travel between links rather than two
-        underlines crossfading. Under reduced motion the travel duration drops
-        to zero, so it cuts to its new position instead of sliding.
-      */}
-      {active && (
-        <motion.span
-          className="nav-underline"
-          layoutId="nav-underline"
-          aria-hidden="true"
-          transition={reduced ? { duration: 0 } : SPRING}
-        />
+    <a
+      href="#top"
+      aria-label={NAV.homeLabel}
+      className={cn(
+        "group inline-flex items-center gap-2.5 rounded-sm font-grotesk text-xl font-bold tracking-tight",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gt-electric focus-visible:ring-offset-4",
+        solid
+          ? "text-gt-void focus-visible:ring-offset-gt-paper"
+          : "text-white focus-visible:ring-offset-transparent",
       )}
+    >
+      <span aria-hidden="true" className="h-2 w-2 rounded-full bg-gt-electric" />
+      GroundTruth
     </a>
   );
 }
 
-interface NavSheetProps {
-  open: boolean;
-  onClose: () => void;
-  signedIn: boolean;
-  onLogout: () => void;
-}
+export function Nav() {
+  const [solid, setSolid] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const reduced = useReducedMotionSafe();
+  const burgerRef = useRef<HTMLButtonElement>(null);
 
-/**
- * The mobile menu, as a real focus-trapped dialog.
- *
- * Below 720px the desktop links and the primary CTA are `display: none`, which
- * would otherwise leave phone users with a wordmark and nothing else — no
- * navigation and no signup path. Escape closes it, Tab cycles inside it, the
- * body scroll is locked while it is open, and focus returns to whatever opened
- * it on close.
- *
- * `components/Modal.tsx` is not reused here despite implementing the same
- * behaviour: it is Tailwind-styled for the dashboard's visual world — large
- * radii, a heavy black shadow — and this page allows two shadows total and 4px
- * radii. Same behaviour, this page's clothes.
- */
-function NavSheet({ open, onClose, signedIn, onLogout }: NavSheetProps) {
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<Element | null>(null);
-
+  /*
+   * A passive scroll listener rather than the shared rAF loop. The loop only
+   * runs while something is subscribed to it, and subscribing a boolean check
+   * for the lifetime of the page would keep it running forever — including
+   * while the reader sits still, which is most of the time. This costs nothing
+   * when nobody is scrolling, and `setSolid` only re-renders on the crossing.
+   */
   useEffect(() => {
-    if (!open) return;
+    const onScroll = () => setSolid(window.scrollY > SOLID_AFTER);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-    triggerRef.current = document.activeElement;
-    const sheet = sheetRef.current;
-    const focusable = sheet?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-    focusable?.[0]?.focus();
+  /* Escape closes the sheet and returns focus to the control that opened it. */
+  useEffect(() => {
+    if (!menuOpen) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-        return;
-      }
-      if (event.key !== "Tab" || !focusable || focusable.length === 0) return;
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      burgerRef.current?.focus();
     };
 
-    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
+
+  /* An open sheet must not scroll the page behind it. */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
-      (triggerRef.current as HTMLElement | null)?.focus?.();
+      document.body.style.overflow = previous;
     };
-  }, [open, onClose]);
+  }, [menuOpen]);
 
-  if (!open) return null;
+  const linkClass = cn(
+    "rounded-sm font-sans text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gt-electric focus-visible:ring-offset-4",
+    solid
+      ? "text-gt-slate hover:text-gt-void focus-visible:ring-offset-gt-paper"
+      : "text-white/70 hover:text-white focus-visible:ring-offset-transparent",
+  );
 
   return (
-    <div
-      className="nav-sheet-scrim"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+    <nav
+      aria-label="Primary"
+      className={cn(
+        "fixed inset-x-0 top-0 z-50 h-[72px] transition-colors duration-300 ease-out",
+        solid || menuOpen
+          ? "border-b border-black/10 bg-gt-paper"
+          : "border-b border-transparent bg-transparent",
+      )}
     >
-      <div ref={sheetRef} className="nav-sheet" role="dialog" aria-modal="true" aria-label="Site navigation">
-        <div className="nav-sheet-top">
-          <Logo />
-          <button type="button" className="nav-sheet-close" onClick={onClose} aria-label="Close menu">
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M3 3 L13 13 M13 3 L3 13" stroke="currentColor" strokeWidth="1.4" fill="none" />
-            </svg>
-          </button>
-        </div>
+      <Container className="flex h-full items-center justify-between gap-8">
+        <Wordmark solid={solid || menuOpen} />
 
-        <nav className="nav-sheet-links" aria-label="Sections">
-          {NAV.links.map((link) => (
-            <a key={link.href} href={link.href} onClick={onClose}>
+        <div className="hidden items-center gap-8 lg:flex">
+          {NAV_LINKS.map((link) => (
+            <a key={link.href} href={link.href} className={linkClass}>
               {link.label}
             </a>
           ))}
-        </nav>
-
-        <div className="nav-sheet-actions">
-          {signedIn ? (
-            <button type="button" className="btn btn-2" onClick={onLogout}>
-              Log out
-            </button>
-          ) : (
-            <>
-              <Link className="btn" to={CTA.student.href} onClick={onClose}>
-                {CTA.student.label}
-              </Link>
-              <Link className="btn btn-2" to={CTA.recruiter.href} onClick={onClose}>
-                {CTA.recruiter.label}
-              </Link>
-              <Link className="nav-sheet-login" to="/login" onClick={onClose}>
-                {NAV.loginLabel}
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * The navigation bar.
- *
- * Four links, one login, one primary CTA, and nothing else. It renders at first
- * paint with no entrance animation, stays a constant 70px, and never hides on
- * scroll-down: a bar that reacts to scrolling is a bar the reader has to track,
- * and this page already asks them to track a twelve-beat console.
- *
- * The bottom hairline is functional rather than decorative. The backdrop moves
- * behind a translucent bar, so without an explicit edge the nav's lower
- * boundary drifts in and out of visibility as a light field passes under it.
- */
-export function Nav() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const { user, logout } = useAuthContext();
-  const active = useActiveSection(NAV_HREFS);
-  const narrow = useIsNarrow();
-  const reduced = useReducedMotionSafe();
-
-  // The sheet is a mobile affordance; widening past the breakpoint while it is
-  // open would leave a modal covering a perfectly usable navbar.
-  useEffect(() => {
-    if (!narrow) setMenuOpen(false);
-  }, [narrow]);
-
-  const closeMenu = useCallback(() => setMenuOpen(false), []);
-
-  return (
-    <nav className="nav">
-      <div className="wrap nav-in">
-        <Logo />
-
-        <div className="nav-links">
-          {NAV.links.map((link) => (
-            <NavItem
-              key={link.href}
-              href={link.href}
-              label={link.label}
-              active={active === link.href}
-              reduced={reduced}
-            />
-          ))}
         </div>
 
-        {user ? (
-          <div className="nav-user">
-            <span className="nav-user-name">
-              Hi, <b>{user.full_name.split(" ")[0]}</b>
-            </span>
-            <button type="button" className="nav-logout" onClick={() => void logout()}>
-              Log out
-            </button>
-          </div>
-        ) : (
-          <div className="nav-right">
-            <Link className="nav-login" to={ROUTES.login}>
-              {NAV.loginLabel}
-            </Link>
-            <Link className="btn nav-cta" to={CTA.student.href}>
-              <span className="btn-label">{CTA.student.short}</span>
-              <span className="btn-arrow" aria-hidden="true">
-                →
-              </span>
-            </Link>
-          </div>
-        )}
+        <div className="hidden items-center gap-6 lg:flex">
+          <a href={NAV.logIn.href} className={linkClass}>
+            {NAV.logIn.label}
+          </a>
+          <Button href={NAV.cta.href} size="sm" tone={solid ? "light" : "dark"}>
+            {NAV.cta.label}
+          </Button>
+        </div>
 
-        {/* Hairline burger, drawn inline to match every other icon on the page. */}
         <button
+          ref={burgerRef}
           type="button"
-          className="nav-burger"
-          aria-expanded={menuOpen}
-          aria-controls="nav-sheet"
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
           onClick={() => setMenuOpen((open) => !open)}
+          aria-expanded={menuOpen}
+          aria-controls="gt-nav-sheet"
+          aria-label={menuOpen ? NAV.closeMenu : NAV.openMenu}
+          className={cn(
+            "rounded-md p-2 transition-colors duration-200 lg:hidden",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gt-electric focus-visible:ring-offset-2",
+            solid || menuOpen ? "text-gt-void focus-visible:ring-offset-gt-paper" : "text-white",
+          )}
         >
-          <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true">
-            <path d="M0 1 H20 M0 7 H20 M0 13 H14" stroke="currentColor" strokeWidth="1.4" fill="none" />
-          </svg>
+          {menuOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
         </button>
-      </div>
+      </Container>
 
-      <div id="nav-sheet">
-        <NavSheet
-          open={menuOpen}
-          onClose={closeMenu}
-          signedIn={Boolean(user)}
-          onLogout={() => {
-            closeMenu();
-            void logout();
-          }}
-        />
-      </div>
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            id="gt-nav-sheet"
+            initial={reduced ? false : { opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduced ? { opacity: 1 } : { opacity: 0, y: -8 }}
+            transition={{ duration: DURATION.fast, ease: EASE.standard }}
+            className="absolute inset-x-0 top-[72px] border-b border-black/10 bg-gt-paper lg:hidden"
+          >
+            <Container className="flex flex-col gap-1 py-6">
+              {NAV_LINKS.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="rounded-md px-2 py-3 font-sans text-gt-body-sm text-gt-void focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gt-electric"
+                >
+                  {link.label}
+                </a>
+              ))}
+
+              <div className="mt-4 flex flex-col gap-3 border-t border-black/10 pt-6">
+                <a
+                  href={NAV.logIn.href}
+                  className="rounded-md px-2 py-2 font-sans text-gt-body-sm text-gt-slate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gt-electric"
+                >
+                  {NAV.logIn.label}
+                </a>
+                <Button href={NAV.cta.href} block>
+                  {NAV.cta.label}
+                </Button>
+              </div>
+            </Container>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

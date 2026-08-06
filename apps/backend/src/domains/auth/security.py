@@ -1,8 +1,8 @@
-"""Password hashing, JWT encode/decode, and opaque token/OTP generation.
+"""Password hashing, JWT encode/decode, and opaque token generation.
 
-All secrets (passwords, refresh tokens, reset tokens, OTPs) are hashed
-before being persisted — the database never holds a value an attacker
-could replay directly from a leaked row.
+All secrets (passwords, refresh tokens, reset tokens) are hashed before
+being persisted — the database never holds a value an attacker could
+replay directly from a leaked row.
 """
 
 from __future__ import annotations
@@ -70,17 +70,6 @@ def generate_opaque_token() -> str:
 def hash_opaque_token(token: str) -> str:
     """SHA-256 is sufficient here (high-entropy random input, not a user password)."""
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-
-# --- OTPs ----------------------------------------------------------------------
-
-
-def generate_otp() -> str:
-    return f"{secrets.randbelow(1_000_000):06d}"
-
-
-def hash_otp(otp: str) -> str:
-    return hashlib.sha256(otp.encode("utf-8")).hexdigest()
 
 
 def constant_time_equals(a: str, b: str) -> bool:

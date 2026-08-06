@@ -23,14 +23,16 @@ verification.
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import BinaryIO
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.exceptions import NotFound
+from src.core.exceptions import Conflict, Forbidden, NotFound
 from src.domains.auth.models import CandidateProfile, User
-from src.domains.student import evidence, schemas
+from src.domains.student import evidence, profile_photos, schemas
 from src.domains.student.completeness import (
     ProfileCompleteness,
     ProfileSnapshot,
@@ -136,6 +138,29 @@ def _has_profile_embedding(db: Session, candidate_profile_id: uuid.UUID) -> bool
     )
 
 
+def _completed_interview_scores(db: Session, candidate_profile_id: uuid.UUID) -> tuple[float, ...]:
+    """Total scores of this candidate's COMPLETED interviews.
+
+    Both groundings count. A profile interview is a genuine completed
+    interview — it is the escape hatch that keeps a candidate with no
+    verifiable repository from being permanently undiscoverable — so filtering
+    to repository interviews here would silently reinstate the deadlock the
+    escape hatch exists to prevent.
+
+    Imported inline for the same boundary reason as `_has_profile_embedding`.
+    """
+    from src.domains.interview.models import Interview, InterviewStatus
+
+    rows = db.execute(
+        select(Interview.total_score).where(
+            Interview.candidate_profile_id == candidate_profile_id,
+            Interview.status == InterviewStatus.COMPLETED,
+            Interview.total_score.is_not(None),
+        )
+    ).scalars()
+    return tuple(float(score) for score in rows)
+
+
 def load_snapshot(db: Session, profile: CandidateProfile) -> ProfileSnapshot:
     return ProfileSnapshot(
         profile=profile,
@@ -145,6 +170,7 @@ def load_snapshot(db: Session, profile: CandidateProfile) -> ProfileSnapshot:
         certificates=tuple(_active_certificates(db, profile.id)),
         experiences=tuple(_active_experiences(db, profile.id)),
         has_embedding=_has_profile_embedding(db, profile.id),
+        completed_interview_scores=_completed_interview_scores(db, profile.id),
     )
 
 
@@ -192,6 +218,142 @@ def set_onboarding_choice(
         db.commit()
         db.refresh(profile)
     return compute_completeness(load_snapshot(db, profile))
+
+
+def _queue_unchecked_claims(
+    db: Session, snapshot: ProfileSnapshot
+) -> list[evidence.QueuedVerification | None]:
+    """Queue background verification for every claim nothing has looked at yet.
+
+    Only `UNVERIFIED` rows are queued, and the exclusions are the point:
+
+    * `VERIFIED` is skipped so submitting does not undo a result. A GitHub
+      account connected by OAuth is written straight to `VERIFIED`
+      (`github_oauth.py`), and re-queueing it would drop it back to `PENDING`
+      and then re-decide it from a *weaker* check than the one that already
+      passed.
+    * `PENDING` is skipped because a check is already running; `evidence.py`
+      would suppress the duplicate anyway, so this only avoids the pointless
+      round trip.
+    * `REJECTED`/`FLAGGED` are skipped because re-running an identical check
+      against unchanged data produces an identical answer. Editing the claim is
+      what re-queues it, and editing is the only thing that could change the
+      outcome.
+    """
+    queued: list[evidence.QueuedVerification | None] = []
+
+    def unchecked(row) -> bool:
+        return row.verification_status is VerificationStatus.UNVERIFIED
+
+    if snapshot.github_account is not None and unchecked(snapshot.github_account):
+        queued.append(evidence.queue_github_account(db, snapshot.github_account))
+
+    queued.extend(
+        evidence.queue_coding_platform_account(db, account)
+        for account in snapshot.coding_profiles
+        if unchecked(account)
+    )
+    queued.extend(
+        evidence.queue_project_repository(db, project)
+        for project in snapshot.projects
+        if unchecked(project)
+    )
+    queued.extend(
+        evidence.queue_certificate(db, certificate)
+        for certificate in snapshot.certificates
+        if unchecked(certificate)
+    )
+    queued.extend(
+        evidence.queue_experience(db, experience)
+        for experience in snapshot.experiences
+        if unchecked(experience)
+    )
+    return queued
+
+
+@dataclass(frozen=True)
+class SubmissionResult:
+    """What `submit_onboarding` produced. A record rather than a tuple because
+    the router renders all three and a positional triple reads as noise."""
+
+    completeness: ProfileCompleteness
+    submitted_at: datetime
+    queued_verifications: int
+
+
+def submit_onboarding(
+    db: Session, profile: CandidateProfile, *, consent: bool
+) -> SubmissionResult:
+    """Finish onboarding: stamp the submission and start every pending check.
+
+    This is the only writer of `onboarding_submitted_at`, and the timestamp is
+    what opens the dashboard — see that column for why the gate is an explicit
+    act rather than the derived `meets_section_requirements` it replaced.
+
+    **Idempotent.** Re-submitting is a no-op that returns the same state rather
+    than a conflict: the review step is at a URL a student can reach twice, and
+    a double-click must not be an error. It also does not re-queue anything —
+    `_queue_unchecked_claims` already skips everything that has been looked at.
+
+    **Nothing here blocks on verification.** The claims are queued inside this
+    transaction and published to Celery after it commits (the ordering
+    `_finalize` uses and for the same reason); the student is returned to
+    immediately. Results land over the following minutes and the candidate is
+    emailed once they settle (`jobs/tasks/verification.py::_finish`).
+
+    Raises `Conflict` when the mandatory sections are not complete. That is the
+    same bar `meets_section_requirements` describes everywhere else — basic
+    info, GitHub, and at least one project. The rest stay optional, because a
+    first-year with no internships must still be able to finish signing up.
+
+    **Consent is recorded in the same transaction as the submission.** The
+    caller has already validated that the box was ticked (`ProfileSubmitRequest`
+    rejects `false` outright); what happens here is the write, stamped at the
+    same instant as `onboarding_submitted_at` and committed with it. The two
+    timestamps are separate columns answering separate questions, but there is
+    no ordering in which one lands without the other — a profile analysed under
+    a consent record that failed to write is the failure this arrangement
+    exists to make impossible.
+    """
+    completeness = compute_completeness(load_snapshot(db, profile))
+
+    if profile.onboarding_submitted_at is not None:
+        return SubmissionResult(
+            completeness=completeness,
+            submitted_at=profile.onboarding_submitted_at,
+            queued_verifications=0,
+        )
+
+    if not completeness.meets_section_requirements:
+        raise Conflict(
+            "Finish the required steps before submitting: " + ", ".join(completeness.blocking)
+        )
+
+    # Re-checked here even though `ProfileSubmitRequest` already rejects a
+    # `false`. This function is what writes the consent record, so it is the
+    # place that must be unable to write one that was never given — a future
+    # caller that is not the HTTP route (a backfill script, a test helper)
+    # would otherwise bypass the only check.
+    if not consent:
+        raise Conflict(
+            "Consent is required to analyse your repositories and generate interview questions"
+        )
+
+    submitted_at = _utcnow()
+    profile.onboarding_submitted_at = submitted_at
+    # Not overwritten if already set: a student who reached this line has not
+    # submitted before (the idempotent early return above saw to that), so the
+    # only way a consent timestamp already exists is a submission that failed
+    # after this point, and the earlier moment is the true one.
+    if profile.onboarding_consent_at is None:
+        profile.onboarding_consent_at = submitted_at
+    queued = _queue_unchecked_claims(db, load_snapshot(db, profile))
+
+    return SubmissionResult(
+        completeness=_finalize(db, profile, queued),
+        submitted_at=submitted_at,
+        queued_verifications=sum(1 for item in queued if item is not None),
+    )
 
 
 def recompute_and_persist_strength(
@@ -279,14 +441,72 @@ def _enqueue_embed_and_match(db: Session, candidate_profile_id: uuid.UUID) -> No
 def replace_basic_info(
     db: Session, profile: CandidateProfile, payload: schemas.BasicInfoRequest
 ) -> ProfileCompleteness:
+    # The name lives on the account, not the profile — this is the one field
+    # in this section that writes through to `User`. It arrives here because
+    # signup no longer collects it (see `auth/schemas.py`), so for most
+    # students this save is the first time the platform learns their name.
+    profile.user.full_name = payload.full_name
+    # `None` means the field was omitted entirely, which must not wipe a
+    # number the student supplied on a previous save. `""` is an explicit
+    # clear and does overwrite.
+    if payload.phone_number is not None:
+        profile.phone_number = payload.phone_number
     profile.headline = payload.headline
     profile.college = payload.college
     profile.degree = payload.degree
     profile.branch = payload.branch
     profile.graduation_year = payload.graduation_year
     profile.location = payload.location
-    profile.target_role = payload.target_role
+    # Both written here, in one statement, because they are one fact: the array
+    # is the student's full preference set and the scalar is its first element.
+    # This is the only writer of either, which is what lets
+    # `CandidateProfile.target_role` promise it always equals `target_roles[0]`
+    # without a constraint or a trigger enforcing it.
+    profile.target_roles = [role.value for role in payload.target_roles]
+    profile.target_role = payload.target_roles[0]
+    profile.about = payload.about
     return _finalize(db, profile)
+
+
+def store_profile_photo(
+    db: Session, profile: CandidateProfile, fileobj: BinaryIO, *, size_bytes: int
+) -> ProfileCompleteness:
+    """Attach a photo, replacing and deleting any previous one.
+
+    The upload happens **before** the old key is cleared, and the old object is
+    only deleted once the row already points at the new one. The reverse order
+    would leave a window in which a failed upload has already destroyed the
+    photo the student had.
+
+    Returns completeness like every other write on this profile, even though a
+    photo scores nothing — the caller is a section-shaped endpoint and its
+    envelope is the same shape as the rest.
+    """
+    previous_key = profile.profile_photo_object_key
+
+    key, content_type = profile_photos.store(
+        fileobj, candidate_profile_id=profile.id, size_bytes=size_bytes
+    )
+    profile.profile_photo_object_key = key
+    profile.profile_photo_content_type = content_type
+
+    completeness = _finalize(db, profile)
+    # After the commit inside `_finalize`, so a rollback can never leave the
+    # profile pointing at an object this call has already deleted.
+    if previous_key is not None and previous_key != key:
+        profile_photos.discard(previous_key)
+    return completeness
+
+
+def remove_profile_photo(db: Session, profile: CandidateProfile) -> ProfileCompleteness:
+    """Detach the photo and delete the object. A no-op if there is none."""
+    previous_key = profile.profile_photo_object_key
+    profile.profile_photo_object_key = None
+    profile.profile_photo_content_type = None
+
+    completeness = _finalize(db, profile)
+    profile_photos.discard(previous_key)
+    return completeness
 
 
 # --------------------------------------------------------------------------
@@ -300,6 +520,21 @@ def replace_technical(
     queued: list[evidence.QueuedVerification | None] = []
     queued.append(_reconcile_github_account(db, profile, payload.github_username))
     queued.extend(_reconcile_coding_profiles(db, profile, payload.coding_profiles))
+    return _finalize(db, profile, queued)
+
+
+def replace_coding_profiles(
+    db: Session, profile: CandidateProfile, payload: schemas.CodingProfilesRequest
+) -> ProfileCompleteness:
+    """Onboarding stage 4 — the coding profiles alone.
+
+    Reuses `_reconcile_coding_profiles`, so an empty list soft-deletes every
+    existing handle exactly as an empty list on the combined endpoint always
+    has. What it deliberately does *not* do is touch the GitHub account: the
+    two are separate sections now, and a save on the optional one must not be
+    able to retire the mandatory one's row.
+    """
+    queued = _reconcile_coding_profiles(db, profile, payload.coding_profiles)
     return _finalize(db, profile, queued)
 
 
@@ -342,16 +577,23 @@ def _reconcile_coding_profiles(
 
     for item in items:
         current = existing_by_platform.get(item.platform)
-        profile_url = schemas.build_coding_platform_url(item.platform, item.handle)
+        profile_url = schemas.build_coding_platform_url(
+            item.platform, item.handle, custom_url=item.profile_url
+        )
 
         if current is not None:
-            if current.handle == item.handle:
+            if current.handle == item.handle and current.profile_url == profile_url:
+                # `profile_url` is compared too, not just the handle: for the
+                # OTHER platform the student supplies the URL, so the same
+                # handle can point somewhere new — and the URL is the thing
+                # the verification worker actually fetches.
                 continue
             # Same platform, new handle: update in place. The unique
             # (candidate, platform) constraint makes soft-delete-then-insert
             # collide, since the constraint ignores `deleted_at`.
             current.handle = item.handle
             current.profile_url = profile_url
+            current.custom_platform_name = item.custom_platform_name
             current.verified_at = None
             queued.append(evidence.queue_coding_platform_account(db, current))
             continue
@@ -361,6 +603,7 @@ def _reconcile_coding_profiles(
             platform=item.platform,
             handle=item.handle,
             profile_url=profile_url,
+            custom_platform_name=item.custom_platform_name,
             verification_status=VerificationStatus.UNVERIFIED,
         )
         db.add(account)
@@ -404,7 +647,15 @@ def replace_projects(
             current.kind = item.kind
             current.title = item.title
             current.description = item.description
-            current.technologies = item.technologies
+            current.live_demo_url = item.live_demo_url
+            current.claimed_technologies = item.claimed_technologies
+            current.is_primary = item.is_primary
+            # `technologies` is deliberately NOT assigned. On this table it is
+            # worker-owned: `verify_repository_task` writes what
+            # `manifests.py` detected. Copying a request value over it would
+            # let an edit to the title erase a completed analysis, and would
+            # reintroduce self-declared technologies through the back door —
+            # which is what `claimed_technologies` above exists to keep apart.
             current.position = position
             continue
 
@@ -414,7 +665,13 @@ def replace_projects(
             title=item.title,
             description=item.description,
             repo_url=item.repo_url,
-            technologies=item.technologies,
+            live_demo_url=item.live_demo_url,
+            # Empty until the verification worker detects them. A described
+            # project has no manifest to analyse and so stays empty forever —
+            # the honest result, not a gap to fill in by hand.
+            technologies=[],
+            claimed_technologies=item.claimed_technologies,
+            is_primary=item.is_primary,
             position=position,
             verification_status=VerificationStatus.UNVERIFIED,
         )
@@ -453,11 +710,14 @@ def set_projects_from_github(
     remaining_slots = max(0, schemas.MAX_PROJECTS - len(selected))
 
     items: list[schemas.ProjectItem] = [
+        # `technologies` is not carried across: `ProjectItem` no longer accepts
+        # it, and the stored value on a described project is worker-owned
+        # anyway. `replace_projects` preserves the existing row's detected
+        # technologies rather than reading them from this item.
         schemas.ProjectItem(
             kind=ProjectKind.DESCRIBED,
             title=p.title,
             description=p.description,
-            technologies=p.technologies,
         )
         for p in described[:remaining_slots]
     ]
@@ -468,7 +728,6 @@ def set_projects_from_github(
                 kind=ProjectKind.REPOSITORY,
                 title=repo_name,
                 repo_url=f"https://github.com/{full_name}",
-                technologies=[],
             )
         )
 
@@ -484,6 +743,45 @@ def _certificate_key(credential_url: str | None, title: str, issuer: str) -> tup
     if credential_url:
         return ("url", credential_url.casefold())
     return ("title", f"{title.casefold()}|{issuer.casefold()}")
+
+
+def _apply_certificate_file(
+    profile: CandidateProfile, certificate: Certificate, item: schemas.CertificateItem
+) -> None:
+    """Attach, detach, or leave alone the uploaded copy of a certificate.
+
+    Three cases, and the third is the one worth naming: an item that carries
+    **no** key is not a request to remove the file. The response never returns
+    the object key (`CertificateResponse`), so an ordinary re-save of an
+    untouched certificate always arrives without one — treating that as a
+    delete would wipe the attachment every time the student edited a title.
+    Removal is therefore the explicit `remove_file` flag.
+
+    The prefix check is authorization, not validation: keys are handed out by
+    `certificate_files.build_key`, which namespaces them per profile, so a key
+    belonging to another candidate is refused even though it names a real
+    object. Without this, one guessed key would attach someone else's document
+    to this profile.
+    """
+    from src.domains.student import certificate_files
+
+    if item.remove_file:
+        certificate.file_object_key = None
+        certificate.file_name = None
+        certificate.file_content_type = None
+        certificate.file_size_bytes = None
+        return
+
+    if item.file_object_key is None:
+        return
+
+    if not certificate_files.owns_key(profile.id, item.file_object_key):
+        raise Forbidden("That uploaded file does not belong to this profile")
+
+    certificate.file_object_key = item.file_object_key
+    certificate.file_name = item.file_name
+    certificate.file_content_type = item.file_content_type
+    certificate.file_size_bytes = item.file_size_bytes
 
 
 def replace_certificates(
@@ -506,6 +804,7 @@ def replace_certificates(
             current.title = item.title
             current.issuer = item.issuer
             current.issued_at = item.issued_at
+            _apply_certificate_file(profile, current, item)
             current.position = position
             continue
 
@@ -518,6 +817,7 @@ def replace_certificates(
             position=position,
             verification_status=VerificationStatus.UNVERIFIED,
         )
+        _apply_certificate_file(profile, certificate, item)
         db.add(certificate)
         db.flush()
         queued.append(evidence.queue_certificate(db, certificate))

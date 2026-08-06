@@ -50,27 +50,6 @@ class RoleMismatch(AuthError):
     code = "ROLE_MISMATCH"
 
 
-class EmailNotVerified(AuthError):
-    """Please verify your email before logging in."""
-
-    status_code = 403
-    code = "EMAIL_NOT_VERIFIED"
-
-
-class InvalidOtp(AuthError):
-    """Invalid or expired verification code."""
-
-    status_code = 400
-    code = "INVALID_OTP"
-
-
-class OtpRequestTooSoon(AuthError):
-    """Please wait before requesting another code."""
-
-    status_code = 429
-    code = "OTP_REQUEST_TOO_SOON"
-
-
 class InvalidOrExpiredToken(AuthError):
     """This link is invalid or has expired."""
 

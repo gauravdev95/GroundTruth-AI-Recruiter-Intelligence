@@ -8,14 +8,15 @@ import {
   type BasicInfoPayload,
   type CertificatesPayload,
   type CertificatesSection,
+  type CodingProfilesPayload,
   type ExperiencesPayload,
   type ExperiencesSection,
   type OnboardingChoice,
   type ProfileCompleteness,
   type ProjectsPayload,
   type ProjectsSection,
+  type SectionCacheKey,
   type SectionEnvelope,
-  type SectionKey,
   type TechnicalPayload,
   type TechnicalSection,
 } from "../api/profileApi";
@@ -27,7 +28,7 @@ import {
  * discoverability banner from briefly showing a stale score after a save.
  */
 function useSectionMutation<TPayload, TData>(
-  section: SectionKey,
+  section: SectionCacheKey,
   mutationFn: (payload: TPayload) => Promise<SectionEnvelope<TData>>,
 ) {
   const queryClient = useQueryClient();
@@ -95,6 +96,20 @@ export function useTechnicalSection(enabled = true) {
 
 export function useSaveTechnical() {
   return useSectionMutation<TechnicalPayload, TechnicalSection>("technical", profileApi.saveTechnical);
+}
+
+/**
+ * Onboarding stage 4's writer. Seeds the same `technical` cache entry as
+ * `useSaveTechnical` — the endpoint returns the whole technical envelope, so
+ * one cache holds one copy of a resource that has two writers. Two entries
+ * would each hold half of an overlapping payload and go stale through the
+ * other.
+ */
+export function useSaveCodingProfiles() {
+  return useSectionMutation<CodingProfilesPayload, TechnicalSection>(
+    "technical",
+    profileApi.saveCodingProfiles,
+  );
 }
 
 export function useProjectsSection(enabled = true) {

@@ -26,7 +26,13 @@ from src.domains.ai.exceptions import (
 )
 from src.domains.ai.llm import get_interview_answer_evaluator, get_interview_question_generator
 from src.domains.interview import service as interview_service
-from src.domains.interview.models import RUBRIC_WEIGHTS, Interview, InterviewQuestion, InterviewScore, InterviewStatus
+from src.domains.interview.models import (
+    Interview,
+    InterviewQuestion,
+    InterviewScore,
+    InterviewStatus,
+    get_rubric_weights,
+)
 from src.domains.student.models import Project
 from src.domains.student.service import recompute_and_persist_strength
 from src.domains.verification import stages as verification_stages
@@ -89,10 +95,7 @@ def generate_interview_questions_task(self: DatabaseTask, async_job_id: str) -> 
         interview = session.get(Interview, interview_id)
         if interview is None:
             raise NonRetryableJobError(f"Interview {interview_id} no longer exists")
-        project = session.get(Project, interview.project_id)
-        if project is None:
-            raise NonRetryableJobError(f"Project {interview.project_id} no longer exists")
-        repository_context = interview_service.build_repository_context(project)
+        repository_context = interview_service.build_interview_context(session, interview)
 
     try:
         question_set = get_interview_question_generator().generate_questions(
@@ -127,7 +130,11 @@ def generate_interview_questions_task(self: DatabaseTask, async_job_id: str) -> 
         interview.question_count = len(question_set.questions)
         interview.status = InterviewStatus.IN_PROGRESS
         interview.started_at = _utcnow()
-        verification_stages.mark_interview_started(session, interview.project_id)
+        # Only a repository interview advances a repository's stage pipeline.
+        # A profile interview is scoped to the candidate and has no project
+        # whose CODE_GROUNDED_INTERVIEW stage it could legitimately move.
+        if interview.project_id is not None:
+            verification_stages.mark_interview_started(session, interview.project_id)
         session.commit()
 
     logger.info(
@@ -144,10 +151,11 @@ def evaluate_interview_task(self: DatabaseTask, async_job_id: str) -> dict[str, 
         interview = session.get(Interview, interview_id)
         if interview is None:
             raise NonRetryableJobError(f"Interview {interview_id} no longer exists")
-        project = session.get(Project, interview.project_id)
-        if project is None:
-            raise NonRetryableJobError(f"Project {interview.project_id} no longer exists")
-        repository_context = interview_service.build_repository_context(project)
+        # Read inside the session — the row is not available after it closes,
+        # and evaluation below must use the rubric this attempt was generated
+        # under rather than whatever is configured now.
+        rubric_version = interview.rubric_version
+        repository_context = interview_service.build_interview_context(session, interview)
         questions = sorted(interview.questions, key=lambda q: q.sequence)
         # Snapshot everything needed for evaluation before the session
         # closes — evaluation itself makes N sequential LLM calls and must
@@ -167,6 +175,13 @@ def evaluate_interview_task(self: DatabaseTask, async_job_id: str) -> dict[str, 
         ]
 
     evaluator = get_interview_answer_evaluator()
+    # Resolved once for the whole evaluation, from the version stored on the
+    # interview row rather than the currently-configured rubric: an interview
+    # that was generated under one rubric must be scored under that same one
+    # even if the operator changed the weights while the candidate was sitting
+    # it. Every answer in one attempt is therefore weighted identically.
+    rubric = get_rubric_weights(rubric_version)
+
     graded: list[dict] = []
     try:
         for item in snapshot:
@@ -176,8 +191,17 @@ def evaluate_interview_task(self: DatabaseTask, async_job_id: str) -> dict[str, 
                 repository_context=repository_context,
             )
             scores_by_dimension = {s.dimension: s for s in evaluation.scores}
+            missing = set(rubric) - set(scores_by_dimension)
+            if missing:
+                # A provider that returns a partial rubric would otherwise
+                # KeyError mid-loop after burning the whole evaluation's
+                # tokens; naming the gap makes it a diagnosable, non-retryable
+                # failure rather than an opaque crash.
+                raise NonRetryableJobError(
+                    f"Evaluator omitted rubric dimension(s): {', '.join(sorted(missing))}"
+                )
             weighted_score = sum(
-                float(scores_by_dimension[dim].score) * weight for dim, weight in RUBRIC_WEIGHTS.items()
+                float(scores_by_dimension[dim].score) * weight for dim, weight in rubric.items()
             )
             graded.append(
                 {
@@ -189,7 +213,7 @@ def evaluate_interview_task(self: DatabaseTask, async_job_id: str) -> dict[str, 
                             "score": float(scores_by_dimension[dim].score),
                             "rationale": scores_by_dimension[dim].rationale,
                         }
-                        for dim, weight in RUBRIC_WEIGHTS.items()
+                        for dim, weight in rubric.items()
                     ],
                     "weighted_score": round(weighted_score, 2),
                 }
@@ -247,9 +271,16 @@ def evaluate_interview_task(self: DatabaseTask, async_job_id: str) -> dict[str, 
         # Closes stages 6 and 7 together: this same pass both scores the
         # interview and produces the evidence report, so there is no window in
         # which one has landed and the other has not.
-        verification_stages.mark_interview_completed(
-            session, interview.project_id, interview_id=interview.id, total_score=total_score
-        )
+        #
+        # Repository interviews only — a profile interview belongs to the
+        # candidate, not to any one repository, so it has no
+        # CODE_GROUNDED_INTERVIEW stage to close. Its completion still opens
+        # the discoverability gate via the recompute below, which is what
+        # actually matters to the candidate.
+        if interview.project_id is not None:
+            verification_stages.mark_interview_completed(
+                session, interview.project_id, interview_id=interview.id, total_score=total_score
+            )
         session.commit()
         candidate_profile_id = interview.candidate_profile_id
 

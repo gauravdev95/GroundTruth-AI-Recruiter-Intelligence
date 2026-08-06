@@ -1,9 +1,8 @@
 """Integration tests for the student profile-builder API.
 
-Accounts are set up by calling `domains.auth.service` directly (the
-verification OTP is never exposed over HTTP), then every assertion goes
-through the real HTTP endpoints so auth, validation, and the error envelope
-are exercised for real.
+Accounts are set up by calling `domains.auth.service` directly, then every
+assertion goes through the real HTTP endpoints so auth, validation, and the
+error envelope are exercised for real.
 """
 
 from __future__ import annotations
@@ -35,13 +34,29 @@ def stub_broker(monkeypatch):
     monkeypatch.setattr("src.jobs.dispatch.dispatch", lambda job, task, *, queue, args=None: None)
 
 VALID_BASIC = {
+    "full_name": "Ada Lovelace",
     "headline": "Final-year CS student building compilers",
     "college": "IIT Bombay",
     "degree": "btech",
     "branch": "cse",
     "graduation_year": 2026,
     "location": "Mumbai, India",
-    "target_role": "backend",
+    "target_roles": ["backend"],
+}
+
+#: `claimed_technologies`, never `technologies` — the plain name belongs to
+#: the list the verification worker detects from dependency manifests, and
+#: the request model rejects it outright.
+VALID_PROJECTS = {
+    "projects": [
+        {
+            "kind": "described",
+            "title": "Toy compiler",
+            "description": "A small compiler for a Lisp dialect, written in Rust.",
+            "claimed_technologies": ["Rust"],
+            "is_primary": True,
+        }
+    ]
 }
 
 VALID_TECHNICAL = {
@@ -58,7 +73,7 @@ def _candidate_token(client: TestClient, db_session: Session, email: str = "stud
     Minting the token with the same helper the login endpoint uses keeps these
     tests about the profile API and independent of CAPTCHA configuration.
     """
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace",
@@ -70,12 +85,11 @@ def _candidate_token(client: TestClient, db_session: Session, email: str = "stud
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     return create_access_token(user_id=user.id, role=user.role.value)
 
 
 def _recruiter_token(client: TestClient, db_session: Session, email: str = "recruiter.profile@acme.com") -> str:
-    user, otp, _ = auth_service.register_recruiter(
+    user = auth_service.register_recruiter(
         db_session,
         RecruiterRegisterRequest(
             full_name="Grace Hopper",
@@ -87,7 +101,6 @@ def _recruiter_token(client: TestClient, db_session: Session, email: str = "recr
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     return create_access_token(user_id=user.id, role=user.role.value)
 
 
@@ -191,7 +204,11 @@ def test_basic_section_rejects_invalid_enum_and_year(client: TestClient, db_sess
     assert bad_year.status_code == 422
 
 
-def test_technical_requires_at_least_one_coding_profile(client: TestClient, db_session: Session) -> None:
+def test_technical_accepts_no_coding_profiles(client: TestClient, db_session: Session) -> None:
+    """It used to require at least one, back when GitHub and the handles were
+    a single mandatory `technical` section. They are separate sections now and
+    only GitHub is required, so demanding a handle here would reinstate the
+    gate the split removed."""
     headers = _auth(_candidate_token(client, db_session))
 
     resp = client.put(
@@ -200,7 +217,13 @@ def test_technical_requires_at_least_one_coding_profile(client: TestClient, db_s
         headers=headers,
     )
 
-    assert resp.status_code == 422
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["coding_profiles"] == []
+    # GitHub alone completes the mandatory half of what used to be one
+    # section; a project is what is still owed.
+    blocking = resp.json()["completeness"]["blocking"]
+    assert "your GitHub account" not in blocking
+    assert "at least one project" in blocking
 
 
 def test_github_profile_url_is_normalized_to_a_username(client: TestClient, db_session: Session) -> None:
@@ -345,11 +368,20 @@ def test_sections_save_independently_across_sittings(client: TestClient, db_sess
 
     second = client.put(f"{BASE}/sections/technical", json=VALID_TECHNICAL, headers=headers)
     assert second.status_code == 200
-    assert second.json()["completeness"]["profile_strength"] == 65
-    # Both mandatory sections are now complete. Discoverability additionally
+    # 35 basic + 15 GitHub + 5 for one coding profile.
+    assert second.json()["completeness"]["profile_strength"] == 55
+    # Not met yet: projects became mandatory, because every downstream
+    # artefact starts from a linked repository.
+    assert second.json()["completeness"]["meets_section_requirements"] is False
+
+    third = client.put(f"{BASE}/sections/projects", json=VALID_PROJECTS, headers=headers)
+    assert third.status_code == 200, third.text
+    # + 10 for the first project, which is worth double the others.
+    assert third.json()["completeness"]["profile_strength"] == 65
+    # Every mandatory section is complete now. Discoverability additionally
     # waits on the embedding worker, which is stubbed in these tests.
-    assert second.json()["completeness"]["meets_section_requirements"] is True
-    assert second.json()["completeness"]["is_discoverable"] is False
+    assert third.json()["completeness"]["meets_section_requirements"] is True
+    assert third.json()["completeness"]["is_discoverable"] is False
 
     # Section 1 survived the section 2 save untouched.
     basic = client.get(f"{BASE}/sections/basic", headers=headers)
@@ -362,14 +394,17 @@ def test_strength_is_persisted_not_just_reported(client: TestClient, db_session:
 
     client.put(f"{BASE}/sections/basic", json=VALID_BASIC, headers=headers)
     client.put(f"{BASE}/sections/technical", json=VALID_TECHNICAL, headers=headers)
+    client.put(f"{BASE}/sections/projects", json=VALID_PROJECTS, headers=headers)
 
     profile = _profile(db_session, email)
     db_session.refresh(profile)
+    # 35 basic + 15 GitHub + 10 first project + 5 one coding profile.
     assert profile.profile_strength == 65
-    # Sections 1-2 are done, so the student has met every requirement they can
-    # act on — but `is_discoverable` additionally needs the profile vector, and
-    # the embedding worker is stubbed out here (`stub_broker`). It stays False
-    # until that job runs; see `test_embed_and_match_makes_the_profile_discoverable`.
+    # Every mandatory section is done, so the student has met every requirement
+    # they can act on — but `is_discoverable` additionally needs the profile
+    # vector, and the embedding worker is stubbed out here (`stub_broker`). It
+    # stays False until that job runs; see
+    # `test_embed_and_match_makes_the_profile_discoverable`.
     resp = client.get(f"{BASE}/completeness", headers=headers)
     assert resp.json()["meets_section_requirements"] is True
     assert resp.json()["is_discoverable"] is False
@@ -384,6 +419,7 @@ def test_discoverability_turns_off_when_a_mandatory_section_is_emptied(
 
     client.put(f"{BASE}/sections/basic", json=VALID_BASIC, headers=headers)
     client.put(f"{BASE}/sections/technical", json=VALID_TECHNICAL, headers=headers)
+    client.put(f"{BASE}/sections/projects", json=VALID_PROJECTS, headers=headers)
     assert client.get(f"{BASE}/completeness", headers=headers).json()["meets_section_requirements"] is True
 
     # Replacing section 2 with a different platform keeps it complete...
@@ -479,7 +515,7 @@ def test_repo_and_certificate_urls_are_queued(client: TestClient, db_session: Se
                     "kind": "repository",
                     "title": "Compiler",
                     "repo_url": "https://github.com/ada/compiler",
-                    "technologies": ["Rust"],
+                    "claimed_technologies": ["Rust"],
                 },
                 {"kind": "described", "title": "Thesis", "description": "A described project"},
             ]
@@ -556,16 +592,17 @@ def test_resaving_preserves_a_verified_status(client: TestClient, db_session: Se
     db_session.commit()
 
     # Student renames the project; the repo URL (the thing verified) is unchanged.
-    client.put(f"{BASE}/sections/projects", json={
+    renamed = client.put(f"{BASE}/sections/projects", json={
         "projects": [
             {
                 "kind": "repository",
                 "title": "Compiler v2",
                 "repo_url": "https://github.com/ada/compiler",
-                "technologies": ["Rust"],
+                "claimed_technologies": ["Rust"],
             }
         ]
     }, headers=headers)
+    assert renamed.status_code == 200, renamed.text
 
     db_session.refresh(project)
     assert project.title == "Compiler v2"
@@ -610,8 +647,10 @@ def test_completeness_endpoint_reports_blocking_requirements(
     body = resp.json()
     assert body["profile_strength"] == 0
     assert body["is_discoverable"] is False
-    assert len(body["sections"]) == 5
-    assert "your GitHub profile" in body["blocking"]
+    # Six, not five: `github` and `coding` are scored separately now.
+    assert len(body["sections"]) == 6
+    assert "your GitHub account" in body["blocking"]
+    assert "at least one project" in body["blocking"]
 
 
 def test_onboarding_choice_starts_null_and_is_recorded_once(

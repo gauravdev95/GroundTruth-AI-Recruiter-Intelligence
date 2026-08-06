@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.domains.ai.embedding_constants import EMBEDDING_DIMENSIONS
 from src.domains.ai.job_extraction_schema import ExtractedSkill, JobRequirementExtraction
 from src.domains.auth import service as auth_service
 from src.domains.auth.models import CandidateProfile, RecruiterProfile
@@ -44,7 +45,7 @@ VALID_CREATE = {
 EXTRACTION = JobRequirementExtraction(
     must_have_skills=[ExtractedSkill(name="Python", min_proficiency="intermediate")], desirable_skills=[]
 )
-FIXED_VECTOR = [0.1] * 1536
+FIXED_VECTOR = [0.1] * EMBEDDING_DIMENSIONS
 
 
 class _FixedEmbedder:
@@ -94,28 +95,26 @@ def _auth(token: str) -> dict[str, str]:
 
 
 def _recruiter(db_session: Session, email: str, company_name: str = "Acme Corp") -> tuple[str, RecruiterProfile]:
-    user, otp, _ = auth_service.register_recruiter(
+    user = auth_service.register_recruiter(
         db_session,
         RecruiterRegisterRequest(
             full_name="Grace Hopper", company_name=company_name, company_email=email,
             password="StrongPass1!", confirm_password="StrongPass1!", captcha_token="test", accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     token = create_access_token(user_id=user.id, role=user.role.value)
     profile = db_session.execute(select(RecruiterProfile).where(RecruiterProfile.user_id == user.id)).scalar_one()
     return token, profile
 
 
 def _candidate(db_session: Session, email: str) -> tuple[str, CandidateProfile]:
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace", email=email, phone_number="+14155552671",
             password="StrongPass1!", confirm_password="StrongPass1!", captcha_token="test", accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     token = create_access_token(user_id=user.id, role=user.role.value)
     profile = db_session.execute(select(CandidateProfile).where(CandidateProfile.user_id == user.id)).scalar_one()
 

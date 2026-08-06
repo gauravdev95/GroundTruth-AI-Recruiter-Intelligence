@@ -1,63 +1,73 @@
-import { Link } from "react-router-dom";
-
 import { FOOTER } from "../content/landing";
+import { Container } from "./ui/Container";
 
 /**
  * The footer.
  *
- * Every link resolves — to a section id on this page, or to a route that exists
- * in `App.tsx`. There is no Blog, Changelog, Status, API or social row, and no
- * Privacy, Terms, About or Contact link, because none of those pages exist. A
- * footer full of dead links is the cheapest possible way to look unfinished,
- * and it is a particularly bad way to end a page whose argument is that claims
- * should be checkable.
+ * Three columns and no social row. Every link resolves — to an anchor on this
+ * page, or to a route the application actually serves. Nothing points at `#`.
  *
- * The final line is the third and last sample-data disclosure on the page —
- * hero console, §03 evidence panel, here. Repeated on every surface it would
- * read as defensive; in these three places it reads as a product that discloses
- * its own demo without being asked.
+ * That rule is why adding the Legal column meant adding four routes rather than
+ * four hrefs: this footer sits three sections under a promise of full audit
+ * trails and candidate appeal rights, and "Bias Audit Reports → #" would
+ * undercut that promise more than a missing column ever could. Those routes
+ * currently serve an honest placeholder; see `features/legal`.
  */
 export function Footer() {
   return (
-    <footer className="foot">
-      <div className="wrap">
-        <div className="foot-top">
-          <div className="foot-brand">
-            <p className="foot-wordmark">{FOOTER.wordmark}</p>
-            <p className="foot-blurb">{FOOTER.blurb}</p>
-          </div>
+    <footer aria-label="Site footer" className="bg-gt-deeper py-20">
+      <Container>
+        <div className="flex items-start justify-between gap-8">
+          <a
+            href="#top"
+            className="inline-flex items-center gap-2.5 rounded-sm font-grotesk text-xl font-bold tracking-tight text-gt-chalk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gt-electric focus-visible:ring-offset-4 focus-visible:ring-offset-gt-deeper"
+          >
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-gt-electric" />
+            GroundTruth
+          </a>
 
+          <a
+            href="#top"
+            className="group rounded-sm font-sans text-sm text-gt-dim transition-colors duration-200 hover:text-gt-chalk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gt-electric focus-visible:ring-offset-4 focus-visible:ring-offset-gt-deeper"
+          >
+            <span
+              aria-hidden="true"
+              className="inline-block transition-transform duration-200 group-hover:-translate-y-0.5"
+            >
+              ↑
+            </span>{" "}
+            {FOOTER.backToTop}
+          </a>
+        </div>
+
+        <div className="mt-12 grid gap-12 sm:grid-cols-2 lg:max-w-[840px] lg:grid-cols-3">
           {FOOTER.columns.map((column) => (
-            <div key={column.title}>
-              <p className="foot-col-title">{column.title}</p>
-              <div className="foot-links">
-                {column.links.map((link) =>
-                  /*
-                    A router `<Link>` for real routes and a plain anchor for
-                    in-page hashes. `<Link to="#access">` would push a history
-                    entry for a scroll, and `<a href="/signup">` would force a
-                    full document reload out of an SPA.
-                  */
-                  "route" in link && link.route ? (
-                    <Link key={link.label} to={link.href}>
-                      {link.label}
-                    </Link>
-                  ) : (
-                    <a key={link.label} href={link.href}>
+            <nav key={column.heading} aria-label={column.heading}>
+              <h2 className="font-sans text-sm uppercase tracking-wider text-gt-dim">
+                {column.heading}
+              </h2>
+              <ul className="mt-5 space-y-3">
+                {column.links.map((link) => (
+                  <li key={link.href}>
+                    <a
+                      href={link.href}
+                      className="rounded-sm font-sans text-[15px] text-gt-ash transition-colors duration-200 hover:text-gt-chalk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gt-electric focus-visible:ring-offset-4 focus-visible:ring-offset-gt-deeper"
+                    >
                       {link.label}
                     </a>
-                  ),
-                )}
-              </div>
-            </div>
+                  </li>
+                ))}
+              </ul>
+            </nav>
           ))}
         </div>
 
-        <div className="foot-bottom">
-          <span>{FOOTER.copyright}</span>
-          <span className="foot-disclosure">{FOOTER.disclosure}</span>
+        <div className="mt-16 flex flex-col gap-3 border-t border-white/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-sans text-sm text-gt-dim">{FOOTER.legal}</p>
+          {/* The fourth and last surface carrying the sample-data disclosure. */}
+          <p className="font-sans text-sm text-gt-dim">{FOOTER.disclosure}</p>
         </div>
-      </div>
+      </Container>
     </footer>
   );
 }

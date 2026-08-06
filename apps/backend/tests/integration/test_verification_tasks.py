@@ -72,7 +72,7 @@ def worker_sessions(monkeypatch, db_session: Session):
 
 
 def _candidate(db_session: Session, email: str = "verify.me@example.com") -> tuple[str, CandidateProfile]:
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace",
@@ -84,7 +84,6 @@ def _candidate(db_session: Session, email: str = "verify.me@example.com") -> tup
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     token = create_access_token(user_id=user.id, role=user.role.value)
     profile = db_session.execute(
         select(CandidateProfile).where(CandidateProfile.user_id == user.id)
@@ -250,7 +249,7 @@ def test_verify_repository_verifies_a_real_contribution_and_writes_skills(
         f"{STUDENT_BASE}/sections/projects",
         json={
             "projects": [
-                {"kind": "repository", "title": "My App", "repo_url": "https://github.com/ada/myapp", "technologies": []}
+                {"kind": "repository", "title": "My App", "repo_url": "https://github.com/ada/myapp", "claimed_technologies": []}
             ]
         },
         headers=_auth(token),
@@ -292,7 +291,7 @@ def test_verify_repository_flags_a_low_contribution_fork(client: TestClient, db_
         f"{STUDENT_BASE}/sections/projects",
         json={
             "projects": [
-                {"kind": "repository", "title": "Forked App", "repo_url": "https://github.com/ada/forked", "technologies": []}
+                {"kind": "repository", "title": "Forked App", "repo_url": "https://github.com/ada/forked", "claimed_technologies": []}
             ]
         },
         headers=_auth(token),
@@ -334,7 +333,7 @@ def _repo_project(client: TestClient, db_session: Session, token: str, repo_url:
         f"{STUDENT_BASE}/sections/projects",
         json={
             "projects": [
-                {"kind": "repository", "title": "App", "repo_url": repo_url, "technologies": []}
+                {"kind": "repository", "title": "App", "repo_url": repo_url, "claimed_technologies": []}
             ]
         },
         headers=_auth(token),

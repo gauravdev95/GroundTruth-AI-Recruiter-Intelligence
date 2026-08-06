@@ -2,17 +2,17 @@ import "./styles/landing.css";
 
 import { Suspense, lazy, useEffect, useState } from "react";
 
-import { Backdrop } from "./components/Backdrop";
+import { NAV } from "./content/landing";
 import { Hero } from "./components/Hero";
 import { Nav } from "./components/Nav";
 
 /**
  * True once the below-fold sections should actually be built.
  *
- * Code-splitting them was not enough on its own. The cost was never downloading
- * twelve sections — it was constructing and laying them out inside the window
- * that decides LCP and Total Blocking Time, and none of them are on screen
- * while that happens.
+ * Code-splitting them is not enough on its own. The cost was never downloading
+ * twelve sections — it is constructing and laying them out inside the window
+ * that decides Largest Contentful Paint and Total Blocking Time, while none of
+ * them are on screen.
  *
  * So the render waits for whichever comes first: the browser going idle, or the
  * reader doing anything that suggests they are heading down the page. The idle
@@ -52,29 +52,34 @@ function useDeferredBelowFold(): boolean {
   return ready;
 }
 
-/**
- * The first commit is the backdrop, the navbar and the hero — which is all the
- * reader can see — and the remaining twelve sections arrive immediately
- * afterwards, off the critical path.
- *
- * Framer Motion is the only animation library on this page. GSAP, ScrollTrigger
- * and Lenis were removed and must not come back: two libraries contending for
- * the same `transform` is a correctness bug before it is a bundle-size one, and
- * Lenis' wheel smoothing is scroll-jacking with a softer name.
- */
 const BelowFold = lazy(() => import("./BelowFold"));
 
+/**
+ * The GroundTruth landing page.
+ *
+ * First commit is the nav and the hero — all the reader can see — with the
+ * remaining twelve sections arriving immediately afterwards, off the critical
+ * path.
+ *
+ * Framer Motion is the only animation library here, and the scroll reveals run
+ * on the shared observer registry in `design/motion.ts` rather than on Framer's
+ * `whileInView`. The hero's constellation is hand-drawn to a 2D canvas: see the
+ * note at the top of `components/SkillConstellation.tsx` for why there is no 3D
+ * engine in this bundle.
+ */
 export function LandingPage() {
   const showBelowFold = useDeferredBelowFold();
 
   return (
-    <div className="gt">
+    <div className="bg-gt-void">
       {/* First stop on the keyboard path, and it lands clear of the fixed nav. */}
-      <a className="skip-link" href="#main">
-        Skip to content
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-6 focus:top-6 focus:z-[60] focus:rounded-lg focus:bg-gt-electric focus:px-5 focus:py-3 focus:font-sans focus:text-sm focus:font-medium focus:text-white"
+      >
+        {NAV.skipToContent}
       </a>
 
-      <Backdrop />
       <Nav />
       <Hero />
 

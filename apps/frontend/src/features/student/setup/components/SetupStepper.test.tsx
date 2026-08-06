@@ -12,7 +12,7 @@ import { SetupStepper } from "./SetupStepper";
  * off the fixture, so a client-side recomputation would break them.
  */
 describe("SetupStepper", () => {
-  it("renders the five spec labels in order", () => {
+  it("renders the eight spec labels in order", () => {
     const state = makeSetupState();
     render(
       <SetupStepper
@@ -27,16 +27,21 @@ describe("SetupStepper", () => {
       .getAllByRole("listitem")
       .map((item) => item.textContent);
 
-    expect(titles[0]).toContain("Basic Information");
-    expect(titles[0]).toContain("Personal details & education");
-    expect(titles[1]).toContain("Technical Profiles");
-    expect(titles[2]).toContain("Projects");
-    expect(titles[3]).toContain("Certificates & Achievements");
-    expect(titles[4]).toContain("Experience");
+    expect(titles[0]).toContain("Get Started");
+    expect(titles[1]).toContain("Basic Information");
+    expect(titles[1]).toContain("Personal details & education");
+    // GitHub and the coding profile are separate steps now: only GitHub is
+    // mandatory, and one combined step made the optional half look required.
+    expect(titles[2]).toContain("Connect GitHub");
+    expect(titles[3]).toContain("Link Projects");
+    expect(titles[4]).toContain("Coding Profile");
+    expect(titles[5]).toContain("Certificates");
+    expect(titles[6]).toContain("Experience");
+    expect(titles[7]).toContain("Review & Submit");
   });
 
   it("marks the active step from current_step_index, not from the statuses", () => {
-    const state = makeSetupState({ current_step_index: 2 });
+    const state = makeSetupState({ current_step_index: 3 });
     render(
       <SetupStepper
         steps={state.steps}
@@ -49,7 +54,7 @@ describe("SetupStepper", () => {
     // active step, and both are in the DOM at once under jsdom (only CSS hides
     // one). An unscoped query would match twice.
     const list = within(screen.getByRole("list"));
-    const active = list.getByText("Projects").closest("[aria-current]");
+    const active = list.getByText("Link Projects").closest("[aria-current]");
     expect(active).toHaveAttribute("aria-current", "step");
     expect(screen.getAllByText("Current Step")).toHaveLength(1);
   });
@@ -79,7 +84,7 @@ describe("SetupStepper", () => {
       />,
     );
 
-    expect(screen.getByText("65% Complete")).toBeInTheDocument();
+    expect(screen.getByText("65% profile strength")).toBeInTheDocument();
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "65");
   });
 
@@ -104,7 +109,7 @@ describe("SetupStepper", () => {
     expect(within(items[4]).getByText(/Not started/)).toBeInTheDocument();
   });
 
-  it("collapses to a Step N of 5 indicator for small viewports", () => {
+  it("collapses to a Step N of 8 indicator for small viewports", () => {
     const state = makeSetupState({ current_step_index: 3, completion_percentage: 45 });
     render(
       <SetupStepper
@@ -114,7 +119,7 @@ describe("SetupStepper", () => {
       />,
     );
 
-    expect(screen.getByText("Step 4 of 5")).toBeInTheDocument();
+    expect(screen.getByText("Step 4 of 8")).toBeInTheDocument();
   });
 
   it("makes every step selectable — the index is a hint, never a gate", async () => {
@@ -131,9 +136,9 @@ describe("SetupStepper", () => {
       />,
     );
 
-    // Step 5 is empty and four steps ahead of the current one; it must still
-    // be reachable, because the builder is a multi-sitting flow.
-    await user.click(screen.getByRole("button", { name: /Step 5: Experience/ }));
+    // Step 7 is empty and six steps ahead of the current one; it must still
+    // be reachable, because the flow is explicitly multi-sitting.
+    await user.click(screen.getByRole("button", { name: /Step 7: Experience/ }));
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ key: "experience" }));
   });
 });

@@ -5,22 +5,29 @@ from __future__ import annotations
 import pytest
 
 from src.domains.matching.scoring import (
-    MATCH_THRESHOLD,
-    MATCH_WEIGHTS,
     TOP_K,
     compute_evidence_score,
     compute_match_score,
+    get_match_threshold,
+    get_match_weights,
 )
 
 
 def test_weights_sum_to_one():
-    assert sum(MATCH_WEIGHTS.values()) == pytest.approx(1.0)
+    assert sum(get_match_weights().values()) == pytest.approx(1.0)
 
 
-def test_weights_live_in_one_constant():
-    """One source of truth for the formula — the three separate module
-    constants this replaced made "what is the formula" a grep."""
-    assert set(MATCH_WEIGHTS) == {"semantic", "evidence", "profile_strength"}
+def test_weights_live_in_one_place():
+    """One source of truth for the formula. Now `MatchingSettings.weights`
+    rather than a module constant, so the weights are operator-configurable —
+    see `test_configurable_weights.py` for the invariants that protects."""
+    assert set(get_match_weights()) == {
+        "semantic",
+        "skill_evidence",
+        "interview",
+        "competency",
+        "profile_strength",
+    }
 
 
 def test_top_k_is_a_single_write_side_cap():
@@ -52,14 +59,29 @@ def test_evidence_score_matching_is_case_insensitive():
 
 
 def test_match_score_is_100_at_perfect_signals():
-    assert compute_match_score(semantic_score=1.0, evidence_score=1.0, profile_strength=100) == 100.0
+    assert (
+        compute_match_score(
+            semantic_score=1.0,
+            evidence_score=1.0,
+            profile_strength=100,
+            interview_score=100.0,
+            competency_score=1.0,
+        )
+        == 100.0
+    )
 
 
 def test_match_score_is_zero_at_zero_signals():
     assert compute_match_score(semantic_score=0.0, evidence_score=0.0, profile_strength=0) == 0.0
 
 
-def test_match_score_weights_semantic_more_than_evidence_or_strength():
+def test_match_score_weights_semantic_above_every_other_term():
+    """Role fit is the largest single term; the evidence terms establish that
+    the fit is real rather than outranking it."""
+    weights = get_match_weights()
+    assert weights["semantic"] == max(weights.values())
+    assert weights["semantic"] > weights["skill_evidence"] > weights["interview"]
+
     semantic_only = compute_match_score(semantic_score=1.0, evidence_score=0.0, profile_strength=0)
     evidence_only = compute_match_score(semantic_score=0.0, evidence_score=1.0, profile_strength=0)
     strength_only = compute_match_score(semantic_score=0.0, evidence_score=0.0, profile_strength=100)
@@ -72,9 +94,12 @@ def test_match_score_clamps_out_of_range_profile_strength():
     # that invariant is ever violated upstream.
     over = compute_match_score(semantic_score=0.0, evidence_score=0.0, profile_strength=150)
     under = compute_match_score(semantic_score=0.0, evidence_score=0.0, profile_strength=-20)
-    assert over == pytest.approx(MATCH_WEIGHTS["profile_strength"] * 100, abs=0.01)
+    assert over == pytest.approx(get_match_weights()["profile_strength"] * 100, abs=0.01)
     assert under == 0.0
 
 
 def test_match_threshold_is_a_real_bar_not_zero():
-    assert 0 < MATCH_THRESHOLD < 100
+    """A deployment setting MATCH_THRESHOLD to 0 or 100 would make the cut
+    meaningless in one direction or the other. `MatchingSettings` rejects both
+    at load time; this asserts the configured value in force here."""
+    assert 0 < get_match_threshold() < 100

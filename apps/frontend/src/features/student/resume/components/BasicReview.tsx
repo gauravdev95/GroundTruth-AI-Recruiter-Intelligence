@@ -17,6 +17,7 @@ export interface BasicFieldState {
 }
 
 export type BasicFieldName =
+  | "full_name"
   | "headline"
   | "college"
   | "degree"
@@ -34,13 +35,14 @@ interface BasicReviewProps {
 }
 
 const LABELS: Record<BasicFieldName, string> = {
+  full_name: "Full name",
   headline: "Headline",
   college: "College",
   degree: "Degree",
   branch: "Branch",
   graduation_year: "Graduation year",
   location: "Location",
-  target_role: "Target role",
+  target_role: "Primary target role",
 };
 
 /**
@@ -50,6 +52,11 @@ const LABELS: Record<BasicFieldName, string> = {
  * of them — a target role in particular is forward-looking and appears on no
  * resume. Rather than hide that, each field states where its value came from
  * and the section refuses to submit until the required ones are filled.
+ *
+ * The section stores one to three target roles; this screen collects the
+ * primary one only, and `DraftReview` sends it as a single-element list. The
+ * full chip picker lives on the onboarding stage and in the profile editor,
+ * where the student is choosing rather than confirming.
  */
 export function BasicReview({ fields, errors, onChange }: BasicReviewProps) {
   const renderSelect = (name: BasicFieldName, options: { value: string; label: string }[]) => (
@@ -92,6 +99,7 @@ export function BasicReview({ fields, errors, onChange }: BasicReviewProps) {
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
+      <div className="sm:col-span-2">{renderInput("full_name", "Ada Lovelace")}</div>
       <div className="sm:col-span-2">
         {renderInput("headline", "Final-year CS student building compilers")}
       </div>

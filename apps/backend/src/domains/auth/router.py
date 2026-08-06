@@ -30,13 +30,9 @@ from src.domains.auth.schemas import (
     ForgotPasswordRequest,
     GenericMessageResponse,
     LoginRequest,
-    OtpExpiryResponse,
     RecruiterRegisterRequest,
-    RegisterResponse,
     ResetPasswordRequest,
     UserResponse,
-    VerifyEmailConfirmRequest,
-    VerifyEmailResendRequest,
 )
 from src.domains.auth.security import generate_opaque_token
 
@@ -90,32 +86,60 @@ def _clear_session_cookies(response: Response) -> None:
     response.delete_cookie(CSRF_COOKIE_NAME, path=CSRF_COOKIE_PATH)
 
 
-@router.post("/candidate/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+def _register_and_sign_in(
+    db: Session, request: Request, response: Response, user: User
+) -> AccessTokenResponse:
+    """Issue a session for a just-created account and set its cookies.
+
+    Registration returns the same `AccessTokenResponse` as `/login`, and for
+    the same reason the OTP screen was removed: an account that exists but
+    cannot be used until a second step is not an account, it is a pending
+    request. The client can move straight to the dashboard from the register
+    response with no follow-up call.
+
+    `remember_me=False` — a fresh signup gets a browser-session cookie, not a
+    30-day one. "Remember this device" is a choice the user makes on the sign-in
+    form; nothing on the signup form asks it, and assuming yes would persist a
+    long-lived credential on what may well be a shared machine.
+    """
+    session = service.issue_session(
+        db,
+        user,
+        remember_me=False,
+        user_agent=request.headers.get("user-agent"),
+        ip_address=_client_ip(request),
+    )
+    _set_session_cookies(
+        response,
+        refresh_token=session.raw_refresh_token,
+        remember_me=session.remember_me,
+        expires_at=session.refresh_expires_at,
+    )
+    return AccessTokenResponse(
+        access_token=session.access_token,
+        expires_in=session.access_expires_in,
+        user=UserResponse.model_validate(user),
+    )
+
+
+@router.post("/candidate/register", response_model=AccessTokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("3/minute")
 def candidate_register(
-    request: Request, payload: CandidateRegisterRequest, db: Session = Depends(get_db)
-) -> RegisterResponse:
+    request: Request, response: Response, payload: CandidateRegisterRequest, db: Session = Depends(get_db)
+) -> AccessTokenResponse:
     verify_captcha(payload.captcha_token, _client_ip(request))
-    user, _otp, expires_in = service.register_candidate(db, payload)
-    return RegisterResponse(
-        message="Registration successful. Check your email for a verification code.",
-        email=user.email,
-        otp_expires_in_seconds=expires_in,
-    )
+    user = service.register_candidate(db, payload)
+    return _register_and_sign_in(db, request, response, user)
 
 
-@router.post("/recruiter/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/recruiter/register", response_model=AccessTokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("3/minute")
 def recruiter_register(
-    request: Request, payload: RecruiterRegisterRequest, db: Session = Depends(get_db)
-) -> RegisterResponse:
+    request: Request, response: Response, payload: RecruiterRegisterRequest, db: Session = Depends(get_db)
+) -> AccessTokenResponse:
     verify_captcha(payload.captcha_token, _client_ip(request))
-    user, _otp, expires_in = service.register_recruiter(db, payload)
-    return RegisterResponse(
-        message="Registration successful. Check your email for a verification code.",
-        email=user.email,
-        otp_expires_in_seconds=expires_in,
-    )
+    user = service.register_recruiter(db, payload)
+    return _register_and_sign_in(db, request, response, user)
 
 
 @router.post("/login", response_model=AccessTokenResponse)
@@ -180,27 +204,6 @@ def logout(
         service.revoke_refresh_token(db, raw_refresh)
     _clear_session_cookies(response)
     return GenericMessageResponse(message="Logged out successfully.")
-
-
-@router.post("/verify-email/confirm", response_model=GenericMessageResponse)
-@limiter.limit("10/minute")
-def verify_email_confirm(
-    request: Request, payload: VerifyEmailConfirmRequest, db: Session = Depends(get_db)
-) -> GenericMessageResponse:
-    service.confirm_email_otp(db, payload.email, payload.otp)
-    return GenericMessageResponse(message="Email verified successfully.")
-
-
-@router.post("/verify-email/resend", response_model=OtpExpiryResponse)
-@limiter.limit("5/hour")
-def verify_email_resend(
-    request: Request, payload: VerifyEmailResendRequest, db: Session = Depends(get_db)
-) -> OtpExpiryResponse:
-    expires_in = service.resend_verification_otp(db, payload.email)
-    return OtpExpiryResponse(
-        message="If an account exists and is unverified, a new code has been sent.",
-        otp_expires_in_seconds=expires_in,
-    )
 
 
 @router.post("/forgot-password", response_model=GenericMessageResponse)

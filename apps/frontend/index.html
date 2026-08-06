@@ -3,174 +3,153 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#060814" />
+    <meta name="theme-color" content="#050510" />
 
-    <title>GroundTruth — AI-verified talent marketplace</title>
+    <title>GroundTruth AI — Verified Engineering Talent</title>
     <meta
       name="description"
-      content="GroundTruth reads your actual repositories, confirms what you personally wrote, and interviews you on your own source — then turns the result into a profile a recruiter can act on."
+      content="Hire engineers by what they've built. AI-verified profiles with real code evidence and adaptive interviews grounded in real repositories."
     />
 
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="GroundTruth" />
-    <meta property="og:title" content="GroundTruth — AI-verified talent marketplace" />
+    <meta property="og:site_name" content="GroundTruth AI" />
+    <meta property="og:title" content="GroundTruth AI — Verified Engineering Talent" />
     <meta
       property="og:description"
-      content="Your code is your résumé now. Seven verification stages between a claim and a credential, and one interview on your own source code."
+      content="Every skill proven by code. Every claim defended in interview. Adaptive AI interviews grounded in each candidate's real repositories."
     />
+    <!--
+      OG image placeholder. `og:image` is deliberately absent rather than
+      pointing at a file that does not exist: a broken image URL makes every
+      link preview render an empty frame, which is worse than the text-only
+      card a missing tag produces.
+      TODO: add /og.png (1200x630) and the og:image / twitter:image tags.
+    -->
 
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="GroundTruth — AI-verified talent marketplace" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GroundTruth AI — Verified Engineering Talent" />
     <meta
       name="twitter:description"
-      content="Every skill proven by code, contribution, or a recorded technical answer."
+      content="Adaptive AI interviews grounded in each candidate's real repositories — so recruiters see proven builders, not polished resumes."
     />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="mask-icon" href="/favicon.svg" color="#7C5CFF" />
+    <link rel="mask-icon" href="/favicon.svg" color="#2563EB" />
   </head>
   <body>
     <!--
       The hero, in static markup, inside #root.
 
-      This app is client-rendered, so #root was empty until React had
-      downloaded, parsed and run — which put the headline, and therefore LCP,
-      behind the bundle. Everything below is styled entirely by the stylesheet
-      already linked in <head>, so it paints as soon as the CSS arrives, with no
-      JavaScript involved.
+      WHY THIS EXISTS. The app is client-rendered, so #root was empty until
+      React had downloaded, parsed and run — which put the wordmark, and
+      therefore Largest Contentful Paint, behind the bundle. Everything below is
+      styled entirely by the stylesheet Vite links in <head>, so it paints as
+      soon as the CSS arrives, with no JavaScript involved. It doubles as the
+      no-script fallback, which is why there is no separate <noscript> hero —
+      two copies of the same markup would drift.
 
-      React replaces it on mount with the identical markup plus the animated
-      console. That is why every class here matches the real component, and why
-      nothing in the copy column animates in: an animated headline would replay
-      when React took over, and a visible-then-hidden element would flash.
+      WHY THE CLASS NAMES ARE TAILWIND. Tailwind scans this file (see
+      `content` in tailwind.config.ts), so these utilities are generated in the
+      same pass as the ones in Hero.tsx. The mirror and the component are
+      therefore the *same strings*, and a change to one that is not made to the
+      other is visible immediately rather than as a subtle drift.
 
-      It doubles as the no-JavaScript fallback, which is why there is no
-      separate <noscript> hero — two copies of the same markup would drift.
+      WHAT IS DELIBERATELY MISSING. The constellation. It is drawn by
+      JavaScript in both its animated and its static form, so there is nothing
+      to mirror; the gradient underneath it is here, and the scene fades in over
+      that. The nav's mobile sheet is also absent — it cannot open without
+      React, and a burger button that does nothing is worse than one that
+      appears a moment later.
 
-      MIRRORS components/Backdrop.tsx, components/Nav.tsx and components/Hero.tsx.
-      A change to any of the three has to be made here too.
+      `data-static-hero` is read once by Hero.tsx at module load to suppress the
+      entrance animation on this first paint. See the note there.
+
+      MIRRORS components/Nav.tsx and components/Hero.tsx. A change to either has
+      to be made here too.
     -->
     <div id="root">
-      <div class="gt">
-        <a class="skip-link" href="#main">Skip to content</a>
+      <div class="bg-gt-void">
+        <nav
+          aria-label="Primary"
+          class="fixed inset-x-0 top-0 z-50 h-[72px] border-b border-transparent bg-transparent transition-colors duration-300 ease-out"
+        >
+          <div
+            class="mx-auto flex h-full w-full max-w-[1280px] items-center justify-between gap-8 px-6 sm:px-8"
+          >
+            <a
+              href="#top"
+              aria-label="GroundTruth — home"
+              class="group inline-flex items-center gap-2.5 rounded-sm font-grotesk text-xl font-bold tracking-tight text-white"
+            >
+              <span aria-hidden="true" class="h-2 w-2 rounded-full bg-gt-electric"></span>
+              GroundTruth
+            </a>
 
-        <!-- Five fixed layers. Markup and CSS only — no script behind any of
-             it, so the page's whole visual world is up on the first paint. -->
-        <div class="gt-bg" aria-hidden="true">
-          <span class="gt-glow gt-glow-a"></span>
-          <span class="gt-glow gt-glow-b"></span>
-          <span class="gt-glow gt-glow-c"></span>
-          <span class="gt-stars"></span>
-          <span class="gt-grid"></span>
-          <span class="gt-beam"></span>
-        </div>
-
-        <nav class="nav">
-          <div class="wrap nav-in">
-            <a href="#top" class="logo" aria-label="GroundTruth — home">GroundTruth</a>
-
-            <div class="nav-links">
-              <a href="#verification">How it works</a>
-              <a href="#assessment">Evidence</a>
-              <a href="#matching">Matching</a>
-              <a href="#access">Security</a>
+            <div class="hidden items-center gap-8 lg:flex">
+              <a href="#how-it-works" class="rounded-sm font-sans text-sm text-white/70"
+                >How it works</a
+              >
+              <a href="#engineers" class="rounded-sm font-sans text-sm text-white/70"
+                >For engineers</a
+              >
+              <a href="#recruiters" class="rounded-sm font-sans text-sm text-white/70"
+                >For recruiters</a
+              >
+              <a href="#pricing" class="rounded-sm font-sans text-sm text-white/70">Pricing</a>
+              <a href="#faq" class="rounded-sm font-sans text-sm text-white/70">FAQ</a>
             </div>
 
-            <div class="nav-right">
-              <a class="nav-login" href="/login">Log in</a>
-              <a class="btn nav-cta" href="/signup"
-                ><span class="btn-label">Get verified</span
-                ><span class="btn-arrow" aria-hidden="true">→</span></a
+            <div class="hidden items-center gap-6 lg:flex">
+              <a href="/login" class="rounded-sm font-sans text-sm text-white/70">Log in</a>
+              <a
+                href="/signup"
+                class="group inline-flex items-center justify-center gap-2 rounded-lg bg-gt-electric px-4 py-2 font-sans text-sm font-medium text-white"
+                >Get started</a
               >
             </div>
-
-            <button
-              type="button"
-              class="nav-burger"
-              aria-expanded="false"
-              aria-controls="nav-sheet"
-              aria-label="Open menu"
-            >
-              <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true">
-                <path
-                  d="M0 1 H20 M0 7 H20 M0 13 H14"
-                  stroke="currentColor"
-                  stroke-width="1.4"
-                  fill="none"
-                />
-              </svg>
-            </button>
           </div>
         </nav>
 
-        <header class="hero" id="top">
-          <div class="wrap hero-in">
-            <div class="hero-copy">
-              <p class="coord mono">§00 / THESIS</p>
-
-              <p class="pill hero-pill">
-                <span class="pill-mark" aria-hidden="true">◈</span>
-                Not a test score. Not a resume claim. Real code, reviewed.
+        <header
+          id="top"
+          data-static-hero
+          class="relative isolate flex h-[100svh] min-h-[720px] flex-col justify-end overflow-hidden bg-[linear-gradient(180deg,#050510_0%,#0A1128_100%)]"
+        >
+          <div
+            class="relative z-10 mx-auto w-full max-w-[1280px] px-6 pb-24 pt-28 sm:px-8 md:pb-[100px]"
+          >
+            <div class="max-w-[560px]">
+              <p class="font-sans text-gt-over-hero font-medium uppercase text-gt-ember">
+                AI-verified engineering talent
               </p>
 
-              <h1 class="h1">
-                Your <span class="accent">code</span> is your résumé
-                <span class="accent">now</span>.
+              <h1 class="mt-8 font-grotesk text-gt-wordmark font-bold uppercase text-white">
+                Ground<br />Truth
               </h1>
 
-              <p class="hero-lead">
-                GroundTruth reads your actual repositories, confirms what you personally wrote, and
-                interviews you on your own source — then turns the result into a profile a recruiter
-                can act on.
+              <p class="mt-10 max-w-[520px] font-sans text-gt-lead font-medium text-white">
+                The hiring platform where every skill is proven by code.
+                <span class="mt-2 block font-normal text-white/60"
+                  >Every claim defended in interview.</span
+                >
               </p>
 
-              <div class="hero-ctas">
-                <a class="btn" href="/signup"
-                  ><span class="btn-label">Build a verified profile</span
-                  ><span class="btn-arrow" aria-hidden="true">→</span></a
-                >
-                <a class="btn btn-2" href="#verification"
-                  ><span class="btn-label">▷ See how it works</span></a
-                >
-              </div>
+              <p class="mt-4 max-w-[480px] font-sans text-gt-body-sm text-gt-ash">
+                Adaptive AI interviews grounded in each candidate's real repositories — so
+                recruiters see proven builders, not polished resumes.
+              </p>
 
-              <dl class="hero-caps">
-                <div>
-                  <dt class="hero-cap-value mono num">7</dt>
-                  <dd class="hero-cap-label">Verification stages</dd>
-                </div>
-                <div>
-                  <dt class="hero-cap-value mono num">1536-dim</dt>
-                  <dd class="hero-cap-label">Shared vector space</dd>
-                </div>
-                <div>
-                  <dt class="hero-cap-value mono num">5–7</dt>
-                  <dd class="hero-cap-label">Questions from your own code</dd>
-                </div>
-                <div>
-                  <dt class="hero-cap-value mono num">4</dt>
-                  <dd class="hero-cap-label">Evidence sources</dd>
-                  <dd class="hero-cap-detail mono">code · commits · contests · certificates</dd>
-                </div>
-              </dl>
-            </div>
-
-            <div class="hero-right">
-              <!--
-                The console's frame and the sample-data label only. Its contents
-                are the sequence's first beat and belong to the component — but
-                the frame has to be here, because the scene React mounts into
-                must not resize anything around it.
-              -->
-              <div class="hc-scene">
-                <div class="hc" aria-hidden="true">
-                  <div class="hc-head">
-                    <span class="hc-dot"></span>
-                    <span class="mono hc-repo">candidate/payments-api · main</span>
-                    <span class="hc-state"><span class="badge badge-neutral">Scanning</span></span>
-                  </div>
-                </div>
-                <p class="hc-sample">Sample profile</p>
+              <div class="mt-10 flex flex-wrap gap-4">
+                <a
+                  href="/signup"
+                  class="group inline-flex items-center justify-center gap-2 rounded-lg bg-gt-electric px-8 py-4 font-sans text-gt-body-sm font-medium text-white"
+                  >Get verified — free</a
+                >
+                <a
+                  href="#recruiters"
+                  class="group inline-flex items-center justify-center gap-2 rounded-lg border-[1.5px] border-white/70 bg-transparent px-8 py-4 font-sans text-gt-body-sm font-medium text-white"
+                  >For recruiters <span aria-hidden="true">→</span></a
+                >
               </div>
             </div>
           </div>

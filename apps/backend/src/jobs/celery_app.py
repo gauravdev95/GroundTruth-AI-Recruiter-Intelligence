@@ -7,14 +7,14 @@ Queue topology
 |----------------|--------------------------------------------------------------|-------------------------------------|
 | `extraction`   | `extract_resume_task`, the interview tasks in `jobs/tasks/interview.py`, and `extract_job_requirements_task` | Long, external LLM/network calls |
 | `verification` | the five `verify_*` tasks in `jobs/tasks/verification.py`, consuming the jobs `student/evidence.py` enqueues | Third-party API calls, throttled independently of LLM work |
-| `matching`     | the embed-and-match tasks in `jobs/tasks/matching.py`      | OpenAI embedding calls + the rank-fusion computation itself — neither an Anthropic call nor a third-party verification check, and potentially high-volume (one candidate re-verification can trigger matching against every published job) |
+| `matching`     | the embed-and-match tasks in `jobs/tasks/matching.py`      | local (in-process) embedding encodes + the rank-fusion computation itself — CPU-bound rather than IO-bound, neither an LLM call nor a third-party verification check, and potentially high-volume (one candidate re-verification can trigger matching against every published job) |
 | `dead_letter`  | `record_dead_letter`                                          | Terminal failures, inspectable     |
 
 Slow work is isolated on its own queue so a backlog of minute-long extractions
 cannot head-of-line block a short verification job behind it. Interview and
 job-extraction tasks share `extraction` rather than getting their own queues:
 they are the same kind of work (slow, LLM-bound, externally rate-limited by
-the Anthropic API), with no distinct backpressure reason to isolate them
+the Gemini API), with no distinct backpressure reason to isolate them
 further. `matching` gets its own queue because its volume characteristics
 differ — a single candidate verification can fan out into recomputing
 matches against every open job — and it must not be able to starve the

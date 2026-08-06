@@ -5,9 +5,12 @@ export type UserRole = "candidate" | "recruiter" | "admin";
 export interface AuthUser {
   id: string;
   email: string;
-  full_name: string;
+  /** Null for a student between signup and their first onboarding section save
+   * — `User.full_name` on the backend is nullable and this mirrors it. Was
+   * typed `string` here, which was a lie the compiler then propagated into
+   * every consumer; anything rendering a name must handle the null. */
+  full_name: string | null;
   role: UserRole;
-  is_email_verified: boolean;
 }
 
 export interface AccessTokenResponse {
@@ -17,29 +20,20 @@ export interface AccessTokenResponse {
   user: AuthUser;
 }
 
-export interface RegisterResponse {
-  message: string;
-  email: string;
-  otp_expires_in_seconds: number;
-}
-
-export interface OtpExpiryResponse {
-  message: string;
-  otp_expires_in_seconds: number;
-}
-
 export interface GenericMessageResponse {
   message: string;
 }
 
+/**
+ * Student signup is two fields. Name and phone are collected in the first
+ * onboarding section instead — see `CandidateRegisterRequest` on the backend
+ * for the reasoning, and `BasicInfoRequest` for where they went.
+ */
 export interface CandidateRegisterPayload {
-  full_name: string;
   email: string;
-  phone_number: string;
   password: string;
-  confirm_password: string;
-  captcha_token: string;
-  accept_terms: boolean;
+  /** Optional: the widget only mounts when a site key is configured. */
+  captcha_token?: string;
 }
 
 export interface RecruiterRegisterPayload {
@@ -64,11 +58,17 @@ export interface LoginPayload {
 }
 
 export const authApi = {
+  /*
+   * Both register calls return an `AccessTokenResponse`, exactly like `login`.
+   * There is no email-verification step: the account is created, signed in and
+   * usable in one request, so the caller navigates straight to the dashboard
+   * instead of to a code-entry screen.
+   */
   registerCandidate: (payload: CandidateRegisterPayload) =>
-    apiClient.post<RegisterResponse>("/auth/candidate/register", payload).then((res) => res.data),
+    apiClient.post<AccessTokenResponse>("/auth/candidate/register", payload).then((res) => res.data),
 
   registerRecruiter: (payload: RecruiterRegisterPayload) =>
-    apiClient.post<RegisterResponse>("/auth/recruiter/register", payload).then((res) => res.data),
+    apiClient.post<AccessTokenResponse>("/auth/recruiter/register", payload).then((res) => res.data),
 
   login: (payload: LoginPayload) =>
     apiClient.post<AccessTokenResponse>("/auth/login", payload).then((res) => res.data),
@@ -76,14 +76,6 @@ export const authApi = {
   logout: () => apiClient.post<GenericMessageResponse>("/auth/logout").then((res) => res.data),
 
   me: () => apiClient.get<AuthUser>("/auth/me").then((res) => res.data),
-
-  verifyEmailConfirm: (email: string, otp: string) =>
-    apiClient
-      .post<GenericMessageResponse>("/auth/verify-email/confirm", { email, otp })
-      .then((res) => res.data),
-
-  verifyEmailResend: (email: string) =>
-    apiClient.post<OtpExpiryResponse>("/auth/verify-email/resend", { email }).then((res) => res.data),
 
   forgotPassword: (email: string) =>
     apiClient.post<GenericMessageResponse>("/auth/forgot-password", { email }).then((res) => res.data),

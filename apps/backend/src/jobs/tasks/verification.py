@@ -43,11 +43,16 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.config.config import get_security_settings, get_verification_settings
 from src.core.audit import write_audit_log
+from src.core.mail import service as mail_service
 from src.db.database import SessionLocal
+from src.domains.auth.models import CandidateProfile, User
 from src.domains.student import service as student_service
+from src.domains.student.completeness import ProfileCompleteness
 from src.domains.student.evidence import (
     JOB_CERTIFICATE,
     JOB_CODING_PLATFORM,
@@ -65,6 +70,7 @@ from src.domains.student.models import (
     VerificationStatus,
 )
 from src.domains.verification import certificate as certificate_checker
+from src.domains.verification import competencies
 from src.domains.verification import experience as experience_scoring
 from src.domains.verification import stages
 from src.domains.verification import skills as skills_service
@@ -101,16 +107,251 @@ def _exhausted(task: DatabaseTask) -> bool:
     return request.retries >= task.max_retries
 
 
+def _verification_has_settled(session: Session, candidate_profile_id: uuid.UUID) -> bool:
+    """True when no claim for this candidate is still awaiting a check.
+
+    `_finish` runs after *every* individual claim, so without this the first
+    repository to verify would invite an interview grounded in a profile whose
+    other claims were still being checked — the candidate would be examined on
+    a fraction of their evidence, and the invitation could not be re-sent
+    because it is sent once.
+
+    Only `PENDING` blocks. `UNVERIFIED` does not: a third-party outage
+    degrades to `UNVERIFIED` by design, and treating that as "still running"
+    would leave a candidate permanently un-invited every time GitHub had a bad
+    afternoon.
+    """
+    for model in (GithubAccount, CodingPlatformAccount, Project, Certificate, Experience):
+        pending = session.execute(
+            select(model.id).where(
+                model.candidate_profile_id == candidate_profile_id,
+                model.verification_status == VerificationStatus.PENDING,
+                model.deleted_at.is_(None),
+            ).limit(1)
+        ).scalar_one_or_none()
+        if pending is not None:
+            return False
+    return True
+
+
+def _invite_profile_interview(
+    session: Session, candidate_profile_id: uuid.UUID, completeness: ProfileCompleteness
+) -> None:
+    """Start the candidate's profile interview and email them, once.
+
+    Idempotency comes from `start_profile_interview` returning None when a
+    non-terminally-failed profile interview already exists — the email is sent
+    only when a row was actually created, so re-running verification cannot
+    re-send it.
+
+    Skipped entirely if the candidate already completed *any* interview: they
+    are already discoverable, and inviting them to a second one would be noise
+    rather than an unlock.
+
+    Every failure here is swallowed. This runs at the tail of a verification
+    task whose real work has already committed; letting a mail outage or a
+    broker hiccup fail the task would retry the verification — re-hitting a
+    third-party API and rewriting a result that was already correct — to fix
+    something that is not the verification's problem.
+    """
+    from src.domains.interview.models import Interview, InterviewStatus
+    from src.domains.interview.service import start_profile_interview
+
+    try:
+        profile = session.get(CandidateProfile, candidate_profile_id)
+        if profile is None:
+            return
+
+        # Only invite candidates who have finished the parts they control.
+        # An incomplete profile has nothing coherent to ground questions in.
+        if not completeness.meets_section_requirements:
+            return
+        # Already interviewed — they are discoverable, so a second invitation
+        # would be noise rather than an unlock.
+        if completeness.has_completed_interview:
+            return
+
+        already_completed = session.execute(
+            select(Interview.id).where(
+                Interview.candidate_profile_id == candidate_profile_id,
+                Interview.status == InterviewStatus.COMPLETED,
+            ).limit(1)
+        ).scalar_one_or_none()
+        if already_completed is not None:
+            return
+
+        interview = start_profile_interview(session, candidate_profile_id)
+        if interview is None:
+            return
+
+        has_verified_repos = session.execute(
+            select(Project.id).where(
+                Project.candidate_profile_id == candidate_profile_id,
+                Project.verification_status == VerificationStatus.VERIFIED,
+                Project.deleted_at.is_(None),
+            ).limit(1)
+        ).scalar_one_or_none() is not None
+
+        user = session.get(User, profile.user_id)
+        if user is None:
+            return
+
+        base = get_security_settings().frontend_base_url.rstrip("/")
+        mail_service.send_interview_invitation_email(
+            to_email=user.email,
+            full_name=user.display_name,
+            interview_url=f"{base}/student/interview/{interview.id}",
+            has_verified_repositories=has_verified_repos,
+        )
+        logger.info(
+            "profile_interview_invited",
+            candidate_profile_id=str(candidate_profile_id),
+            interview_id=str(interview.id),
+        )
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        logger.error(
+            "profile_interview_invite_failed",
+            candidate_profile_id=str(candidate_profile_id),
+            error=str(exc),
+        )
+
+
+#: How each settled status reads to the candidate. `UNVERIFIED` is in the
+#: attention list rather than the confirmed one on purpose: nothing was proven,
+#: and quietly filing it under "confirmed" would be the single most dishonest
+#: line this email could contain. `PENDING` cannot appear — `_finish` only
+#: builds this once nothing is pending.
+_ATTENTION_REASONS = {
+    VerificationStatus.REJECTED: "the check contradicted this claim",
+    VerificationStatus.FLAGGED: "visible, but we could not confirm it independently",
+    VerificationStatus.UNVERIFIED: "we could not reach the source to check it",
+}
+
+
+def _claim_label(row: Any) -> str:
+    """A candidate-facing name for one claim row.
+
+    Deliberately not `repr` or a table name: the email says "GitHub —
+    octocat", not "github_account 3f9a…", because the reader has to recognise
+    which of *their* claims is being talked about.
+    """
+    if isinstance(row, GithubAccount):
+        return f"GitHub — {row.github_username}"
+    if isinstance(row, CodingPlatformAccount):
+        name = row.custom_platform_name or row.platform.value.replace("_", " ").title()
+        return f"{name} — {row.handle}"
+    if isinstance(row, Project):
+        return f"Project — {row.title}"
+    if isinstance(row, Certificate):
+        return f"Certificate — {row.title}"
+    return f"Experience — {row.title} at {row.company_name}"
+
+
+def _send_verification_summary(session: Session, profile: CandidateProfile) -> None:
+    """Email the candidate the outcome of every check, exactly once.
+
+    Guarded on three things, and each guard exists for its own reason:
+
+    * `onboarding_submitted_at` — a candidate still mid-onboarding has not
+      asked for anything to be checked yet, and a summary would arrive before
+      the flow that promises it.
+    * `verification_summary_sent_at` — the send-once marker. `_finish` runs
+      after every individual claim, so without it a six-claim candidate gets
+      six identical emails.
+    * A row that is still `PENDING` — checked by the caller
+      (`_verification_has_settled`), because a summary sent mid-run would
+      describe a half-finished picture and could never be corrected.
+
+    Failures are swallowed for the same reason `_invite_profile_interview`
+    swallows them: the verification this trails has already committed, and a
+    mail outage must not retry a third-party check that already succeeded. The
+    marker is written *before* dispatch so a mailer that raises cannot leave
+    the door open for a duplicate on the next claim's `_finish`.
+    """
+    if profile.onboarding_submitted_at is None or profile.verification_summary_sent_at is not None:
+        return
+
+    user = session.get(User, profile.user_id)
+    if user is None:
+        return
+
+    confirmed: list[str] = []
+    needs_attention: list[tuple[str, str]] = []
+
+    for model in (GithubAccount, CodingPlatformAccount, Project, Certificate, Experience):
+        rows = session.execute(
+            select(model).where(
+                model.candidate_profile_id == profile.id,
+                model.deleted_at.is_(None),
+            )
+        ).scalars()
+        for row in rows:
+            status = row.verification_status
+            if status is VerificationStatus.VERIFIED:
+                confirmed.append(_claim_label(row))
+            elif status in _ATTENTION_REASONS:
+                needs_attention.append((_claim_label(row), _ATTENTION_REASONS[status]))
+
+    if not confirmed and not needs_attention:
+        return
+
+    profile.verification_summary_sent_at = _utcnow()
+    session.commit()
+
+    try:
+        base = get_security_settings().frontend_base_url.rstrip("/")
+        mail_service.send_verification_summary_email(
+            to_email=user.email,
+            full_name=user.display_name,
+            confirmed=confirmed,
+            needs_attention=needs_attention,
+            profile_url=f"{base}/student/profile",
+        )
+        logger.info(
+            "verification_summary_sent",
+            candidate_profile_id=str(profile.id),
+            confirmed=len(confirmed),
+            needs_attention=len(needs_attention),
+        )
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        logger.error(
+            "verification_summary_send_failed",
+            candidate_profile_id=str(profile.id),
+            error=str(exc),
+        )
+
+
 def _finish(candidate_profile_id: uuid.UUID) -> None:
-    """Recomputes `profile_strength`. Re-embedding/re-matching (or removal
-    from `match_results` if this leaves the candidate non-discoverable) is
-    handled inside `recompute_and_persist_strength` itself
-    (`student/service.py::_sync_matching_index`) — centralized there so
-    every caller, not just this one, keeps the same guarantee. See that
-    module for why this used to be wired only here, and why that was a bug.
+    """Recomputes `profile_strength`, then invites the profile interview if
+    verification has settled.
+
+    Re-embedding/re-matching (or removal from `match_results` if this leaves
+    the candidate non-discoverable) is handled inside
+    `recompute_and_persist_strength` itself
+    (`student/service.py::_sync_matching_index`) — centralized there so every
+    caller, not just this one, keeps the same guarantee. See that module for
+    why this used to be wired only here, and why that was a bug.
+
+    The interview invitation is deliberately *after* the recompute: the
+    candidate's strength and evidence score should reflect this verification
+    before the email that points them at the next step.
     """
     with SessionLocal() as session:
-        student_service.recompute_and_persist_strength(session, candidate_profile_id)
+        completeness = student_service.recompute_and_persist_strength(session, candidate_profile_id)
+        # None means the candidate deleted their account while this
+        # verification was in flight — nothing left to invite.
+        if completeness is None:
+            return
+
+        if _verification_has_settled(session, candidate_profile_id):
+            # The summary goes first: it reports what just finished, while the
+            # interview invitation is about what happens next. A candidate who
+            # receives them in the other order is invited to an interview
+            # before being told their evidence was checked at all.
+            profile = session.get(CandidateProfile, candidate_profile_id)
+            if profile is not None:
+                _send_verification_summary(session, profile)
+            _invite_profile_interview(session, candidate_profile_id, completeness)
 
 
 def _audit_claim(
@@ -345,7 +586,7 @@ def verify_repository_task(self: DatabaseTask, async_job_id: str) -> dict[str, s
 # --------------------------------------------------------------------------
 # 3. Coding-platform account — Codeforces via its real public API;
 #    LeetCode via its (unofficial, best-effort) GraphQL endpoint; HackerRank
-#    via reachability only, since it has no public API of any kind.
+#    and CodeChef via reachability only, since neither exposes a usable one.
 # --------------------------------------------------------------------------
 
 
@@ -371,6 +612,15 @@ def _write_coding_platform_result(
                 session, entity_type="coding_platform_account", entity_id=account.id,
                 before_status=before, after_status=status.value,
             )
+            session.commit()
+
+            # Derived from the row *after* commit, so the competency weight is
+            # read from the payload that was actually persisted rather than
+            # from local variables that a concurrent write could have
+            # superseded. A no-op unless the account reached VERIFIED — see
+            # `competencies.py` for why a reachability-only FLAGGED result
+            # must not mint a skill.
+            competencies.derive_competencies(session, account=account)
             session.commit()
 
 
@@ -425,22 +675,46 @@ def verify_coding_platform_account_task(self: DatabaseTask, async_job_id: str) -
             )
             result_status = "verified"
 
-        else:  # HACKERRANK — no public API at all
+        else:
+            # HACKERRANK, CODECHEF, ATCODER, GEEKSFORGEEKS and OTHER — none
+            # exposes a usable public API (CodeChef retired its documented one;
+            # the rest never had one), so all can only be checked by URL
+            # reachability. Handled as one branch parameterised by platform
+            # rather than five near-identical ones: they differ in nothing but
+            # the label and the rate-limit bucket, and a copied branch is how
+            # the next platform ends up writing another platform's
+            # `verification_source`.
+            #
+            # The ceiling here is `FLAGGED`, never `VERIFIED`: a resolving URL
+            # proves the profile exists, not that this candidate owns it. For
+            # OTHER the URL is one the candidate supplied outright, which is
+            # weaker still — and is exactly why that platform can never do
+            # better than FLAGGED either.
+            settings = get_verification_settings()
+            per_minute = {
+                CodingPlatform.HACKERRANK: settings.hackerrank_rate_limit_per_minute,
+                CodingPlatform.CODECHEF: settings.codechef_rate_limit_per_minute,
+                CodingPlatform.ATCODER: settings.atcoder_rate_limit_per_minute,
+                CodingPlatform.GEEKSFORGEEKS: settings.geeksforgeeks_rate_limit_per_minute,
+                CodingPlatform.OTHER: settings.other_platform_rate_limit_per_minute,
+            }[platform]
+            source = f"{platform.value}_reachability_heuristic"
+
             reachable, _body = reachability.check_reachable(
-                profile_url, rate_limit_name="hackerrank", max_requests_per_minute=20
+                profile_url, rate_limit_name=platform.value, max_requests_per_minute=per_minute
             )
             if reachable:
                 _write_coding_platform_result(
                     source_id,
                     status=VerificationStatus.FLAGGED,
                     score=50.0,
-                    source="hackerrank_reachability_heuristic",
+                    source=source,
                     payload={
                         "handle": handle,
                         "profile_url": profile_url,
                         "confidence": "low",
-                        "note": "HackerRank has no public API; this only confirms the profile URL "
-                        "resolves, not that the candidate owns it.",
+                        "note": f"{platform.value} has no usable public API; this only confirms the "
+                        "profile URL resolves, not that the candidate owns it.",
                     },
                 )
                 result_status = "flagged"
@@ -449,7 +723,7 @@ def verify_coding_platform_account_task(self: DatabaseTask, async_job_id: str) -
                     source_id,
                     status=VerificationStatus.REJECTED,
                     score=0.0,
-                    source="hackerrank_reachability_heuristic",
+                    source=source,
                     payload={"handle": handle, "profile_url": profile_url, "reachable": False},
                 )
                 result_status = "rejected"

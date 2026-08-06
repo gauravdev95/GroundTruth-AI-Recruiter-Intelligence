@@ -2,10 +2,14 @@ import { Eye, EyeOff } from "lucide-react";
 import { forwardRef, useId, useMemo, useState } from "react";
 import type { InputHTMLAttributes } from "react";
 
+import { FIELD_TONE, type FieldTone } from "./fieldTone";
+
 interface PasswordInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
   label: string;
   error?: string;
   showStrengthMeter?: boolean;
+  /** Which surface this sits on. See `fieldTone.ts`. */
+  tone?: FieldTone;
 }
 
 function scorePassword(password: string): number {
@@ -23,16 +27,17 @@ const STRENGTH_LABELS = ["Very weak", "Weak", "Fair", "Good", "Strong"];
 const STRENGTH_COLORS = ["bg-red-500", "bg-orange-500", "bg-amber-400", "bg-lime-400", "bg-emerald-400"];
 
 export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(function PasswordInput(
-  { label, error, showStrengthMeter = false, className, value, ...props },
+  { label, error, showStrengthMeter = false, tone = "light", className, value, ...props },
   ref,
 ) {
   const [visible, setVisible] = useState(false);
   const id = useId();
+  const styles = FIELD_TONE[tone];
   const strength = useMemo(() => scorePassword(typeof value === "string" ? value : ""), [value]);
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-slate-700">
+      <label htmlFor={id} className={styles.label}>
         {label}
       </label>
       <div className="relative">
@@ -44,16 +49,13 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(fu
           type={visible ? "text" : "password"}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={
-            className ??
-            "w-full rounded border border-slate-300 bg-white px-4 py-2.5 pr-11 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
-          }
+          className={className ?? `${styles.input} pr-11`}
         />
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? "Hide password" : "Show password"}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-700"
+          className={`absolute right-3 top-1/2 -translate-y-1/2 ${styles.affordance}`}
         >
           {visible ? <EyeOff size={17} /> : <Eye size={17} />}
         </button>
@@ -66,17 +68,23 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(fu
               <div
                 key={i}
                 className={`h-1 flex-1 rounded-full transition-colors ${
-                  i < strength ? STRENGTH_COLORS[strength] : "bg-slate-200"
+                  i < strength
+                    ? STRENGTH_COLORS[strength]
+                    : tone === "dark"
+                      ? "bg-white/15"
+                      : "bg-slate-200"
                 }`}
               />
             ))}
           </div>
-          <span className="text-xs text-slate-400">{STRENGTH_LABELS[strength]}</span>
+          <span className={tone === "dark" ? "text-xs text-white/50" : "text-xs text-slate-400"}>
+            {STRENGTH_LABELS[strength]}
+          </span>
         </div>
       ) : null}
 
       {error ? (
-        <p id={`${id}-error`} role="alert" className="text-xs text-red-500">
+        <p id={`${id}-error`} role="alert" className={styles.error}>
           {error}
         </p>
       ) : null}

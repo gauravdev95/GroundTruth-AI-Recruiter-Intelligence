@@ -7,7 +7,37 @@ environment is only parsed once per process — same pattern as
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: How far a set of weights may drift from 1.0 before it is rejected. Wide
+#: enough to absorb the binary-float representation of decimal env values
+#: (0.4 + 0.25 + 0.15 + 0.1 + 0.1 != 1.0 exactly in IEEE 754), tight enough
+#: that a genuine typo — a weight entered as 0.5 instead of 0.05 — cannot pass.
+_WEIGHT_SUM_TOLERANCE = 1e-6
+
+
+def _validate_weight_set(weights: dict[str, float], *, label: str, env_prefix: str) -> None:
+    """Reject a weight set that is not a probability distribution.
+
+    Weights are operator-editable, and a score built from weights that do not
+    sum to 1.0 is not on the 0-100 scale it is documented, stored
+    (`Numeric(5,2)`), compared, and thresholded on. That failure is silent —
+    every score simply comes out wrong together, so nothing looks broken — which
+    is why this raises at settings-load time (process start) rather than being
+    checked at the call site or left to a test.
+    """
+    total = sum(weights.values())
+    if abs(total - 1.0) > _WEIGHT_SUM_TOLERANCE:
+        detail = ", ".join(f"{env_prefix}{name.upper()}={value}" for name, value in weights.items())
+        raise ValueError(
+            f"{label} weights must sum to 1.0, got {total:.6f}. Configured: {detail}"
+        )
+    negative = [name for name, value in weights.items() if value < 0]
+    if negative:
+        raise ValueError(
+            f"{label} weights must be non-negative; got a negative value for: {', '.join(negative)}"
+        )
 
 
 class DatabaseSettings(BaseSettings):
@@ -177,6 +207,16 @@ class VerificationSettings(BaseSettings):
     github_rate_limit_per_minute: int = 30
     codeforces_rate_limit_per_minute: int = 20
     leetcode_rate_limit_per_minute: int = 20
+    # Platforms with no usable public API, checked by URL reachability only.
+    hackerrank_rate_limit_per_minute: int = 20
+    codechef_rate_limit_per_minute: int = 20
+    atcoder_rate_limit_per_minute: int = 20
+    geeksforgeeks_rate_limit_per_minute: int = 20
+    # The `OTHER` platform points at a host this codebase has never seen, so it
+    # gets its own conservative bucket rather than borrowing another
+    # platform's — one candidate's unusual URL must not spend the budget a
+    # named platform's checks depend on.
+    other_platform_rate_limit_per_minute: int = 10
     certificate_check_rate_limit_per_minute: int = 30
 
     model_config = SettingsConfigDict(
@@ -189,6 +229,155 @@ class VerificationSettings(BaseSettings):
 @lru_cache
 def get_verification_settings() -> VerificationSettings:
     return VerificationSettings()
+
+
+class MatchingSettings(BaseSettings):
+    """The rank-fusion formula and cut for `domains/matching/`.
+
+    Every term is operator-editable. The sum-to-1.0 invariant that makes
+    `compute_match_score` produce a 0-100 number is enforced by
+    `_validate_weight_set` at load time, so a bad weight set fails the process
+    at start rather than silently rescaling every match in the system.
+
+    The five terms are deliberately fewer than the eight signals the product
+    brief lists, because several of those overlap and would double-count:
+
+    * *project relevance* and *certificate relevance* are already inside
+      `skill_evidence` — verified skills are **derived from** projects and
+      certificates (`domains/verification/skills.py` is their only write site),
+      so scoring them again counts the same evidence twice.
+    * *experience match* is deliberately absent from the score entirely.
+      `experiences` has no independent source of truth and can never reach
+      `VERIFIED` (see `domains/student/models.py::Experience`), so weighting it
+      would import unverified self-reports into a score whose whole premise is
+      verified evidence. It constrains eligibility in the hard filter instead.
+    """
+
+    # Below this, a pair is absent from `match_results` entirely — not
+    # low-ranked, not hidden at read time. Raising it therefore *prunes*
+    # existing rows on the next recompute (except pairs an application
+    # references, which `matching/service.py` preserves deliberately).
+    match_threshold: float = 60.0
+
+    #: Cosine similarity between the job and candidate profile vectors.
+    #: The largest single term because role fit is what it actually captures;
+    #: the evidence terms below establish that the fit is *real*, not that it
+    #: exists.
+    match_weight_semantic: float = 0.40
+    #: Mean `candidate_skills.evidence_weight` across the job's required
+    #: skills — repository- and certificate-derived evidence.
+    match_weight_skill_evidence: float = 0.25
+    #: The candidate's aggregate AI interview score (0-1).
+    match_weight_interview: float = 0.15
+    #: Competencies derived from verified coding profiles
+    #: (`domains/verification/competencies.py`).
+    match_weight_competency: float = 0.10
+    #: Profile completeness. Smallest term: a complete profile is a weak
+    #: signal next to evidence, and it was over-weighted at 0.20 when it was
+    #: one of only three terms.
+    match_weight_profile_strength: float = 0.10
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    @property
+    def weights(self) -> dict[str, float]:
+        """The formula as a name -> weight mapping.
+
+        Keys match `compute_match_score`'s keyword arguments so the formula can
+        be read, logged, and returned to the UI as one value rather than five
+        attributes a caller has to know to fetch together.
+        """
+        return {
+            "semantic": self.match_weight_semantic,
+            "skill_evidence": self.match_weight_skill_evidence,
+            "interview": self.match_weight_interview,
+            "competency": self.match_weight_competency,
+            "profile_strength": self.match_weight_profile_strength,
+        }
+
+    @model_validator(mode="after")
+    def _check_weights(self) -> "MatchingSettings":
+        _validate_weight_set(self.weights, label="Match", env_prefix="MATCH_WEIGHT_")
+        if not 0.0 < self.match_threshold < 100.0:
+            raise ValueError(
+                f"MATCH_THRESHOLD must be between 0 and 100 (exclusive), got {self.match_threshold}. "
+                "0 would persist every pair ever scored; 100 would persist none."
+            )
+        return self
+
+
+@lru_cache
+def get_matching_settings() -> MatchingSettings:
+    return MatchingSettings()
+
+
+class InterviewSettings(BaseSettings):
+    """The AI interview's scoring rubric.
+
+    Weights are operator-editable and validated the same way as the match
+    weights. Changing them does **not** rescore past interviews: every
+    `interviews` row stores the `rubric_version` it was scored under, and an
+    evidence report is written once and never edited (see
+    `domains/interview/models.py`). A weight change therefore applies to
+    interviews taken after it, which is the only honest option — a candidate
+    cannot be retroactively re-judged against a rubric they never sat.
+    """
+
+    #: Bumped by hand when the *set* of dimensions changes, not when a weight
+    #: moves. v1 was the original four-dimension rubric; v2 adds
+    #: `communication` and renames the other four to the product vocabulary.
+    interview_rubric_version: int = 2
+
+    #: Is the answer correct? Still the largest term, reduced from v1's 0.40
+    #: to make room for `communication` without gutting the code-grounded pair.
+    interview_weight_technical_accuracy: float = 0.30
+    #: Does the answer show the candidate understands what their code does?
+    #: (v1 `repository_consistency`.)
+    interview_weight_code_understanding: float = 0.25
+    #: Reasoning depth and approach. (v1 `depth_of_reasoning`.)
+    interview_weight_problem_solving: float = 0.20
+    #: Does the answer reference specifics of *this* repository?
+    #: (v1 `codebase_specificity`.) Together with code understanding this is
+    #: 0.45 — slightly above v1's equivalent 0.35, so the grounding claim gets
+    #: stronger under v2, not weaker.
+    interview_weight_repository_knowledge: float = 0.15
+    #: Clarity of explanation. Smallest weight on purpose: it is the most
+    #: subjective dimension for a model to judge and the least predictive of
+    #: engineering ability.
+    interview_weight_communication: float = 0.10
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    @property
+    def rubric_weights(self) -> dict[str, float]:
+        """Dimension name -> weight. Keys are the values stored in
+        `interview_scores.dimension`, so a score row naming anything outside
+        this mapping is a bug rather than a new dimension."""
+        return {
+            "technical_accuracy": self.interview_weight_technical_accuracy,
+            "code_understanding": self.interview_weight_code_understanding,
+            "problem_solving": self.interview_weight_problem_solving,
+            "repository_knowledge": self.interview_weight_repository_knowledge,
+            "communication": self.interview_weight_communication,
+        }
+
+    @model_validator(mode="after")
+    def _check_weights(self) -> "InterviewSettings":
+        _validate_weight_set(self.rubric_weights, label="Interview rubric", env_prefix="INTERVIEW_WEIGHT_")
+        return self
+
+
+@lru_cache
+def get_interview_settings() -> InterviewSettings:
+    return InterviewSettings()
 
 
 class CelerySettings(BaseSettings):
@@ -294,29 +483,43 @@ def get_storage_settings() -> StorageSettings:
 
 
 class LLMSettings(BaseSettings):
-    """Provider selection and per-call limits for the LLM service module.
+    """Google Gemini credentials and per-call limits for `domains/ai/`.
 
-    `default_llm_provider` selects which adapter `domains/ai/llm.py` builds;
-    keys for every supported provider live here so swapping is a config change.
+    GroundTruth runs on one LLM provider. All four model-backed capabilities —
+    resume extraction, interview question generation, answer evaluation, and
+    job-requirement extraction — call Gemini through `domains/ai/llm.py`, so
+    there is one key and one model id here rather than a provider-selection
+    setting that can disagree with the keys actually present.
+
+    Embeddings are outside this class entirely, and not because they use a
+    second vendor: they run a local sentence-transformers model in-process and
+    need no credential at all. See `EmbeddingSettings`.
     """
 
-    default_llm_provider: str = "anthropic"
-    anthropic_api_key: str = ""
-    openai_api_key: str = ""
-    groq_api_key: str = ""
-    # Google AI Studio (Gemini). Read by `providers/gemini_extractor.py`.
+    #: Google AI Studio key. Required in practice — without it every capability
+    #: above raises `LLMNotConfigured` (`domains/ai/llm.py`). Defaulted to empty
+    #: rather than made mandatory so the API and the test suite still start on a
+    #: machine with no key; only the LLM-backed paths fail, and they fail with a
+    #: message naming this variable.
     google_api_key: str = ""
 
-    llm_model: str = "claude-opus-5"
+    #: The Gemini model every capability calls. Flash rather than Pro because
+    #: all four prompts are scoped structured extraction against a fixed schema
+    #: — the larger model's advantage is small there, and the latency is paid on
+    #: paths a user is waiting on.
+    llm_model: str = "gemini-3.6-flash"
+
     llm_max_tokens: int = 16000
-    # Scoped structured extraction — `medium` balances accuracy against the
-    # latency and token spend of a job that runs on every resume upload.
-    llm_effort: str = "medium"
-    # Per-request wall clock. The worker's own time limit is deliberately
-    # larger so a timeout surfaces as a typed LLM error, not a killed task.
+
+    #: Per-request wall clock. The workers' Celery time limits are deliberately
+    #: larger, so a slow provider surfaces as a typed `LLMTimeout` on the retry
+    #: ladder instead of as a task killed mid-write.
     llm_timeout_seconds: float = 120.0
-    # The SDK retries connection errors, 408/409/429 and 5xx on its own; the
-    # Celery task retries the whole job on top of that.
+
+    #: Retries *within* a single request, applied by the SDK to 408/429/5xx.
+    #: Kept small because the Celery task retries the whole job on top of this
+    #: and the two budgets multiply: a job that has already spent two minutes on
+    #: provider retries is better re-queued than held open.
     llm_max_retries: int = 2
 
     model_config = SettingsConfigDict(
@@ -327,27 +530,13 @@ class LLMSettings(BaseSettings):
 
     @property
     def is_configured(self) -> bool:
-        return bool(
-            {
-                "anthropic": self.anthropic_api_key,
-                "openai": self.openai_api_key,
-                "groq": self.groq_api_key,
-                "google": self.google_api_key,
-            }.get(self.default_llm_provider)
-        )
+        """Whether the LLM-backed capabilities can run at all.
 
-    @property
-    def resume_extraction_model(self) -> str:
-        """The model id for the *selected* provider.
-
-        `llm_model` defaults to a Claude id, so pointing `DEFAULT_LLM_PROVIDER`
-        at Google without also changing `LLM_MODEL` would send `claude-opus-5`
-        to Gemini and 404. An explicit `LLM_MODEL` still wins — this only
-        supplies a working default per provider.
+        One key, so this is the whole question — there is no "configured but
+        not the provider you asked for" state to distinguish. Read by health
+        checks and by `domains/ai/llm.py` before it builds any adapter.
         """
-        if self.default_llm_provider == "google" and self.llm_model.startswith("claude"):
-            return "gemini-3.6-flash"
-        return self.llm_model
+        return bool(self.google_api_key)
 
 
 @lru_cache
@@ -356,29 +545,38 @@ def get_llm_settings() -> LLMSettings:
 
 
 class EmbeddingSettings(BaseSettings):
-    """Config for the matching engine's embedding calls
-    (`domains/ai/providers/openai_embedder.py`).
+    """Config for the matching engine's embeddings
+    (`domains/ai/providers/local_embedder.py`).
 
-    A separate provider from `LLMSettings.default_llm_provider` (Anthropic)
-    on purpose: `text-embedding-3-small` is an OpenAI model with no
-    Anthropic equivalent, so this is the one place the codebase talks to
-    OpenAI rather than a configurable choice.
+    Nothing here is a credential: the matching engine embeds with an
+    open-source sentence-transformers model running in the same process, so it
+    is outside `LLMSettings` entirely — no key, no network call, and no
+    per-request timeout or retry budget to tune.
     """
 
-    openai_api_key: str = ""
-    embedding_model: str = "text-embedding-3-small"
-    embedding_timeout_seconds: float = 30.0
-    embedding_max_retries: int = 2
+    #: Hugging Face model id, loaded by `sentence_transformers`.
+    #:
+    #: Editable in principle but *not* freely: the model's output dimension
+    #: has to equal `domains/ai/embedding_constants.EMBEDDING_DIMENSIONS`,
+    #: which is compiled into the pgvector column and its ANN index. A model
+    #: of a different width needs a migration, and `LocalEmbedder` refuses to
+    #: load one at start rather than failing every insert later.
+    embedding_model: str = "BAAI/bge-base-en-v1.5"
+    #: "cpu", "cuda", "mps", … Empty means let sentence-transformers pick,
+    #: which is CUDA when a GPU is visible and CPU otherwise. Worth pinning to
+    #: "cpu" in containers that see a GPU they should not claim.
+    embedding_device: str = ""
+    #: Where the weights are cached. Empty means the Hugging Face default
+    #: (`~/.cache/huggingface`). Set it to a mounted volume in Docker so the
+    #: ~440 MB download happens once for the image rather than once per
+    #: container start.
+    embedding_cache_dir: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
-
-    @property
-    def is_configured(self) -> bool:
-        return bool(self.openai_api_key)
 
 
 @lru_cache

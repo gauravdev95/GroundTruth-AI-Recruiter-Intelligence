@@ -86,6 +86,10 @@ class MatchedJobPreview(BaseModel):
     location: str | None
     is_remote: bool
     deadline: date | None
+    #: The recruiter-authored description, so the student's job detail view can
+    #: render the posting without a second round trip to an endpoint that would
+    #: have to re-authorise the same match this row already proves.
+    description: str
 
 
 class MatchedJobResponse(BaseModel):
@@ -96,6 +100,25 @@ class MatchedJobResponse(BaseModel):
     matched_desirable_skills: list[SkillMatchReasonResponse]
     computed_at: datetime
     updated_at: datetime
+
+    #: `"smart_apply_recommended"` (Tier B) or `"discoverable"` (Tier A).
+    #:
+    #: Derived per request, never stored — see `matching/tiers.py` for why a
+    #: `tier` column could only ever disagree with the score it came from.
+    #: This is the **only** surface that carries it: the student's own feed is
+    #: where Tier B means something ("High Match — Apply"), and the recruiter
+    #: payloads above deliberately omit it.
+    #:
+    #: Nullable because `resolve_tier` returns `None` for a stored pair that
+    #: sits under Tier A's floor — a real state whenever `MATCH_THRESHOLD` is
+    #: configured below `TIER_A_MIN_SCORE`.
+    tier: str | None
+
+    #: The one-sentence evidence summary, composed by string formatting from
+    #: this row's own `match_reasons`. Never LLM-narrated — same constraint the
+    #: recruiter's Kanban card reasoning follows, and the same function.
+    reasoning: str
+
     job: MatchedJobPreview
 
 

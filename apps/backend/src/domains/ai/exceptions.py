@@ -22,7 +22,12 @@ class LLMError(AppError):
 
 
 class LLMNotConfigured(LLMError):
-    """No API key is configured for the selected LLM provider."""
+    """`GOOGLE_API_KEY` is not set, so no model-backed capability can run.
+
+    Never retryable, and deliberately separate from the transient errors below:
+    no amount of backoff produces an API key, so a worker that treated this as a
+    provider fault would spend its whole retry ladder on a config mistake.
+    """
 
     status_code = 503
     code = "LLM_NOT_CONFIGURED"

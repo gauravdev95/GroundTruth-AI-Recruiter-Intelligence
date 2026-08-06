@@ -18,9 +18,6 @@ const ForgotPasswordPage = lazy(() =>
 const ResetPasswordPage = lazy(() =>
   import("./pages/ResetPasswordPage").then((m) => ({ default: m.ResetPasswordPage })),
 );
-const VerifyEmailPage = lazy(() =>
-  import("./pages/VerifyEmailPage").then((m) => ({ default: m.VerifyEmailPage })),
-);
 const OAuthCallbackPage = lazy(() =>
   import("./pages/OAuthCallbackPage").then((m) => ({ default: m.OAuthCallbackPage })),
 );
@@ -48,7 +45,16 @@ export const authRoutes = (
 
     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
-    <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+    {/*
+      `/verify-email` is gone with the OTP flow. It redirects rather than 404s
+      for the same reason the role-split URLs above do: it was live long enough
+      to appear in verification emails that have already been sent, and those
+      recipients now have accounts that simply work. `/login` is where that
+      link should land them.
+    */}
+    <Route path="/verify-email" element={<Navigate to="/login" replace />} />
+
     <Route path="/auth/callback" element={<OAuthCallbackPage />} />
     <Route path="/403" element={<ForbiddenPage />} />
   </>

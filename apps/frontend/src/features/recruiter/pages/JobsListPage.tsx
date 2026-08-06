@@ -1,18 +1,14 @@
 import { Briefcase, Plus } from "lucide-react";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button, EmptyState, ErrorState, Skeleton } from "@/components";
 import { DeadLetterBanner } from "@/features/jobs";
 
-import { JobForm } from "../components/JobForm";
 import { JobStatusBadge } from "../components/JobStatusBadge";
-import { useCreateJob, useJobs } from "../hooks/useJobs";
+import { useJobs } from "../hooks/useJobs";
 
 export function JobsListPage() {
   const jobs = useJobs();
-  const createJob = useCreateJob();
-  const [creating, setCreating] = useState(false);
 
   if (jobs.isPending) {
     return (
@@ -44,24 +40,21 @@ export function JobsListPage() {
           <h1 className="font-display text-2xl font-semibold text-ink">Job postings</h1>
           <p className="mt-1 text-sm text-slate-500">Create a role, confirm what GroundTruth extracts, publish.</p>
         </div>
-        <Button type="button" onClick={() => setCreating((v) => !v)}>
+        {/* Its own route rather than an inline form: creation now ends in a
+            confirmation step at another URL, and a flow that begins inside a
+            list page and ends two navigations later has no back button that
+            means anything. */}
+        <Link
+          to="/recruiter/jobs/new"
+          className="inline-flex items-center gap-2 rounded bg-gt-electric px-4 py-2.5 text-sm font-bold text-white transition hover:bg-gt-electric/90"
+        >
           <Plus size={16} aria-hidden="true" /> New job
-        </Button>
+        </Link>
       </header>
 
       <DeadLetterBanner />
 
-      {creating ? (
-        <JobForm
-          submitLabel="Create draft"
-          isSaving={createJob.isPending}
-          onSubmit={(payload) =>
-            createJob.mutate(payload, { onSuccess: () => setCreating(false) })
-          }
-        />
-      ) : null}
-
-      {jobs.data && jobs.data.length === 0 && !creating ? (
+      {jobs.data && jobs.data.length === 0 ? (
         <EmptyState
           icon={Briefcase}
           title="No job postings yet"

@@ -34,6 +34,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Date,
     DateTime,
     Enum as SAEnum,
@@ -98,9 +99,28 @@ class VerificationResultMixin:
 
 
 class CodingPlatform(str, enum.Enum):
+    """Competitive-programming platforms a student may claim a handle on.
+
+    Confidence differs sharply by platform and that is reflected in what a
+    check can conclude, not in whether the platform is offered: only
+    Codeforces has a documented public API, so it is the only one whose
+    verification can reach `VERIFIED` on hard data. The rest are checked by
+    reachability heuristics and cap at `FLAGGED` — see
+    `domains/verification/clients/`.
+
+    `OTHER` is the escape hatch for a platform this list does not name. It has
+    no URL template (the student supplies the full profile URL) and no
+    platform-specific check, so it can only ever reach `FLAGGED` via
+    reachability — the same ceiling as HackerRank, for the same reason.
+    """
+
     LEETCODE = "leetcode"
     CODEFORCES = "codeforces"
     HACKERRANK = "hackerrank"
+    CODECHEF = "codechef"
+    ATCODER = "atcoder"
+    GEEKSFORGEEKS = "geeksforgeeks"
+    OTHER = "other"
 
 
 class ProjectKind(str, enum.Enum):
@@ -111,9 +131,21 @@ class ProjectKind(str, enum.Enum):
 
 
 class EmploymentType(str, enum.Enum):
+    """Shapes of work a student can report in section 5.
+
+    `OPEN_SOURCE` is the one value with an independent corroboration path:
+    contributions to a public repository can be cross-checked against the
+    candidate's verified GitHub identity, unlike the rest, which have no
+    third-party source of truth and therefore cap at `FLAGGED`
+    (see `Experience` below).
+    """
+
     INTERNSHIP = "internship"
+    FULL_TIME = "full_time"
     FREELANCE = "freelance"
     PART_TIME = "part_time"
+    RESEARCH = "research"
+    OPEN_SOURCE = "open_source"
 
 
 class GithubAccount(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, VerificationResultMixin, Base):
@@ -171,6 +203,12 @@ class CodingPlatformAccount(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin
     )
     handle: Mapped[str] = mapped_column(String(100), nullable=False)
     profile_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    # Only set when `platform is OTHER` — the display name the student typed
+    # ("TopCoder", "SPOJ"). A column rather than a widened enum because a
+    # platform nobody has written a checker for is data, not a code path: new
+    # enum members are how a platform gets its own verification branch, and
+    # minting one per free-text entry would imply a check that does not exist.
+    custom_platform_name: Mapped[str | None] = mapped_column(String(60), nullable=True)
     verification_status: Mapped[VerificationStatus] = mapped_column(
         SAEnum(VerificationStatus, name="verification_status", native_enum=True),
         default=VerificationStatus.UNVERIFIED,
@@ -203,7 +241,27 @@ class Project(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Verification
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     repo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Optional deployed URL. Never fetched or verified — it is shown to
+    # recruiters as a link the candidate provided, and no check here could
+    # distinguish a live demo from any other reachable page.
+    live_demo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # **Detected**, not typed: written by `verify_repository_task` from the
+    # repository's own dependency manifests. See `claimed_technologies` below
+    # for the student-supplied list, which is deliberately a different column.
     technologies: Mapped[list[str]] = mapped_column(ARRAY(String(60)), default=list, nullable=False)
+    # What the student says the project is built with. Kept apart from
+    # `technologies` so a claim can never be rendered as a detection: the
+    # recruiter-facing evidence surfaces read the detected list, and this one
+    # exists to be *corroborated against* it — exactly the role
+    # `Experience.technologies` already plays for work history.
+    claimed_technologies: Mapped[list[str]] = mapped_column(
+        ARRAY(String(60)), default=list, nullable=False
+    )
+    # The one project the student nominates as their strongest. At most one row
+    # per candidate carries this; `service.replace_projects` enforces it, since
+    # a partial unique index would reject the intermediate state a full-section
+    # replace passes through.
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Preserves the student's chosen ordering across a full-section replace.
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     verification_status: Mapped[VerificationStatus] = mapped_column(
@@ -311,6 +369,23 @@ class Certificate(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Verifica
     issuer: Mapped[str] = mapped_column(String(200), nullable=False)
     issued_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     credential_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # --- Uploaded certificate file (optional; see `certificate_files.py`) ---
+    #
+    # The object key, never a URL: the bucket is private and the only read path
+    # is a short-lived presigned URL minted per request, exactly as resumes
+    # work. Storing a URL would either bake in an expiry or require a public
+    # object.
+    #
+    # An uploaded file is **not** evidence. `verify_certificate_task` checks the
+    # `credential_url` against the issuer's domain; a PDF the candidate uploaded
+    # is a document they control and cannot corroborate itself, so it never
+    # moves `verification_status`.
+    file_object_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    file_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     verification_status: Mapped[VerificationStatus] = mapped_column(
         SAEnum(VerificationStatus, name="verification_status", native_enum=True),

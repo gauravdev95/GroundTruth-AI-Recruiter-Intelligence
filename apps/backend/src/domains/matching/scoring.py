@@ -2,41 +2,47 @@
 matched-candidates list and the student's job feed (`domains/matching/service.py`).
 
     semantic_score      = 1 - cosine_distance(job_vector, candidate_vector)   # 0-1
-    profile_strength_n  = candidate.profile_strength / 100                    # 0-1
-    evidence_score      = mean(candidate_skills.evidence_weight
+    skill_evidence      = mean(candidate_skills.evidence_weight
                                 for skills the job requires)                  # 0-1, 0 if none matched
+    interview_score     = candidate.interview_score / 100                     # 0-1, 0 if no interview
+    competency_score    = mean(evidence_weight for verified coding-profile
+                                competencies the job requires)                # 0-1
+    profile_strength_n  = candidate.profile_strength / 100                    # 0-1
 
-    match_score = 100 * (MATCH_WEIGHTS["semantic"] * semantic_score
-                          + MATCH_WEIGHTS["evidence"] * evidence_score
-                          + MATCH_WEIGHTS["profile_strength"] * profile_strength_n)
+    match_score = 100 * sum(weight[term] * term_value for each of the five)
 
-Weighted toward semantic similarity (title/description/skills-blob match)
-because that is what actually captures role fit; evidence backs up *that
-the candidate's claimed skills are real*, and profile strength is a mild
-completeness tiebreaker — a thin profile should rank lower even at equal
-semantic similarity, but should never dominate the score the way semantic
-fit does.
+Every weight and the threshold come from `MatchingSettings` (env
+`MATCH_WEIGHT_*`, `MATCH_THRESHOLD`), validated at load time to sum to 1.0 —
+see `config.py::_validate_weight_set` for why that check has to happen at
+process start rather than here.
+
+The formula is deliberately weighted toward semantic similarity because that is
+what captures role fit; the three evidence terms establish that the fit is
+*real*; profile strength is a mild completeness tiebreaker that should never
+dominate. Nothing in this module reads a self-declared skill: every term traces
+to either a vector, a verified claim, or a completed interview.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-#: The rank-fusion weights, in one place. Previously three separate module
-#: constants, which made "what is the formula" a question you answered by
-#: grepping rather than by reading one value. Must sum to 1.0 —
-#: `compute_match_score` produces a 0-100 score on that assumption.
-MATCH_WEIGHTS: dict[str, float] = {
-    "semantic": 0.50,
-    "evidence": 0.30,
-    "profile_strength": 0.20,
-}
+from src.config.config import get_matching_settings
 
-assert abs(sum(MATCH_WEIGHTS.values()) - 1.0) < 1e-9, "MATCH_WEIGHTS must sum to 1.0"
+# Settings are read through these functions, never captured at module import:
+# a module-level `MATCH_WEIGHTS = get_matching_settings().weights` would freeze
+# the values into whichever process imported first, and `get_matching_settings`
+# is `lru_cache`d, so a test overriding the settings could never take effect.
 
-# Below this, a pair is not a match at all — absent from `match_results`,
-# not merely low-ranked. 0-100 scale, same as `match_score`.
-MATCH_THRESHOLD = 50.0
+
+def get_match_weights() -> dict[str, float]:
+    """The five rank-fusion weights. Guaranteed to sum to 1.0 — invalid sets
+    raise at settings-load time, so no caller has to re-check."""
+    return get_matching_settings().weights
+
+
+def get_match_threshold() -> float:
+    return get_matching_settings().match_threshold
 
 #: How far the live `match_score` must move away from an application's frozen
 #: `score_at_apply` before the recruiter board calls the difference *drift*
@@ -92,14 +98,66 @@ def compute_evidence_score(
     return round(total / len(required_skill_names), 5)
 
 
-def compute_match_score(*, semantic_score: float, evidence_score: float, profile_strength: int) -> float:
+def compute_competency_score(
+    *, required_skill_names: set[str], competency_weights: dict[str, float]
+) -> float:
+    """Coding-profile competencies (`Data Structures & Algorithms`,
+    `Problem Solving`) the job actually asks for.
+
+    Scored only against *required* skills, like `compute_evidence_score`, and
+    returns 0.0 when the job requires no competency at all — a backend role
+    that never mentions algorithms should not rank a Codeforces specialist
+    above a candidate whose evidence matches the actual requirements.
+    """
+    if not required_skill_names:
+        return 0.0
+    matched = [
+        competency_weights[name.casefold()]
+        for name in required_skill_names
+        if name.casefold() in competency_weights
+    ]
+    if not matched:
+        return 0.0
+    # Mean over *matched* competencies, not over all required skills: unlike
+    # `compute_evidence_score`, a job requiring five skills of which one is a
+    # competency should not dilute that competency's weight by four skills it
+    # was never meant to cover.
+    return round(sum(matched) / len(matched), 5)
+
+
+def compute_match_score(
+    *,
+    semantic_score: float,
+    evidence_score: float,
+    profile_strength: int,
+    interview_score: float | None = None,
+    competency_score: float = 0.0,
+) -> float:
+    """Rank fusion over the five configured terms, on a 0-100 scale.
+
+    `interview_score` is the candidate's aggregate across completed interviews
+    (0-100), or None when they have not completed one. None contributes 0
+    rather than being excluded from the weighting: a candidate without an
+    interview genuinely has less evidence than one with a poor interview, and
+    renormalising the remaining weights would hide that by scoring them as
+    though the term did not apply.
+
+    `interview_score` and `competency_score` default so that a caller with only
+    the original three terms still produces a valid score — the two read paths
+    in `service.py` supply all five.
+    """
+    weights = get_match_weights()
     profile_strength_n = max(0.0, min(1.0, profile_strength / 100.0))
+    interview_n = max(0.0, min(1.0, (interview_score or 0.0) / 100.0))
+
     return round(
         100
         * (
-            MATCH_WEIGHTS["semantic"] * semantic_score
-            + MATCH_WEIGHTS["evidence"] * evidence_score
-            + MATCH_WEIGHTS["profile_strength"] * profile_strength_n
+            weights["semantic"] * semantic_score
+            + weights["skill_evidence"] * evidence_score
+            + weights["interview"] * interview_n
+            + weights["competency"] * max(0.0, min(1.0, competency_score))
+            + weights["profile_strength"] * profile_strength_n
         ),
         2,
     )

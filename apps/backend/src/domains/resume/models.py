@@ -96,7 +96,17 @@ class ResumeUpload(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
 
 
 class ResumeExtractionDraft(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """Validated LLM output awaiting student review. Never a live profile value."""
+    """A validated reading of one resume, awaiting student review.
+
+    Never a live profile value — `confirm.py` is the only path from here into
+    a profile section, and it runs field by field on the student's explicit
+    selection.
+
+    Produced by `domains/resume/extraction/`, which is deterministic-first:
+    most drafts are built entirely by the parser, and the LLM runs only when
+    the document defeats it. `extraction_method` below records which
+    happened for this row.
+    """
 
     __tablename__ = "resume_extraction_drafts"
 
@@ -117,9 +127,36 @@ class ResumeExtractionDraft(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
     # Which provider and model produced this, recorded per draft so a later
-    # accuracy regression can be traced to a specific model version.
+    # accuracy regression can be traced to a specific model version. On a
+    # purely deterministic draft these name the parser itself
+    # ("groundtruth"/"deterministic-v1") rather than being left blank — the
+    # column answers "what produced this row", and "nothing" is never true.
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     model: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    # Per-field provenance and confidence, shaped by
+    # `extraction/pipeline.py::ResumeDraft.wire()`. Parallel to `payload` so
+    # the review screen indexes both with the same paths.
+    #
+    # Kept out of `payload` deliberately: `payload` is the
+    # `ResumeExtraction` contract that `confirm.py` and both LLM providers
+    # already share, and widening it with metadata only one screen consumes
+    # would force every consumer to understand a shape it has no use for.
+    #
+    # NULL on drafts written before the deterministic pipeline shipped. That
+    # is distinct from `{}`, which would mean "the pipeline ran and scored
+    # nothing" — the review screen renders the two differently.
+    confidence_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # "deterministic" | "hybrid" | "model". NULL on legacy rows, whose
+    # method genuinely is not known.
+    extraction_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # Why the LLM fallback ran, from `pipeline.py::needs_escalation`. NULL
+    # whenever it did not. Indexed (partially, on non-NULL) because "which
+    # documents defeat the parser, and why" is the question that drives
+    # threshold tuning, and it is only ever asked over these rows.
+    escalation_reason: Mapped[str | None] = mapped_column(String(60), nullable=True)
 
     status: Mapped[ResumeDraftStatus] = mapped_column(
         SAEnum(ResumeDraftStatus, name="resume_draft_status", native_enum=True),

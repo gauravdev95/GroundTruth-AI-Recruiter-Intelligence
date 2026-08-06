@@ -2,8 +2,10 @@
 (`domains/matching/service.py`, `jobs/tasks/matching.py`).
 
 The embedder is stubbed to return a fixed vector (`embed(text) -> FIXED_VECTOR`
-regardless of input) — this is not a test of OpenAI or of semantic quality,
-it's a test of the pipeline: pre-filter -> pgvector similarity -> rank
+regardless of input) — this is not a test of the embedding model or of
+semantic quality, and stubbing it also keeps the suite from loading several
+hundred megabytes of weights. It's a test of the pipeline: pre-filter ->
+pgvector similarity -> rank
 fusion -> threshold -> top-K -> persisted once, read identically from both
 the recruiter and student endpoints. Candidate discoverability/skills are
 set up directly via the ORM rather than through the full section-save and
@@ -22,6 +24,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.domains.ai.embedding_constants import EMBEDDING_DIMENSIONS
 from src.domains.ai.job_extraction_schema import ExtractedSkill, JobRequirementExtraction
 from src.domains.auth import service as auth_service
 from src.domains.auth.models import CandidateProfile, RecruiterProfile
@@ -47,7 +50,7 @@ EXTRACTION = JobRequirementExtraction(
     desirable_skills=[],
     seniority="entry",
 )
-FIXED_VECTOR = [0.1] * 1536
+FIXED_VECTOR = [0.1] * EMBEDDING_DIMENSIONS
 
 
 class _FixedEmbedder:
@@ -97,7 +100,7 @@ def _auth(token: str) -> dict[str, str]:
 
 
 def _recruiter(db_session: Session, email: str) -> tuple[str, RecruiterProfile]:
-    user, otp, _ = auth_service.register_recruiter(
+    user = auth_service.register_recruiter(
         db_session,
         RecruiterRegisterRequest(
             full_name="Grace Hopper",
@@ -109,7 +112,6 @@ def _recruiter(db_session: Session, email: str) -> tuple[str, RecruiterProfile]:
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     token = create_access_token(user_id=user.id, role=user.role.value)
     profile = db_session.execute(select(RecruiterProfile).where(RecruiterProfile.user_id == user.id)).scalar_one()
     return token, profile
@@ -121,7 +123,7 @@ def _discoverable_candidate(db_session: Session, email: str, *, python_evidence_
     `candidate_skills` row for "Python"."""
     from datetime import datetime, timezone
 
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace",
@@ -133,7 +135,6 @@ def _discoverable_candidate(db_session: Session, email: str, *, python_evidence_
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     token = create_access_token(user_id=user.id, role=user.role.value)
 
     profile = db_session.execute(select(CandidateProfile).where(CandidateProfile.user_id == user.id)).scalar_one()
@@ -201,11 +202,27 @@ def _embed_candidate(db_session: Session, candidate_profile: CandidateProfile) -
 
 
 def _make_section_complete(db_session: Session, profile: CandidateProfile) -> None:
-    """Fills sections 1 and 2 for real — all seven basic fields, a GitHub
-    account and one coding-platform handle — so `meets_section_requirements`
-    is genuinely true rather than being asserted into place."""
+    """Fills every mandatory section for real — the seven basic fields, a
+    GitHub account, and one project — so `meets_section_requirements` is
+    genuinely true rather than being asserted into place.
+
+    The project is not optional decoration. `completeness.py::_score_projects`
+    is mandatory (`is_mandatory=True`, one repository required), and without it
+    `embed_and_match_candidate_task` returns `skipped_not_eligible` before it
+    ever reaches the embedding call — which looks, from the outside, exactly
+    like an embedder that silently produced nothing. The coding-platform handle
+    is kept because it is what the competency term scores against; it earns
+    points but gates nothing.
+    """
     from src.domains.auth.models import Branch, DegreeType, TargetRole
-    from src.domains.student.models import CodingPlatform, CodingPlatformAccount, GithubAccount
+    from src.domains.student.models import (
+        CodingPlatform,
+        CodingPlatformAccount,
+        GithubAccount,
+        Project,
+        ProjectKind,
+        VerificationStatus,
+    )
 
     profile.headline = "Backend engineer"
     profile.college = "IIT Bombay"
@@ -227,6 +244,16 @@ def _make_section_complete(db_session: Session, profile: CandidateProfile) -> No
             platform=CodingPlatform.LEETCODE,
             handle="ada",
             profile_url="https://leetcode.com/ada",
+        )
+    )
+    db_session.add(
+        Project(
+            candidate_profile_id=profile.id,
+            kind=ProjectKind.REPOSITORY,
+            title="payments-api",
+            repo_url="https://github.com/ada/payments-api",
+            technologies=["Python"],
+            verification_status=VerificationStatus.VERIFIED,
         )
     )
     db_session.commit()
@@ -315,19 +342,28 @@ def test_closing_a_job_removes_its_matches(client: TestClient, db_session: Sessi
     )
 
 
-def test_embedding_worker_is_what_flips_a_profile_to_discoverable(
+def test_embedding_worker_is_what_flips_a_profile_to_indexed(
     client: TestClient, db_session: Session
 ) -> None:
     """B2's gate, end to end: meeting the section requirements makes a profile
-    *eligible*, and only the embedding worker makes it discoverable.
+    *eligible*, and only the embedding worker makes it *indexed*.
 
-    The two flags must stay distinct or the system deadlocks — embedding is
+    The stages must stay distinct or the system deadlocks — embedding is
     enqueued for eligible profiles, so if eligibility itself required an
     embedding nothing would ever be indexed. This walks the real sequence:
-    eligible-but-unembedded -> worker runs -> discoverable.
+    eligible-but-unembedded -> worker runs -> indexed.
+
+    It stops at `is_indexed` on purpose. `is_discoverable` is a *third* stage
+    that additionally requires a completed AI interview
+    (`student/completeness.py`), so it stays False here — this test drives the
+    embedding worker, and the interview is a different worker's job. Asserting
+    discoverability at the end of an embedding test was true only under the
+    two-stage model that predates the split, and it made this test fail for a
+    reason that had nothing to do with embedding.
     """
     from src.domains.matching.embeddings import get_embedding
     from src.domains.matching.models import EmbeddableEntityType
+    from src.domains.student import service as student_service
     from src.jobs.tasks.matching import embed_and_match_candidate_task
 
     _token, profile = _discoverable_candidate(db_session, "gated.candidate@example.com")
@@ -365,7 +401,13 @@ def test_embedding_worker_is_what_flips_a_profile_to_discoverable(
         )
         is not None
     )
-    assert profile.is_discoverable is True
+
+    completeness = student_service.get_completeness(db_session, profile)
+    assert completeness.meets_section_requirements is True
+    assert completeness.is_indexed is True, "the embedding worker's actual output"
+    # Still gated on the interview, which this worker does not run.
+    assert completeness.is_discoverable is False
+    assert profile.is_discoverable is False
 
 
 def test_ineligible_profile_is_not_embedded_and_is_pruned(
@@ -569,13 +611,73 @@ def test_a_job_past_its_deadline_matches_nobody(
     )
 
 
+def _always_tier_b(monkeypatch) -> None:
+    """Drops Tier B's absolute floor to zero for the duration of a test.
+
+    Tier B (`domains/matching/tiers.py`) is what decides whether a new match
+    interrupts a student, and it is deliberately hard to clear. That gate is
+    orthogonal to the tests below, whose subject is the *delivery contract* —
+    write the row, commit, then push, once per newly matched pair. Neutralising
+    it here keeps those tests about the thing they are named after; the gate
+    itself is covered by `test_only_tier_b_matches_interrupt_the_student`.
+    """
+    monkeypatch.setattr("src.domains.matching.tiers.TIER_B_MIN_SCORE", 0.0)
+
+
+def test_only_tier_b_matches_interrupt_the_student(
+    client: TestClient, db_session: Session, stub_extractor, monkeypatch
+) -> None:
+    """A Tier A pair is discoverable — it sits on the recruiter's board and in
+    the student's feed — but it does not push and does not email.
+
+    The threshold is asserted from both sides with the *same* pair, by moving
+    the floor rather than by contriving two candidates with different scores:
+    that keeps the only variable the one under test.
+    """
+    from src.domains.matching.models import MatchResult
+    from src.domains.pipeline.models import Notification, NotificationType
+
+    def _notification_count() -> int:
+        return len(
+            db_session.execute(
+                select(Notification).where(
+                    Notification.user_id == candidate_profile.user_id,
+                    Notification.type == NotificationType.NEW_MATCH,
+                )
+            ).scalars().all()
+        )
+
+    recruiter_token, _ = _recruiter(db_session, "tiers@acme.com")
+    _candidate_token, candidate_profile = _discoverable_candidate(db_session, "tiered.me@example.com")
+    _embed_candidate(db_session, candidate_profile)
+
+    # Floor above anything achievable: the pair matches, and says nothing.
+    monkeypatch.setattr("src.domains.matching.tiers.TIER_B_MIN_SCORE", 101.0)
+    job_id = _publish_job(client, db_session, recruiter_token)
+    _run_job_matching(db_session, job_id)
+
+    assert db_session.execute(
+        select(MatchResult).where(MatchResult.job_posting_id == job_id)
+    ).scalar_one_or_none() is not None, "the pair is discoverable — it is on the recruiter's board"
+    assert _notification_count() == 0, "Tier A must not interrupt the student"
+
+    # The pair is no longer *new* on the next run, so clearing the floor alone
+    # cannot produce a notification — which is the correct interaction between
+    # the two rules, and worth pinning: a threshold change is not news either.
+    monkeypatch.setattr("src.domains.matching.tiers.TIER_B_MIN_SCORE", 0.0)
+    _run_job_matching(db_session, job_id)
+    assert _notification_count() == 0
+
+
 def test_worker_notifies_only_newly_matched_students(
-    client: TestClient, db_session: Session, stub_extractor
+    client: TestClient, db_session: Session, stub_extractor, monkeypatch
 ) -> None:
     """D7: one `NEW_MATCH` notification per newly matched candidate, written
     when the worker finishes — and none for a rescore of a pair the student
     has already been told about."""
     from src.domains.pipeline.models import Notification, NotificationType
+
+    _always_tier_b(monkeypatch)
 
     recruiter_token, _ = _recruiter(db_session, "notifier@acme.com")
     _candidate_token, candidate_profile = _discoverable_candidate(db_session, "notify.me@example.com")
@@ -630,6 +732,8 @@ def test_new_matches_are_pushed_over_the_socket_after_the_rows_commit(
     """
     from src.domains.pipeline.models import Notification, NotificationType
 
+    _always_tier_b(monkeypatch)
+
     published: list[tuple] = []
     committed_rows_at_publish: list[int] = []
 
@@ -679,6 +783,7 @@ def test_a_dead_socket_bus_never_breaks_the_matching_run(
     are already committed."""
     from src.domains.pipeline.models import Notification, NotificationType
 
+    _always_tier_b(monkeypatch)
     monkeypatch.setattr(
         "src.jobs.tasks.matching.realtime.publish_many",
         lambda events, *, type_: (_ for _ in ()).throw(RuntimeError("redis is gone")),

@@ -12,6 +12,10 @@ export interface SkillMatchReason {
   evidence_sources: { type: string; title?: string; repo_url?: string | null }[];
 }
 
+/** Mirrors `matching/tiers.py::MatchTier`. Tier B is the only one the
+ * student-facing UI names, and it names it "High Match" — never "Tier B". */
+export type MatchTier = "discoverable" | "smart_apply_recommended";
+
 export interface MatchedJob {
   match_score: number;
   semantic_score: number;
@@ -23,6 +27,11 @@ export interface MatchedJob {
   /** When the score was last recomputed — rendered as "Score updated {when}",
    * and only when it differs from `computed_at`. See `MatchTimestamps`. */
   updated_at: string;
+  /** Derived per request from this job's whole pool, never stored. `null` for
+   * a pair below Tier A's floor. */
+  tier: MatchTier | null;
+  /** One sentence composed from stored evidence — not model-written. */
+  reasoning: string;
   job: {
     job_id: string;
     title: string;
@@ -32,6 +41,7 @@ export interface MatchedJob {
     location: string | null;
     is_remote: boolean;
     deadline: string | null;
+    description: string;
   };
 }
 

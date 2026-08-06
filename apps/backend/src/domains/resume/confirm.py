@@ -85,6 +85,11 @@ _BRANCH_PATTERNS: tuple[tuple[str, Branch], ...] = (
     ("data science", Branch.DATA_SCIENCE),
 )
 
+# Order is load-bearing — `_match` returns the *first* hit, so more specific
+# patterns must precede ones they contain. "research intern" has to reach
+# INTERNSHIP rather than RESEARCH (it is an internship whose subject is
+# research), so "intern" stays first; conversely "open source" precedes
+# "source" patterns of any kind for the same reason.
 _EMPLOYMENT_PATTERNS: tuple[tuple[str, EmploymentType], ...] = (
     ("intern", EmploymentType.INTERNSHIP),
     ("freelance", EmploymentType.FREELANCE),
@@ -92,6 +97,14 @@ _EMPLOYMENT_PATTERNS: tuple[tuple[str, EmploymentType], ...] = (
     ("part_time", EmploymentType.PART_TIME),
     ("part-time", EmploymentType.PART_TIME),
     ("part time", EmploymentType.PART_TIME),
+    ("open_source", EmploymentType.OPEN_SOURCE),
+    ("open-source", EmploymentType.OPEN_SOURCE),
+    ("open source", EmploymentType.OPEN_SOURCE),
+    ("maintainer", EmploymentType.OPEN_SOURCE),
+    ("research", EmploymentType.RESEARCH),
+    ("full_time", EmploymentType.FULL_TIME),
+    ("full-time", EmploymentType.FULL_TIME),
+    ("full time", EmploymentType.FULL_TIME),
 )
 
 
@@ -146,6 +159,17 @@ def suggest_sections(payload: dict[str, Any]) -> DraftSuggestions:
     branch = _match(primary.get("field_of_study"), _BRANCH_PATTERNS)
 
     basic: dict[str, Any] = {}
+    # Suggested, not applied. `full_name` became a required field of section 1
+    # when signup stopped collecting it, so a draft that omits it produces a
+    # section the student cannot confirm — the review screen would reject its
+    # own suggestions. The extractor already reads a name off the document
+    # (`extraction/entries.py`); this is where it reaches the section.
+    #
+    # Like every other value here it arrives unticked-if-absent and fully
+    # editable: a name parsed off a resume header is a guess, and this screen
+    # exists to let the student correct guesses before anything is saved.
+    if contact.get("full_name"):
+        basic["full_name"] = contact["full_name"]
     if contact.get("headline"):
         basic["headline"] = contact["headline"]
     if primary.get("institution"):
@@ -197,7 +221,12 @@ def suggest_sections(payload: dict[str, Any]) -> DraftSuggestions:
                 "title": item.get("title") or "",
                 "description": item.get("description"),
                 "repo_url": repo_url,
-                "technologies": item.get("technologies") or [],
+                # Technologies the LLM read off the resume are deliberately
+                # dropped, not suggested. A resume is a self-report, so
+                # accepting them would make an unverified claim indistinguishable
+                # from a technology detected in the candidate's actual manifests.
+                # `ProjectItem` no longer accepts the field at all, so sending it
+                # here would 422 on confirm.
             }
         )
 

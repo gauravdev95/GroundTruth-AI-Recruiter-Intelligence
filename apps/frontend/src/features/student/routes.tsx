@@ -26,8 +26,29 @@ const ProfileSetupPage = lazy(() =>
 const SetupResumePage = lazy(() =>
   import("./setup/pages/SetupResumePage").then((m) => ({ default: m.SetupResumePage })),
 );
-const SetupManualPage = lazy(() =>
-  import("./setup/pages/SetupManualPage").then((m) => ({ default: m.SetupManualPage })),
+const SetupStageLayout = lazy(() =>
+  import("./setup/components/SetupStageLayout").then((m) => ({ default: m.SetupStageLayout })),
+);
+const StageBasicInfoPage = lazy(() =>
+  import("./setup/pages/StageBasicInfoPage").then((m) => ({ default: m.StageBasicInfoPage })),
+);
+const StageGithubPage = lazy(() =>
+  import("./setup/pages/StageGithubPage").then((m) => ({ default: m.StageGithubPage })),
+);
+const StageProjectsPage = lazy(() =>
+  import("./setup/pages/StageProjectsPage").then((m) => ({ default: m.StageProjectsPage })),
+);
+const StageCodingPage = lazy(() =>
+  import("./setup/pages/StageCodingPage").then((m) => ({ default: m.StageCodingPage })),
+);
+const StageCertificatesPage = lazy(() =>
+  import("./setup/pages/StageCertificatesPage").then((m) => ({ default: m.StageCertificatesPage })),
+);
+const StageExperiencePage = lazy(() =>
+  import("./setup/pages/StageExperiencePage").then((m) => ({ default: m.StageExperiencePage })),
+);
+const StageReviewPage = lazy(() =>
+  import("./setup/pages/StageReviewPage").then((m) => ({ default: m.StageReviewPage })),
 );
 const DashboardHome = lazy(() =>
   import("./pages/DashboardHome").then((m) => ({ default: m.DashboardHome })),
@@ -43,6 +64,9 @@ const InterviewPage = lazy(() =>
 );
 const JobFeedPage = lazy(() =>
   import("./matches/pages/JobFeedPage").then((m) => ({ default: m.JobFeedPage })),
+);
+const StudentJobDetailPage = lazy(() =>
+  import("./matches/pages/JobDetailPage").then((m) => ({ default: m.JobDetailPage })),
 );
 const MyApplicationsPage = lazy(() =>
   import("./applications/pages/MyApplicationsPage").then((m) => ({ default: m.MyApplicationsPage })),
@@ -82,15 +106,48 @@ export const studentRoutes = (
         </ProtectedRoute>
       }
     >
-      {/* A finished profile is redirected out, so the entry screen cannot be
+      {/* A submitted profile is redirected out, so the flow cannot be
           re-entered by typing the URL. */}
       <Route element={<RedirectCompletedProfile />}>
+        {/* Stage 0 — the fork. Its own route rather than a stage inside the
+            layout: it is a full-page choice with no progress bar above it,
+            because there is nothing to step through until it is answered. */}
         <Route index element={<ProfileSetupPage />} />
         {/* Both paths are plain routes. Choosing one writes no flag, and
             switching between them clears nothing — the resume path only ever
             produces a draft until the student confirms it. */}
         <Route path="resume" element={<SetupResumePage />} />
-        <Route path="manual" element={<SetupManualPage />} />
+
+        {/* Stages 1-7, one route each.
+
+            One route per stage rather than one wizard holding a step index:
+            the index version left the flow entirely on the back button, and a
+            refresh mid-setup reopened at whichever step the server thought was
+            next rather than the one being looked at. A URL per stage makes
+            both work, and makes a half-finished setup a link the student can
+            reopen on another device.
+
+            The slugs are the spec's own (`basic-info`, `github`, `projects`,
+            `coding-profile`, `certificates`, `experience`, `review`); only the
+            prefix differs, because this subtree already sits inside the
+            candidate-only guard and `RedirectCompletedProfile`. */}
+        <Route element={<SetupStageLayout />}>
+          <Route path="basic-info" element={<StageBasicInfoPage />} />
+          <Route path="github" element={<StageGithubPage />} />
+          <Route path="projects" element={<StageProjectsPage />} />
+          <Route path="coding-profile" element={<StageCodingPage />} />
+          <Route path="certificates" element={<StageCertificatesPage />} />
+          <Route path="experience" element={<StageExperiencePage />} />
+          <Route path="review" element={<StageReviewPage />} />
+        </Route>
+
+        {/* The wizard's old single URL. Kept as a redirect rather than deleted:
+            the resume-confirm path sends students here, and any link already in
+            the wild points at it. Stage 1 is where it used to open. */}
+        <Route
+          path="manual"
+          element={<Navigate to="/student/profile/setup/basic-info" replace />}
+        />
       </Route>
     </Route>
 
@@ -118,6 +175,10 @@ export const studentRoutes = (
       <Route path="resume" element={<ResumeImportPage />} />
       <Route path="interview/:projectId" element={<InterviewPage />} />
       <Route path="matches" element={<JobFeedPage />} />
+      {/* `jobs/:jobId`, not `matches/:jobId`: the page shows a *job*, and the
+          match is the reason the student may see it. The High Match card and
+          the feed both link here. */}
+      <Route path="jobs/:jobId" element={<StudentJobDetailPage />} />
       <Route path="applications" element={<MyApplicationsPage />} />
       <Route path="applications/:applicationId" element={<ApplicationDetailPage />} />
     </Route>

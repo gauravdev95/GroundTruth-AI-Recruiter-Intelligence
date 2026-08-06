@@ -30,12 +30,20 @@ from src.domains.ai.exceptions import (
     LLMOutputTruncated,
     LLMRefused,
 )
-from src.domains.ai.llm import get_resume_extractor
+from src.domains.ai.llm import get_resume_extractor, require_llm_configured
 from src.domains.resume.models import (
     ResumeExtractionDraft,
     ResumeUpload,
     ResumeUploadStatus,
 )
+from src.domains.resume.extraction import (
+    merge_model_result,
+    needs_escalation,
+    parse_resume,
+    to_extraction,
+)
+from src.domains.resume.extraction.normalize import clean_text, to_lines
+from src.domains.resume.extraction.sections import SectionKind, segment
 from src.domains.resume.parsing import (
     NoTextContent,
     UnparseableDocument,
@@ -47,6 +55,15 @@ from src.jobs.celery_app import DatabaseTask, NonRetryableJobError, celery_app
 from src.platform.models import AsyncJob
 
 logger = structlog.get_logger(__name__)
+
+#: Recorded as `provider`/`model` on drafts the parser resolved without any
+#: model call. Not left blank: the columns answer "what produced this row",
+#: and a deterministic pass is a real answer with a real version. The version
+#: is bumped whenever `extraction/` changes in a way that could move a field,
+#: so an accuracy regression stays traceable to a specific parser revision —
+#: exactly what `provider`/`model` already do for hosted models.
+DETERMINISTIC_PROVIDER = "groundtruth"
+DETERMINISTIC_MODEL = "deterministic-v1"
 
 # Failures that will recur identically on a retry.
 _DETERMINISTIC_ERRORS = (
@@ -111,7 +128,52 @@ def extract_resume_task(self: DatabaseTask, async_job_id: str) -> dict[str, str]
         # every time, so these are re-raised as non-retryable below.
         text = extract_text(raw, content_type)
 
-        extraction = get_resume_extractor().extract_resume(text)
+        # ---- Stage 1: the deterministic pass -------------------------------
+        # Runs on every upload, costs nothing, and cannot fail — a document it
+        # cannot read yields an empty draft rather than an exception, which is
+        # what makes "found nothing" a recoverable state rather than a job
+        # failure. See `extraction/pipeline.py`.
+        draft = parse_resume(text)
+        sections_found = {
+            SectionKind(kind)
+            for kind in {
+                section.kind.value for section in segment(to_lines(clean_text(text)))
+            }
+        }
+        escalate, reason = needs_escalation(draft, sections_found)
+
+        if not escalate:
+            # The common path. No provider call, no key required, no network.
+            extraction = to_extraction(draft)
+            resolved_provider = DETERMINISTIC_PROVIDER
+            resolved_model = DETERMINISTIC_MODEL
+            method = "deterministic"
+            escalation_reason = None
+        else:
+            # ---- Stage 2: the LLM fallback, on hard documents only ---------
+            # Configuration is checked before the call, not after it fails, so
+            # a deployment with no key raises `LLMNotConfigured` on the
+            # non-retryable branch below rather than burning the retry ladder.
+            # Both values come from the same cached settings the extractor
+            # itself reads, so the provenance cannot name a model that did not
+            # run.
+            resolved_provider = require_llm_configured()
+            resolved_model = settings.llm_model
+            model_output = get_resume_extractor().extract_resume(text)
+            # One-directional merge: the model may fill gaps, never overwrite
+            # a value read off the document. See `merge_model_result`.
+            extraction, draft = merge_model_result(draft, model_output)
+            method = "hybrid"
+            escalation_reason = reason
+
+        logger.info(
+            "resume_extraction_method",
+            upload_id=str(upload_id),
+            method=method,
+            reason=reason,
+            confidence=draft.confidence,
+            entries=draft.entry_count,
+        )
 
     except _DETERMINISTIC_ERRORS as exc:
         message = exc.message if isinstance(exc, AppError) else str(exc)
@@ -136,21 +198,34 @@ def extract_resume_task(self: DatabaseTask, async_job_id: str) -> dict[str, str]
         raise
 
     with SessionLocal() as session:
-        draft = ResumeExtractionDraft(
+        row = ResumeExtractionDraft(
             resume_upload_id=upload_id,
             candidate_profile_id=candidate_profile_id,
             payload=extraction.model_dump(mode="json"),
-            provider=settings.default_llm_provider,
-            model=settings.llm_model,
+            # Per-field provenance for the review screen's confidence badges.
+            confidence_payload=draft.wire(),
+            # What actually produced this draft — the deterministic parser on
+            # the common path, Gemini when the document escalated. Reading a row
+            # is the only way to tell the two apart after the fact, which is why
+            # both branches above set it rather than leaving it null.
+            provider=resolved_provider,
+            model=resolved_model,
+            extraction_method=method,
+            escalation_reason=escalation_reason,
         )
-        session.add(draft)
+        session.add(row)
 
         upload = session.get(ResumeUpload, upload_id)
         if upload is not None:
             upload.status = ResumeUploadStatus.EXTRACTED
             upload.error = None
         session.commit()
-        draft_id = str(draft.id)
+        draft_id = str(row.id)
 
-    logger.info("resume_extraction_succeeded", upload_id=str(upload_id), draft_id=draft_id)
-    return {"draft_id": draft_id, "resume_upload_id": str(upload_id)}
+    logger.info(
+        "resume_extraction_succeeded",
+        upload_id=str(upload_id),
+        draft_id=draft_id,
+        method=method,
+    )
+    return {"draft_id": draft_id, "resume_upload_id": str(upload_id), "method": method}

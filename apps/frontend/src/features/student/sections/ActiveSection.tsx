@@ -1,6 +1,7 @@
 import { Button, ErrorState, Skeleton } from "@/components";
 
-import type { SectionKey } from "../api/profileApi";
+import type { SectionCacheKey } from "../api/profileApi";
+import type { SectionNav } from "../components/SectionShell";
 import {
   useBasicSection,
   useCertificatesSection,
@@ -9,6 +10,7 @@ import {
   useProjectsSection,
   useTechnicalSection,
 } from "../hooks/useProfileSection";
+import { formSectionStatus } from "../lib/sectionScoring";
 import { BasicInfoForm } from "./BasicInfoForm";
 import { CertificatesForm } from "./CertificatesForm";
 import { ExperienceForm } from "./ExperienceForm";
@@ -38,9 +40,11 @@ export function SectionSkeleton() {
  * whether its step is showing, so opening either screen costs one completeness
  * call plus one section, not all five.
  */
-export function ActiveSection({ section }: { section: SectionKey }) {
+export function ActiveSection({ section, nav }: { section: SectionCacheKey; nav?: SectionNav }) {
   const completeness = useProfileCompleteness();
-  const status = completeness.data?.sections.find((item) => item.key === section);
+  // `technical` covers two scored sections, so the status behind this form is
+  // an aggregate rather than a lookup. See `formSectionStatus`.
+  const status = formSectionStatus(completeness.data, section);
 
   // Hooks must run unconditionally, so gating happens via `enabled` — only
   // the visible step actually issues a request.
@@ -75,15 +79,15 @@ export function ActiveSection({ section }: { section: SectionKey }) {
 
   switch (section) {
     case "basic":
-      return <BasicInfoForm data={basic.data!.data} status={status} />;
+      return <BasicInfoForm data={basic.data!.data} status={status} nav={nav} />;
     case "technical":
-      return <TechnicalForm data={technical.data!.data} status={status} />;
+      return <TechnicalForm data={technical.data!.data} status={status} nav={nav} />;
     case "projects":
-      return <ProjectsForm data={projects.data!.data} status={status} />;
+      return <ProjectsForm data={projects.data!.data} status={status} nav={nav} />;
     case "certificates":
-      return <CertificatesForm data={certificates.data!.data} status={status} />;
+      return <CertificatesForm data={certificates.data!.data} status={status} nav={nav} />;
     case "experience":
-      return <ExperienceForm data={experiences.data!.data} status={status} />;
+      return <ExperienceForm data={experiences.data!.data} status={status} nav={nav} />;
     default:
       return null;
   }

@@ -47,6 +47,14 @@ RESUME_TEXT = (
 EXTRACTION = ResumeExtraction.model_validate(
     {
         "contact": {
+            # Required, because `full_name` is a required field of profile
+            # section 1 and `confirm.py::suggest_sections` only forwards it
+            # when the extraction supplies one. A fixture without it produces
+            # a `basic` block the student cannot confirm — the review screen
+            # rejects its own suggestions — which is a fixture bug, not a
+            # product one: the real extractor does read a name off the
+            # document header (`extraction/entries.py`).
+            "full_name": "Ada Lovelace",
             "headline": "Final-year CS student building compilers",
             "location": "Mumbai, India",
             "github_username": "ada",
@@ -98,7 +106,7 @@ def _docx_bytes(text: str) -> bytes:
 
 
 def _candidate_token(db_session: Session, email: str = "resume.student@example.com") -> str:
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace",
@@ -110,12 +118,11 @@ def _candidate_token(db_session: Session, email: str = "resume.student@example.c
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     return create_access_token(user_id=user.id, role=user.role.value)
 
 
 def _recruiter_token(db_session: Session, email: str = "resume.recruiter@acme.com") -> str:
-    user, otp, _ = auth_service.register_recruiter(
+    user = auth_service.register_recruiter(
         db_session,
         RecruiterRegisterRequest(
             full_name="Grace Hopper",
@@ -127,7 +134,6 @@ def _recruiter_token(db_session: Session, email: str = "resume.recruiter@acme.co
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     return create_access_token(user_id=user.id, role=user.role.value)
 
 
@@ -509,7 +515,7 @@ def test_confirm_writes_through_the_section_services(
         json={
             "basic": {
                 **detail["suggestions"]["basic"],
-                "target_role": "backend",  # the student supplies what the resume can't
+                "target_roles": ["backend"],  # the student supplies what the resume can't
             },
             "technical": detail["suggestions"]["technical"],
         },
@@ -519,11 +525,23 @@ def test_confirm_writes_through_the_section_services(
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["draft"]["status"] == "confirmed"
-    # Section 1 (35) + section 2 (30) — recomputed by the shared completeness code.
-    assert body["completeness"]["profile_strength"] == 65
-    # Both mandatory sections are filled; discoverability additionally waits
-    # on the embedding worker, which is stubbed out in these tests.
-    assert body["completeness"]["meets_section_requirements"] is True
+    # Recomputed by the shared completeness code (`student/completeness.py`):
+    #   basic  35 — all seven fields, `target_roles` supplied above
+    #   github 15 — the account exists; verification is tracked separately and
+    #                deliberately does not move `profile_strength`
+    #   coding  5 — one platform handle (leetcode) out of two counted
+    #        = 55
+    # The old expectation of 65 predates `technical` (30) being split into the
+    # mandatory `github` (15) and `projects` (20) sections — this confirm
+    # supplies no projects, so those 20 points were never earned.
+    assert body["completeness"]["profile_strength"] == 55
+    # Still `False`, and correctly so: there are now *three* mandatory sections
+    # — basic, github and projects — and this confirm supplies no projects. The
+    # old expectation of `True` dates from when `technical` was one mandatory
+    # section covering both. A resume confirm alone does not make a student
+    # eligible; the projects section is the one that gives the evidence
+    # pipeline something to verify.
+    assert body["completeness"]["meets_section_requirements"] is False
     assert body["completeness"]["is_discoverable"] is False
 
     profile = _profile(db_session, email)
@@ -568,7 +586,7 @@ def test_confirm_rejects_payloads_the_section_schemas_reject(
         json={
             "basic": {
                 **detail["suggestions"]["basic"],
-                "target_role": "backend",
+                "target_roles": ["backend"],
                 "profile_strength": 100,
             }
         },
@@ -650,7 +668,11 @@ def test_partial_confirm_leaves_other_sections_untouched(
     assert resp.status_code == 200
     profile = _profile(db_session, email)
     db_session.expire_all()
-    # Only section 2 was confirmed, so section 1 is still empty.
+    # Only the technical section was confirmed, so basic is still empty — the
+    # point of the test: confirming one section leaves the others alone.
     assert profile.college is None
-    assert resp.json()["completeness"]["profile_strength"] == 30
+    # github 15 (the account) + coding 5 (one leetcode handle) = 20.
+    # Was 30 when `technical` was a single 30-point section; it is now split
+    # into github (15) and projects (20), and this confirm carries no projects.
+    assert resp.json()["completeness"]["profile_strength"] == 20
     assert resp.json()["completeness"]["is_discoverable"] is False

@@ -8,34 +8,69 @@ attempt to supply one into a 422.
 
 Scoring (totals 100):
 
-| Section            | Points | Rule                                      |
-|--------------------|--------|-------------------------------------------|
-| 1 Basic (required) | 35     | 5 per field x 7 fields                    |
-| 2 Technical (req.) | 30     | GitHub 15 + at least one CP profile 15    |
-| 3 Projects         | 15     | 5 per project, capped at 3                |
-| 4 Certificates     | 10     | 5 per certificate, capped at 2            |
-| 5 Experience       | 10     | 5 per entry, capped at 2                  |
+| Section              | Points | Rule                                    |
+|----------------------|--------|-----------------------------------------|
+| 1 Basic (required)   | 35     | 5 per field x 7 fields                  |
+| 2 GitHub (required)  | 15     | a connected/claimed GitHub account      |
+| 3 Projects (required)| 20     | 10 for the first, +5 each for 2 more    |
+| 4 Coding profiles    | 10     | 5 per profile, capped at 2              |
+| 5 Certificates       | 10     | 5 per certificate, capped at 2          |
+| 6 Experience         | 10     | 5 per entry, capped at 2                |
 
-Discoverability has two levels, and they are deliberately distinct:
+**GitHub and coding profiles are two sections, not one.** They were a single
+`technical` section scored 15 + 15, which made a competitive-programming
+handle mandatory to finish onboarding. That is the wrong bar: a Codeforces
+rating is a supporting signal that this platform explicitly refuses to treat
+as a verified skill, so requiring one to submit a profile gated the entire
+product on a number it does not believe. GitHub is the input the evidence
+pipeline actually runs on, so it carries the mandatory half alone.
 
-* `meets_section_requirements` — sections 1 and 2 are both complete. This is
-  what the student controls, and what the UI reports as blocking. Optional
-  sections raise strength but never gate it.
-* `is_discoverable` — the above **and** a profile vector exists in
-  `embeddings`. This is what the matching pre-filter reads, because a profile
-  with no vector cannot be scored against a job at all.
+**Projects became mandatory (>= 1).** Every downstream artefact — repository
+verification, the code-grounded interview, the evidence report — begins with a
+linked repository. A profile with none reaches the dashboard and can never
+become discoverable through the repository path, so accepting it at submit
+time was accepting a profile the pipeline cannot act on. The first project is
+worth double (10 of the 20) because it is the one that changes what the
+platform can do; the second and third only add breadth.
 
-Keeping them separate is load-bearing, not cosmetic: embedding is enqueued
-only for profiles that meet the section requirements, so folding the vector
-check into that same flag would mean no profile is ever embedded and none ever
-becomes discoverable. The gap between the two is the window in which the
-embedding worker runs, and the UI reports it as "indexing" rather than as a
-missing requirement the student could act on.
+Discoverability now has three levels, and they are deliberately distinct:
 
-Strength measures what is **filled**, not what is **verified**. Verification
-state is reported alongside it but contributes zero points, so a student's
-score cannot silently drop when a Phase II worker rejects a claim, and the
-UI's "filled" and "verified" badges stay independent.
+* `meets_section_requirements` — basic, GitHub and projects are all complete. This is
+  what the student controls directly, and what the UI reports as blocking.
+  Optional sections raise strength but never gate it.
+* `is_indexed` — the above **and** a profile vector exists in `embeddings`.
+  A profile with no vector cannot be scored against a job at all.
+* `is_discoverable` — the above **and** a completed AI interview exists.
+  This is what the matching pre-filter reads.
+
+Keeping them separate is load-bearing, not cosmetic. Each stage gates the
+enqueueing of the next: embedding is enqueued only for profiles that meet the
+section requirements, and the interview is only invited once verification has
+settled. Folding any later check into an earlier flag deadlocks the whole
+chain — nothing would ever be embedded, so nothing would ever be interviewed,
+so nobody would ever become discoverable. The gaps between the three are the
+windows in which the workers run, and the UI reports them as progress rather
+than as requirements the student has failed to meet.
+
+**The interview gate has an escape hatch, and it is mandatory.** A repository
+interview requires a `VERIFIED` repository. A candidate with none — no public
+code, or a GitHub outage that degraded every check to `UNVERIFIED` — would be
+permanently undiscoverable with no action available to them. The profile
+interview (`domains/interview/`, `grounding=PROFILE`) exists for exactly that
+case, and `jobs/tasks/verification.py` invites it once verification settles.
+
+Three numbers, not one:
+
+* `profile_strength` measures what is **filled**, not what is verified. It
+  still contributes zero points for verification state, so a student's
+  completeness cannot silently drop when a worker rejects a claim.
+* `evidence_score` measures how strong the **verified** evidence is. This one
+  *can* fall when a claim is rejected — that is its job.
+* `interview_score` is the aggregate across completed interviews.
+
+Collapsing them into a single "strength" would make each unanswerable: a
+complete profile built on weak evidence and a sparse profile built on strong
+evidence would produce the same number.
 """
 
 from __future__ import annotations
@@ -53,18 +88,22 @@ from src.domains.student.models import (
 )
 
 SECTION_BASIC = "basic"
-SECTION_TECHNICAL = "technical"
+SECTION_GITHUB = "github"
 SECTION_PROJECTS = "projects"
+SECTION_CODING = "coding"
 SECTION_CERTIFICATES = "certificates"
 SECTION_EXPERIENCE = "experience"
 
 BASIC_POINTS = 35
-TECHNICAL_POINTS = 30
-PROJECTS_POINTS = 15
+GITHUB_POINTS = 15
+PROJECTS_POINTS = 20
+CODING_POINTS = 10
 CERTIFICATES_POINTS = 10
 EXPERIENCE_POINTS = 10
 
-MAX_STRENGTH = BASIC_POINTS + TECHNICAL_POINTS + PROJECTS_POINTS + CERTIFICATES_POINTS + EXPERIENCE_POINTS
+MAX_STRENGTH = (
+    BASIC_POINTS + GITHUB_POINTS + PROJECTS_POINTS + CODING_POINTS + CERTIFICATES_POINTS + EXPERIENCE_POINTS
+)
 
 _BASIC_FIELDS: tuple[str, ...] = (
     "headline",
@@ -76,11 +115,16 @@ _BASIC_FIELDS: tuple[str, ...] = (
     "target_role",
 )
 _POINTS_PER_BASIC_FIELD = BASIC_POINTS // len(_BASIC_FIELDS)  # 5
-_GITHUB_POINTS = TECHNICAL_POINTS // 2  # 15
-_CODING_PROFILE_POINTS = TECHNICAL_POINTS - _GITHUB_POINTS  # 15
 
-_POINTS_PER_PROJECT = 5
-_COUNTED_PROJECTS = PROJECTS_POINTS // _POINTS_PER_PROJECT  # 3
+#: The first project is worth double the others. It is the one that makes the
+#: evidence pipeline able to run at all; projects two and three add breadth to
+#: a profile that already works.
+_POINTS_FIRST_PROJECT = 10
+_POINTS_PER_EXTRA_PROJECT = 5
+_COUNTED_EXTRA_PROJECTS = (PROJECTS_POINTS - _POINTS_FIRST_PROJECT) // _POINTS_PER_EXTRA_PROJECT  # 2
+
+_POINTS_PER_CODING_PROFILE = 5
+_COUNTED_CODING_PROFILES = CODING_POINTS // _POINTS_PER_CODING_PROFILE  # 2
 _POINTS_PER_CERTIFICATE = 5
 _COUNTED_CERTIFICATES = CERTIFICATES_POINTS // _POINTS_PER_CERTIFICATE  # 2
 _POINTS_PER_EXPERIENCE = 5
@@ -123,19 +167,30 @@ class SectionScore:
 @dataclass(frozen=True)
 class ProfileCompleteness:
     profile_strength: int
-    # Sections 1 and 2 are both complete. This is *eligibility* — the student
-    # has done everything asked of them — and it is deliberately not the same
-    # as `is_discoverable`, which additionally requires the profile vector to
-    # exist. The two must stay separate or the system deadlocks: embedding is
-    # only enqueued for eligible profiles, so if eligibility itself required an
-    # embedding, nothing would ever be embedded and nobody would ever become
-    # discoverable.
+    # Mean verification confidence across verified claims, 0-100. Unlike
+    # strength, this *falls* when a claim is rejected — that is the point.
+    evidence_score: int
+    # Aggregate across completed interviews, or None if there are none. None
+    # and 0.0 are different facts and must not be conflated: the gate reads
+    # presence, the match score reads value.
+    interview_score: float | None
+    # Basic, GitHub and projects are all complete. This is *eligibility* — the student
+    # has done everything asked of them — and is deliberately not the same as
+    # `is_discoverable`. See the module docstring for why collapsing the
+    # stages deadlocks the pipeline.
     meets_section_requirements: bool
-    # Eligible *and* embedded. Only these profiles enter the match computation
-    # (`matching/service.py::_prefiltered_candidate_ids`) — a profile with no
-    # vector cannot be scored against a job, so advertising it as discoverable
-    # would promise a match that cannot be computed.
+    # Eligible *and* embedded. The window between this and `is_discoverable`
+    # is where verification and the interview happen; the UI reports it as
+    # progress, not as something the student has failed to do.
+    is_indexed: bool
+    # Eligible, embedded, **and** interviewed. Only these profiles enter the
+    # match computation (`matching/service.py::_prefiltered_candidate_ids`).
     is_discoverable: bool
+    # Whether a completed interview exists at all. Surfaced separately from
+    # `interview_score` so the UI can distinguish "not interviewed yet" from
+    # "interviewed and scored poorly" — the first is an action the student can
+    # take, the second is not.
+    has_completed_interview: bool
     sections: tuple[SectionScore, ...]
     blocking: tuple[str, ...]
     # Not derived from section data — read straight off the profile row and
@@ -143,6 +198,13 @@ class ProfileCompleteness:
     # already fetching completeness, and a second round trip to learn whether
     # to show one screen would be the only request on that path.
     onboarding_choice: OnboardingChoice | None
+    # Whether the student pressed "Submit Profile" on the final review step.
+    # **This, not `meets_section_requirements`, is the dashboard gate.** The
+    # two are deliberately both present: this one is an explicit act and never
+    # moves on its own, while `meets_section_requirements` is derived and can
+    # flip whenever a worker rewrites a row — which is precisely why gating on
+    # it let students in and out of the dashboard without doing anything.
+    is_onboarding_submitted: bool
 
 
 @dataclass(frozen=True)
@@ -160,6 +222,10 @@ class ProfileSnapshot:
     # function of its snapshot — the same property that lets the whole scoring
     # table be unit-tested without a database.
     has_embedding: bool = False
+    # Total scores of the candidate's COMPLETED interviews, 0-100 each. Empty
+    # means no completed interview, which is what gates discoverability.
+    # Passed in for the same purity reason as `has_embedding`.
+    completed_interview_scores: tuple[float, ...] = ()
 
 
 def _rollup_verification(statuses: list[VerificationStatus]) -> VerificationStatus | None:
@@ -205,34 +271,51 @@ def _score_basic(profile: CandidateProfile) -> SectionScore:
     )
 
 
-def _score_technical(snapshot: ProfileSnapshot) -> SectionScore:
+def _score_github(snapshot: ProfileSnapshot) -> SectionScore:
+    """The mandatory half of what used to be `technical`.
+
+    All 15 points ride on the account existing, not on it being verified —
+    `profile_strength` measures what is filled everywhere else and must not
+    become the one number that falls when a worker rejects a claim. The
+    verification state travels separately, in `verification`.
+    """
     has_github = snapshot.github_account is not None
-    coding_count = len(snapshot.coding_profiles)
-
-    missing: list[str] = []
-    if not has_github:
-        missing.append("your GitHub profile")
-    if coding_count == 0:
-        missing.append("at least one competitive programming profile")
-
-    points = (_GITHUB_POINTS if has_github else 0) + (_CODING_PROFILE_POINTS if coding_count else 0)
-    filled = int(has_github) + coding_count
-
-    statuses = [account.verification_status for account in snapshot.coding_profiles]
-    if snapshot.github_account is not None:
-        statuses.append(snapshot.github_account.verification_status)
 
     return SectionScore(
-        key=SECTION_TECHNICAL,
+        key=SECTION_GITHUB,
+        is_mandatory=True,
+        points_earned=GITHUB_POINTS if has_github else 0,
+        points_possible=GITHUB_POINTS,
+        filled_count=int(has_github),
+        required_count=1,
+        missing=() if has_github else ("your GitHub account",),
+        verification=_rollup_verification(
+            [snapshot.github_account.verification_status] if snapshot.github_account else []
+        ),
+    )
+
+
+def _score_projects(snapshot: ProfileSnapshot) -> SectionScore:
+    """Mandatory, and the only optional-shaped section that became a gate.
+
+    One project is the requirement; `required_count` is 1 rather than the
+    three-project ceiling so the UI reports "1 of 1" for a student who linked
+    one repository and is done, instead of showing them two-thirds of a bar
+    they are under no obligation to fill.
+    """
+    count = len(snapshot.projects)
+    extra = min(max(count - 1, 0), _COUNTED_EXTRA_PROJECTS)
+    points = (_POINTS_FIRST_PROJECT + extra * _POINTS_PER_EXTRA_PROJECT) if count else 0
+
+    return SectionScore(
+        key=SECTION_PROJECTS,
         is_mandatory=True,
         points_earned=points,
-        points_possible=TECHNICAL_POINTS,
-        filled_count=filled,
-        # GitHub + one coding profile is the bar, regardless of how many
-        # extra platforms are linked.
-        required_count=2,
-        missing=tuple(missing),
-        verification=_rollup_verification(statuses),
+        points_possible=PROJECTS_POINTS,
+        filled_count=count,
+        required_count=1,
+        missing=() if count else ("at least one project",),
+        verification=_rollup_verification([project.verification_status for project in snapshot.projects]),
     )
 
 
@@ -259,17 +342,71 @@ def _score_optional(
     )
 
 
+def _compute_evidence_score(snapshot: ProfileSnapshot) -> int:
+    """Mean `verification_score` across claims that reached a *verified* state.
+
+    Only `VERIFIED` and `FLAGGED` rows count, and only those carrying a score:
+
+    * `UNVERIFIED`/`PENDING` are excluded rather than scored 0. Nothing has
+      been checked yet, and averaging in a zero would make a candidate mid-
+      verification look worse than one whose claims were actively rejected —
+      the opposite of the truth.
+    * `REJECTED` **is** excluded too, but for the opposite reason: a rejected
+      claim contributes no evidence, and including its near-zero score would
+      let a candidate dilute a single bad claim by adding more claims. Instead
+      it simply stops counting, so the mean reflects evidence that survived.
+
+    A candidate with no scored claims gets 0 — not "unknown". They have no
+    verified evidence, which is a fact about them, not missing data.
+    """
+    scores: list[float] = []
+
+    def collect(rows) -> None:
+        for row in rows:
+            status = getattr(row, "verification_status", None)
+            score = getattr(row, "verification_score", None)
+            if status in (VerificationStatus.VERIFIED, VerificationStatus.FLAGGED) and score is not None:
+                scores.append(float(score))
+
+    if snapshot.github_account is not None:
+        collect([snapshot.github_account])
+    collect(snapshot.coding_profiles)
+    collect(snapshot.projects)
+    collect(snapshot.certificates)
+    collect(snapshot.experiences)
+
+    if not scores:
+        return 0
+    return int(round(max(0.0, min(100.0, sum(scores) / len(scores)))))
+
+
+def _compute_interview_score(snapshot: ProfileSnapshot) -> float | None:
+    """The candidate's aggregate across completed interviews, or None.
+
+    `max`, not mean: a candidate who sat one weak interview and one strong one
+    has demonstrated the stronger performance, and averaging would punish them
+    for attempting a second repository. Attempts are never overwritten
+    (`domains/interview/models.py`), so the history behind this number remains
+    fully inspectable on the evidence card.
+    """
+    if not snapshot.completed_interview_scores:
+        return None
+    return round(max(snapshot.completed_interview_scores), 2)
+
+
 def compute_completeness(snapshot: ProfileSnapshot) -> ProfileCompleteness:
-    """Derive strength, discoverability, and per-section state from stored rows."""
+    """Derive strength, evidence, interview state, discoverability, and
+    per-section state from stored rows."""
     basic = _score_basic(snapshot.profile)
-    technical = _score_technical(snapshot)
-    projects = _score_optional(
-        key=SECTION_PROJECTS,
-        count=len(snapshot.projects),
-        points_per_item=_POINTS_PER_PROJECT,
-        counted_items=_COUNTED_PROJECTS,
-        points_possible=PROJECTS_POINTS,
-        statuses=[project.verification_status for project in snapshot.projects],
+    github = _score_github(snapshot)
+    projects = _score_projects(snapshot)
+    coding = _score_optional(
+        key=SECTION_CODING,
+        count=len(snapshot.coding_profiles),
+        points_per_item=_POINTS_PER_CODING_PROFILE,
+        counted_items=_COUNTED_CODING_PROFILES,
+        points_possible=CODING_POINTS,
+        statuses=[account.verification_status for account in snapshot.coding_profiles],
     )
     certificates = _score_optional(
         key=SECTION_CERTIFICATES,
@@ -292,25 +429,40 @@ def compute_completeness(snapshot: ProfileSnapshot) -> ProfileCompleteness:
         statuses=[exp.verification_status for exp in snapshot.experiences],
     )
 
-    sections = (basic, technical, projects, certificates, experience)
+    # Declared in flow order — basic, GitHub, projects, then the three optional
+    # sections — so a client rendering `sections` in order gets the order the
+    # student walked through them in.
+    sections = (basic, github, projects, coding, certificates, experience)
     strength = sum(section.points_earned for section in sections)
     blocking = tuple(item for section in sections if section.is_mandatory for item in section.missing)
 
-    meets_section_requirements = basic.is_complete and technical.is_complete
+    meets_section_requirements = basic.is_complete and github.is_complete and projects.is_complete
+    is_indexed = meets_section_requirements and snapshot.has_embedding
+    has_completed_interview = bool(snapshot.completed_interview_scores)
 
     return ProfileCompleteness(
         # Clamped defensively: the weights above already sum to 100, and this
         # keeps a future weight change from ever persisting an out-of-range value.
         profile_strength=max(0, min(strength, MAX_STRENGTH)),
+        evidence_score=_compute_evidence_score(snapshot),
+        interview_score=_compute_interview_score(snapshot),
         meets_section_requirements=meets_section_requirements,
-        is_discoverable=meets_section_requirements and snapshot.has_embedding,
+        is_indexed=is_indexed,
+        # The full gate: complete, embedded, and interviewed. A candidate who
+        # cannot produce a verified repository still reaches this via the
+        # profile interview — see the module docstring on the escape hatch.
+        is_discoverable=is_indexed and has_completed_interview,
+        has_completed_interview=has_completed_interview,
         sections=sections,
         blocking=blocking,
         onboarding_choice=snapshot.profile.onboarding_choice,
+        is_onboarding_submitted=snapshot.profile.onboarding_submitted_at is not None,
     )
 
 
 def apply_completeness(profile: CandidateProfile, completeness: ProfileCompleteness) -> None:
     """Write the derived values onto the profile row. The only place they are set."""
     profile.profile_strength = completeness.profile_strength
+    profile.evidence_score = completeness.evidence_score
+    profile.interview_score = completeness.interview_score
     profile.is_discoverable = completeness.is_discoverable

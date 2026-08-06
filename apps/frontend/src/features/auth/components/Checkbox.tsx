@@ -1,31 +1,37 @@
 import { forwardRef, useId } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
 
+import { FIELD_TONE, type FieldTone } from "./fieldTone";
+
 interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
   label: ReactNode;
   error?: string;
+  /** Which surface this sits on. See `fieldTone.ts`. */
+  tone?: FieldTone;
 }
 
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
-  { label, error, ...props },
+  { label, error, tone = "light", ...props },
   ref,
 ) {
   const id = useId();
+  const styles = FIELD_TONE[tone];
+
   return (
     <div>
-      <label htmlFor={id} className="flex cursor-pointer items-start gap-2.5 text-sm text-slate-600">
+      <label htmlFor={id} className={styles.checkboxLabel}>
         <input
           {...props}
           ref={ref}
           id={id}
           type="checkbox"
           aria-invalid={Boolean(error)}
-          className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 bg-white text-verified accent-verified focus:ring-2 focus:ring-verified/30"
+          className={styles.checkbox}
         />
         <span>{label}</span>
       </label>
       {error ? (
-        <p role="alert" className="mt-1 text-xs text-red-500">
+        <p role="alert" className={`mt-1 ${styles.error}`}>
           {error}
         </p>
       ) : null}

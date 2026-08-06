@@ -22,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 MAX_ITEMS = 20
 MAX_TECHNOLOGIES = 15
+MAX_LINKS = 10
 
 
 class _ExtractionModel(BaseModel):
@@ -71,12 +72,36 @@ class ExtractedCertificate(_ExtractionModel):
 
 
 class ExtractedContact(_ExtractionModel):
+    """Identity and contact details as the *document* states them.
+
+    Name, email, and phone are already held on the account (`User.full_name`,
+    `User.email`, `CandidateProfile.phone_number`, captured at signup and
+    email-verified). They are extracted anyway because the draft is a faithful
+    reading of the document, and a resume that disagrees with the account is
+    something the student should see. They are deliberately *not* mapped into
+    profile suggestions by `domains/resume/confirm.py` — a self-reported
+    document must not be able to overwrite a verified account value.
+    """
+
+    full_name: str | None = Field(default=None, max_length=200)
+    email: str | None = Field(default=None, max_length=320, description="Verbatim email address")
+    phone: str | None = Field(
+        default=None, max_length=40, description="Verbatim phone number, including country code if written"
+    )
     headline: str | None = Field(default=None, max_length=200, description="Professional summary line")
     location: str | None = Field(default=None, max_length=120)
     github_username: str | None = Field(default=None, max_length=100)
     leetcode_handle: str | None = Field(default=None, max_length=100)
     codeforces_handle: str | None = Field(default=None, max_length=100)
     hackerrank_handle: str | None = Field(default=None, max_length=100)
+    links: list[str] = Field(
+        default_factory=list,
+        max_length=MAX_LINKS,
+        description=(
+            "Any other URL stated verbatim — LinkedIn, portfolio, blog, publications. "
+            "Exclude URLs already captured as a handle or on a project."
+        ),
+    )
 
 
 class ResumeExtraction(_ExtractionModel):

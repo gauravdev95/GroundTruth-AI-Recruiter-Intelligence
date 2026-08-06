@@ -26,14 +26,15 @@ const DETAIL: ResumeDraftDetail = {
     id: "draft-1",
     resume_upload_id: "upload-1",
     status: "pending_review",
-    provider: "anthropic",
-    model: "claude-opus-5",
+    provider: "google",
+    model: "gemini-3.6-flash",
     payload: {},
     confirmed_at: null,
     created_at: new Date().toISOString(),
   },
   suggestions: {
     basic: {
+      full_name: "Ada Lovelace",
       headline: "Final-year CS student building compilers",
       college: "IIT Bombay",
       degree: "btech",

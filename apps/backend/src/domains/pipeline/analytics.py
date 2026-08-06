@@ -10,7 +10,7 @@ what activating `audit_log` for stage transitions buys for free.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -113,6 +113,73 @@ def recruiter_funnel(db: Session, recruiter: RecruiterProfile) -> dict:
         "total_applications": total_applied,
         "conversion": conversion,
         "avg_time_to_first_response_hours": avg_response_hours,
+    }
+
+
+#: How many days of history the dashboard sparklines plot. Two weeks is
+#: enough for a shape to be visible at ~120px wide without each point
+#: collapsing into its neighbour.
+ACTIVITY_WINDOW_DAYS = 14
+
+
+def recruiter_activity(db: Session, recruiter: RecruiterProfile, *, days: int = ACTIVITY_WINDOW_DAYS) -> dict:
+    """Daily counts of matches found and applications received, for this
+    recruiter's jobs.
+
+    **Exists so the dashboard's sparklines plot something real.** A trend line
+    is a claim about history, and the funnel above reports only current
+    totals — rendering a sparkline from those would mean inventing the shape,
+    which is the one thing the product's own rules forbid a number to do
+    (`domains/matching/tiers.py` on derived-never-narrated; the
+    profile-strength surfaces on never showing an unmeasured percentage).
+    Both series here are `count(*) group by date(created_at)` over rows that
+    already exist.
+
+    Days with no activity are emitted as zeroes rather than omitted. A
+    sparkline that skips empty days compresses a quiet week into a flat line
+    that looks like a busy one, which misreports the exact thing the chart is
+    for.
+    """
+    job_ids = list(
+        db.execute(
+            select(JobPosting.id).where(JobPosting.created_by_user_id == recruiter.user_id)
+        ).scalars()
+    )
+
+    start = (_utcnow() - timedelta(days=days - 1)).date()
+    buckets = [start + timedelta(days=offset) for offset in range(days)]
+    matches = {day: 0 for day in buckets}
+    applications = {day: 0 for day in buckets}
+
+    if job_ids:
+        # `computed_at`, not `updated_at`: this series answers "how many
+        # matches were *found* that day". `updated_at` moves on every
+        # rescore, so a nightly recompute would redraw the whole fortnight as
+        # a spike on today. See `matching/schemas.py` on the two columns.
+        match_rows = db.execute(
+            select(func.date(MatchResult.computed_at), func.count())
+            .where(MatchResult.job_posting_id.in_(job_ids), func.date(MatchResult.computed_at) >= start)
+            .group_by(func.date(MatchResult.computed_at))
+        ).all()
+        for day, count in match_rows:
+            if day in matches:
+                matches[day] = count
+
+        application_rows = db.execute(
+            select(func.date(Application.applied_at), func.count())
+            .where(Application.job_posting_id.in_(job_ids), func.date(Application.applied_at) >= start)
+            .group_by(func.date(Application.applied_at))
+        ).all()
+        for day, count in application_rows:
+            if day in applications:
+                applications[day] = count
+
+    return {
+        "window_days": days,
+        "series": [
+            {"date": day.isoformat(), "matches": matches[day], "applications": applications[day]}
+            for day in buckets
+        ],
     }
 
 

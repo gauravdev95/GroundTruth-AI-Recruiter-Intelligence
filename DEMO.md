@@ -22,12 +22,16 @@ make seed
 | MailHog (every outbound email) | http://localhost:8025 |
 | MinIO console | http://localhost:9001 (`groundtruth` / `groundtruth-dev-secret`) |
 
-> **Note on AI features.** Resume import, job-requirement extraction, and the AI interview each
-> call a real LLM. Without `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in `apps/backend/.env`, those
-> three steps fail *gracefully and visibly* (the job reverts to `draft` with an `extraction_error`,
-> the dead-letter surface offers a retry) rather than hanging or corrupting state — which is itself
-> worth showing. The seeded data below includes a **pre-computed interview and pre-computed match
-> results**, so the demo path works fully either way.
+> **Note on AI features.** Job-requirement extraction and the AI interview call Google Gemini, and
+> resume import falls back to it for documents its deterministic parser can't read. Set
+> `GOOGLE_API_KEY` in `apps/backend/.env` ([get one here](https://aistudio.google.com/apikey)) —
+> it is the only LLM key the project uses.
+>
+> Without it those steps fail *gracefully and visibly* (the job reverts to `draft` with an
+> `extraction_error`, the dead-letter surface offers a retry) rather than hanging or corrupting
+> state — which is itself worth showing. Matching needs no key at all: it embeds in-process. The
+> seeded data below includes a **pre-computed interview and pre-computed match results**, so the
+> demo path works fully either way.
 
 ## Seeded credentials
 
@@ -63,17 +67,33 @@ Still as Ada: open the verified **Distributed Cache** repository card → the in
 
 - Every question is grounded in a specific file from *her* stored repository analysis — not a
   generic "tell me about caching" question.
-- Each answer is scored on four fixed dimensions with explicit weights
-  (`technical_accuracy 40% · depth_of_reasoning 25% · codebase_specificity 20% ·
-  repository_consistency 15%`), and every dimension carries a written rationale.
+- Each answer is scored on five fixed dimensions with explicit weights
+  (`technical_accuracy 30% · code_understanding 25% · problem_solving 20% ·
+  repository_knowledge 15% · communication 10%`), and every dimension carries a written rationale.
+  The weights are configurable (`INTERVIEW_WEIGHT_*`) and must sum to 1.0 or the API refuses to
+  start; changing them never rescores a past interview, because each row stores the
+  `rubric_version` it was sat under.
 - The same report is what a recruiter sees on the evidence card in step 4 — one builder, two
   audiences, no divergence.
+
+> **Two interview types.** The above is a **repository interview**, started by the candidate on one
+> verified repo. There is also a **profile interview**, generated *automatically* once verification
+> settles and grounded in everything verified about the candidate. That one is what makes a
+> candidate with no verifiable repository still able to become discoverable — check MailHog after
+> registering a new candidate to see the invitation email.
 
 ## 3. Two-way matching (~1 min)
 
 Still as Ada → **Job matches**.
 
-- She's matched to *Backend Engineer Intern* (**66.7**) and *Data Engineer Intern* (**60.1**).
+- She's matched to *Backend Engineer Intern* and *Data Engineer Intern*, each with a score.
+
+> ⚠️ **The scores here are no longer the `66.7` / `60.1` this file used to quote.** The rank-fusion
+> formula gained an interview term and a coding-competency term, and the threshold moved from 50 to
+> 60 — so every match score in the system changed, and pairs that scored just above 50 may now be
+> absent entirely. `make seed` computes these live rather than hardcoding them; read the real
+> numbers off the running app and update this line. The numbers have not been re-observed since the
+> formula changed.
 - Each match shows *why*: which must-have skills she has, with a checkmark per skill traced back
   to the verified repository that evidences it.
 - Nothing here is computed in the browser — every number is read straight off `match_results`,
@@ -107,12 +127,16 @@ Log in as **`peter.gibbons@seed.groundtruth.dev`** (Initech, the second company)
 
 ## 6. Email is real (~30 sec)
 
-Register a brand-new candidate at http://localhost:5173 → open http://localhost:8025.
+Register a brand-new candidate at http://localhost:5173. Signup has no verification step — the
+account is created, signed in and dropped on the dashboard in one request, and **no email is sent
+at that point**. Open http://localhost:8025 to confirm the outbox is empty.
 
-- The verification email is really there, really delivered over SMTP. Copy the OTP out of the
-  message body and complete signup with it.
-- Then, as a recruiter, move any application a stage: the candidate gets a **stage-change email**
-  in MailHog *and* an in-app notification on the bell.
+Then exercise the two mails that do exist:
+
+- Hit **Forgot password** and open MailHog: the reset link is really there, really delivered over
+  SMTP. Click it and set a new password — the token is single-use and revokes existing sessions.
+- As a recruiter, move any application a stage: the candidate gets a **stage-change email** in
+  MailHog *and* an in-app notification on the bell.
 
 ---
 

@@ -44,17 +44,33 @@ export function renderWithProviders(
   return { queryClient, ...render(ui, { wrapper: Wrapper, ...options }) };
 }
 
+/** Mirrors `setup_state.SETUP_STEPS`, including the two steps that are not
+ * profile sections — a fixture missing `choose`/`review` would let a test pass
+ * against a seven-step UI while describing a five-step server. */
 const STEP_META: { key: SetupStep["key"]; title: string; subtitle: string; mandatory: boolean }[] = [
+  { key: "choose", title: "Get Started", subtitle: "Upload a resume or fill it in yourself", mandatory: true },
   { key: "basic", title: "Basic Information", subtitle: "Personal details & education", mandatory: true },
-  { key: "technical", title: "Technical Profiles", subtitle: "GitHub, LeetCode & more", mandatory: true },
-  { key: "projects", title: "Projects", subtitle: "Add & verify your projects", mandatory: false },
+  {
+    key: "github",
+    title: "Connect GitHub",
+    subtitle: "Read-only access to your public repositories",
+    mandatory: true,
+  },
+  { key: "projects", title: "Link Projects", subtitle: "Choose up to three repositories", mandatory: true },
+  { key: "coding", title: "Coding Profile", subtitle: "Optional — a supporting signal", mandatory: false },
   {
     key: "certificates",
-    title: "Certificates & Achievements",
-    subtitle: "Showcase your accomplishments",
+    title: "Certificates",
+    subtitle: "Optional — issuer-verified credentials",
     mandatory: false,
   },
-  { key: "experience", title: "Experience", subtitle: "Add your work experience", mandatory: false },
+  {
+    key: "experience",
+    title: "Experience",
+    subtitle: "Optional — internships & jobs",
+    mandatory: false,
+  },
+  { key: "review", title: "Review & Submit", subtitle: "Check everything, then submit", mandatory: true },
 ];
 
 /** Builds a `setup-state` payload shaped exactly like the server's, so a test
@@ -68,6 +84,8 @@ export function makeSetupState(overrides: Partial<SetupState> = {}): SetupState 
     current_step_index: currentStepIndex,
     meets_section_requirements: false,
     is_discoverable: false,
+    is_submitted: false,
+    can_submit: false,
     blocking: [],
     resume: {
       has_upload: false,
@@ -91,7 +109,8 @@ export function makeSetupState(overrides: Partial<SetupState> = {}): SetupState 
         is_mandatory: meta.mandatory,
         is_current: index === currentStepIndex,
         filled_count: 0,
-        required_count: meta.key === "basic" ? 7 : meta.key === "technical" ? 2 : 0,
+        required_count:
+          meta.key === "basic" ? 7 : meta.key === "github" || meta.key === "projects" ? 1 : 0,
       })),
   };
 }

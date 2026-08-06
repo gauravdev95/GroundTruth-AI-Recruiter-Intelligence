@@ -10,14 +10,26 @@ export const SETUP_PATH = "/student/profile/setup";
 /**
  * The two halves of one rule, split because they guard different layouts.
  *
- * The rule: a student belongs in setup exactly while
- * `meets_section_requirements` is false — sections 1 and 2 not both complete.
+ * The rule: a student belongs in setup until they have **submitted** — until
+ * `is_submitted` is true.
  *
- * It is deliberately **not** keyed on `onboarding_choice`. Answering the fork
- * is not the same as having a profile: a student who picked "resume" yesterday
- * and abandoned the upload has chosen a path and completed nothing, and a
- * choice-based gate waved exactly that student past setup into an empty
- * dashboard. Choice is telemetry. Completeness is the gate.
+ * This used to key on `meets_section_requirements` (sections 1 and 2
+ * complete), and that was wrong in a way worth recording. It is *derived* from
+ * rows, so it moves on its own: a verification worker rewriting a claim, or a
+ * student clearing a field from the profile builder, could flip a student out
+ * of the dashboard or into it without anybody deciding anything. It also ended
+ * onboarding halfway through the flow — a student who saved section 2 was
+ * redirected to the dashboard having never seen projects, certificates or
+ * experience.
+ *
+ * `is_submitted` is an explicit act with a timestamp
+ * (`CandidateProfile.onboarding_submitted_at`) and never moves by itself.
+ * `meets_section_requirements` still exists and still matters — it is the bar
+ * for whether Submit is *allowed* — but it is no longer the gate.
+ *
+ * It is also deliberately not keyed on `onboarding_choice`: answering the fork
+ * is not the same as having a profile, and a choice-based gate waved a student
+ * who abandoned their upload straight into an empty dashboard.
  *
  * Both halves read the same server value, so they cannot disagree and bounce a
  * student between two routes.
@@ -43,7 +55,7 @@ export function RequireProfileSetup({ children }: { children: ReactNode }) {
 
   // A failed fetch must not lock a student out of their own dashboard — the
   // pages below render their own error states. Hence the optimistic default.
-  if (setupState.data?.meets_section_requirements ?? true) {
+  if (setupState.data?.is_submitted ?? true) {
     return <>{children}</>;
   }
 
@@ -51,14 +63,14 @@ export function RequireProfileSetup({ children }: { children: ReactNode }) {
 }
 
 /**
- * Guards setup: a profile that already meets the section requirements is sent
- * to the dashboard, so a finished student never sees the entry screen again —
- * including by typing the URL.
+ * Guards setup: a student who has already submitted is sent to the dashboard,
+ * so a finished student never sees the onboarding flow again — including by
+ * typing the URL.
  *
- * This also fires the moment a student completes section 2 inside the flow,
- * which is the specified end of setup: sections 1 and 2 complete means
- * `/student/dashboard`. Optional sections 3-5 stay editable at
- * `/student/profile`.
+ * Note what this no longer does: it does **not** fire when section 2 is
+ * completed. Finishing a required section now advances the wizard to step 4,
+ * not out of onboarding. The optional sections are part of the flow, and
+ * everything stays editable afterwards at `/student/profile`.
  */
 export function RedirectCompletedProfile() {
   const location = useLocation();
@@ -71,7 +83,7 @@ export function RedirectCompletedProfile() {
   // Pessimistic here, and optimistic in `RequireProfileSetup`, on purpose:
   // both defaults keep a student on the screen they are already looking at
   // when the fetch fails, rather than throwing them somewhere on bad data.
-  if (setupState.data?.meets_section_requirements ?? false) {
+  if (setupState.data?.is_submitted ?? false) {
     return <Navigate to="/student/dashboard" replace state={{ from: location.pathname }} />;
   }
 

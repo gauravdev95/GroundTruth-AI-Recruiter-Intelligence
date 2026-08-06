@@ -1,4 +1,7 @@
-import { defineConfig } from "vite";
+// `defineConfig` from `vitest/config`, not `vite`: the `test` key below is
+// Vitest's, and Vite's own `UserConfigExport` does not declare it — importing
+// from `vite` made `tsc -b` fail on this file with TS2769.
+import { defineConfig } from "vitest/config";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
@@ -21,9 +24,17 @@ import path from "node:path";
  * headline and the body face for the sub-heading, which is the element
  * Lighthouse selects as LCP. Preloading all seven would have them compete for
  * bandwidth with the one that decides the metric.
+ *
+ * The display face here is Space Grotesk, not Archivo. Archivo is still the
+ * product's display face on every authenticated screen, but nothing behind the
+ * login wall is ever the LCP element of a cold visit — the hero wordmark is,
+ * and it is set in Space Grotesk.
  */
 function preloadHeroFonts(): Plugin {
-  const wanted = [/archivo-latin-700-normal-[^/]*\.woff2$/, /inter-latin-400-normal-[^/]*\.woff2$/];
+  const wanted = [
+    /space-grotesk-latin-700-normal-[^/]*\.woff2$/,
+    /inter-latin-400-normal-[^/]*\.woff2$/,
+  ];
 
   return {
     name: "preload-hero-fonts",

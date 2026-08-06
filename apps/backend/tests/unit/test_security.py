@@ -1,4 +1,4 @@
-"""Unit tests for password hashing, JWT round-trips, and token/OTP generation."""
+"""Unit tests for password hashing, JWT round-trips, and opaque token generation."""
 
 from __future__ import annotations
 
@@ -12,9 +12,7 @@ from src.domains.auth.security import (
     create_access_token,
     decode_access_token,
     generate_opaque_token,
-    generate_otp,
     hash_opaque_token,
-    hash_otp,
     hash_password,
     verify_password,
 )
@@ -82,9 +80,3 @@ def test_opaque_token_is_unique_and_hash_is_deterministic() -> None:
     assert hash_opaque_token(token_a) != hash_opaque_token(token_b)
 
 
-def test_otp_is_six_digits_and_hash_is_deterministic() -> None:
-    otp = generate_otp()
-    assert len(otp) == 6
-    assert otp.isdigit()
-    assert hash_otp(otp) == hash_otp(otp)
-    assert hash_otp(otp) != hash_otp(generate_otp() + "0")

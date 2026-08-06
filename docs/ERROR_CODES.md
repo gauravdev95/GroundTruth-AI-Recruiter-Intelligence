@@ -47,9 +47,6 @@ frontend code; `message` may change wording over time and should not be pattern-
 | `ACCOUNT_LOCKED` | 423 | 5+ failed login attempts, temporarily locked |
 | `ACCOUNT_INACTIVE` | 403 | Account deactivated |
 | `ROLE_MISMATCH` | 403 | Login attempted against the wrong portal (candidate vs. recruiter) |
-| `EMAIL_NOT_VERIFIED` | 403 | Login blocked pending email verification |
-| `INVALID_OTP` | 400 | Wrong/expired/exhausted email verification code |
-| `OTP_REQUEST_TOO_SOON` | 429 | OTP resend requested within the cooldown window |
 | `INVALID_OR_EXPIRED_TOKEN` | 400 | Password-reset link invalid, expired, or already used |
 | `CAPTCHA_FAILED` | 400 | reCAPTCHA verification failed |
 | `INVALID_REFRESH_TOKEN` | 401 | Refresh cookie missing, invalid, expired, or revoked |

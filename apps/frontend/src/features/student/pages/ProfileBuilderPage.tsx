@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { Button, ErrorState, Skeleton, useToast } from "@/components";
 
-import type { SectionKey } from "../api/profileApi";
+import type { SectionCacheKey } from "../api/profileApi";
 import { DiscoverabilityBanner } from "../components/DiscoverabilityBanner";
 import { ProfileStepper } from "../components/ProfileStepper";
 import { ProfileStrengthMeter } from "../components/ProfileStrengthMeter";
@@ -13,7 +13,7 @@ import { useProfileCompleteness } from "../hooks/useProfileSection";
 import { ActiveSection } from "../sections/ActiveSection";
 
 export function ProfileBuilderPage() {
-  const [activeSection, setActiveSection] = useState<SectionKey>("basic");
+  const [activeSection, setActiveSection] = useState<SectionCacheKey>("basic");
   const completeness = useProfileCompleteness();
   const [searchParams, setSearchParams] = useSearchParams();
   const { showToast } = useToast();

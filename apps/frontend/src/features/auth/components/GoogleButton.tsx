@@ -1,15 +1,34 @@
 import { authApi, type UserRole } from "../api/authApi";
+import type { FieldTone } from "./fieldTone";
 
 interface GoogleButtonProps {
   role: UserRole;
   label?: string;
+  /** Which surface this sits on. See `fieldTone.ts`. */
+  tone?: FieldTone;
 }
 
-export function GoogleButton({ role, label = "Continue with Google" }: GoogleButtonProps) {
+/**
+ * The Google mark keeps its four brand colours on both tones — Google's brand
+ * guidelines require it, and a monochrome version to "fit the dark theme"
+ * would be a trademark problem, not a design choice. Only the surface around
+ * it changes.
+ */
+export function GoogleButton({ role, label = "Continue with Google", tone = "light" }: GoogleButtonProps) {
   return (
     <a
       href={authApi.googleLoginUrl(role)}
-      className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
+      className={
+        tone === "dark"
+          ? [
+              "group flex w-full items-center justify-center gap-3 rounded-lg border border-white/15",
+              "bg-white/[0.06] px-4 py-3 text-sm font-medium text-white backdrop-blur-sm",
+              "transition-[transform,background-color,border-color] duration-200 ease-out",
+              "hover:border-white/30 hover:bg-white/[0.11] motion-safe:hover:-translate-y-0.5",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gt-electric/50",
+            ].join(" ")
+          : "flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
+      }
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
         <path

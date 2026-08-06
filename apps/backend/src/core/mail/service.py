@@ -14,10 +14,6 @@ def _dispatch(to_email: str, rendered: tuple[str, str, str]) -> None:
     get_mailer().send(to_email=to_email, subject=subject, text_body=text_body, html_body=html_body)
 
 
-def send_verification_otp_email(*, to_email: str, full_name: str, otp: str, expires_in_minutes: int) -> None:
-    _dispatch(to_email, templates.verification_otp(full_name=full_name, otp=otp, expires_in_minutes=expires_in_minutes))
-
-
 def send_password_reset_email(*, to_email: str, full_name: str, reset_url: str, expires_in_minutes: int) -> None:
     _dispatch(
         to_email,
@@ -38,4 +34,36 @@ def send_new_message_email(*, to_email: str, full_name: str, job_title: str, app
     _dispatch(
         to_email,
         templates.new_message(full_name=full_name, job_title=job_title, application_url=application_url),
+    )
+
+
+def send_verification_summary_email(
+    *,
+    to_email: str,
+    full_name: str,
+    confirmed: list[str],
+    needs_attention: list[tuple[str, str]],
+    profile_url: str,
+) -> None:
+    _dispatch(
+        to_email,
+        templates.verification_summary(
+            full_name=full_name,
+            confirmed=confirmed,
+            needs_attention=needs_attention,
+            profile_url=profile_url,
+        ),
+    )
+
+
+def send_interview_invitation_email(
+    *, to_email: str, full_name: str, interview_url: str, has_verified_repositories: bool
+) -> None:
+    _dispatch(
+        to_email,
+        templates.interview_invitation(
+            full_name=full_name,
+            interview_url=interview_url,
+            has_verified_repositories=has_verified_repositories,
+        ),
     )

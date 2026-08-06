@@ -13,27 +13,32 @@ see each domain's `dependencies.py`.
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| POST | `/candidate/register` | Public | Candidate signup → emails a 6-digit OTP |
-| POST | `/recruiter/register` | Public | Recruiter signup → emails a 6-digit OTP |
+| POST | `/candidate/register` | Public | Candidate signup → access token + refresh cookie (signs in; no verification step) |
+| POST | `/recruiter/register` | Public | Recruiter signup → access token + refresh cookie (signs in; no verification step) |
 | POST | `/login` | Public | Email + password + captcha + `expected_role` → access token + refresh cookie |
 | POST | `/refresh` | Cookie | Rotates the refresh token → new access token |
 | POST | `/logout` | Cookie | Revokes the refresh token, clears cookies |
-| POST | `/verify-email/confirm` | Public | `{email, otp}` |
-| POST | `/verify-email/resend` | Public | Rate-limited OTP resend |
 | POST | `/forgot-password` | Public | Always a generic success response (no enumeration) |
 | POST | `/reset-password` | Public | `{token, new_password, confirm_password}`, single-use |
 | GET | `/google/login?role=` | Public | Redirect to Google consent |
 | GET | `/google/callback` | Public | Exchange code, create/link user, set cookies, redirect |
 | GET | `/me` | Bearer | Current user |
 
+**There is no email-verification step.** Both register endpoints return the same
+`AccessTokenResponse` shape as `/login`, so a client goes straight from the signup form to the
+dashboard with no second request. `/verify-email/confirm` and `/verify-email/resend` were
+removed along with the `email_verification_tokens` table and the `users.is_email_verified`
+column; nothing in the system establishes that a registrant controls their address, and the
+password-reset flow proves ownership on its own where it matters.
+
 ## Student Profile (`/student/profile`)
 
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/completeness` | Strength, discoverability, per-section state |
-| GET / PUT | `/sections/basic` | Headline, college, degree, branch, grad year, location, target role |
+| GET / PUT | `/sections/basic` | Headline, college, degree, branch, grad year, location, target role, and `about` (optional — earns no completeness points, but feeds the profile embedding) |
 | GET / PUT | `/sections/technical` | GitHub username + coding-platform handles |
-| GET / PUT | `/sections/projects` | Up to 3 — a repo URL or a described project |
+| GET / PUT | `/sections/projects` | Up to 3 — a repo URL or a described project. **PUT does not accept `technologies`** — the request model forbids unknown keys, so sending it is a 422. A project's technologies are detected from its dependency manifests during verification and returned read-only on GET. |
 | GET / PUT | `/sections/certificates` | Certificates and achievements |
 | GET / PUT | `/sections/experience` | Internship / freelance / part-time history |
 
@@ -69,6 +74,18 @@ All Bearer, candidate-only, resolved via `get_own_profile` — no route takes a 
 | GET | `/{interview_id}` | Current state + next unanswered question (resumable) |
 | POST | `/{interview_id}/questions/{question_id}/answer` | Submit an answer |
 | GET | `/{interview_id}/report` | The evidence report — **409** until evaluation completes |
+
+Interviews come in two groundings, distinguished by `interviews.grounding`:
+
+- **`repository`** — started by the candidate via `/projects/{project_id}/start`, grounded in one
+  `VERIFIED` repository's stored analysis. `project_id` is set.
+- **`profile`** — created *by the system*, not by a request. There is no endpoint that starts one:
+  `jobs/tasks/verification.py` creates it once verification settles and emails an invitation. It is
+  grounded in the union of the candidate's verified evidence and has `project_id = NULL`. Once
+  created it is fetched, answered, and reported through the same three endpoints above.
+
+Both count toward the discoverability gate, and the report carries the `rubric_weights` of the
+version that attempt was scored under — not the currently configured rubric.
 
 ## Recruiter Jobs (`/recruiter/jobs`)
 

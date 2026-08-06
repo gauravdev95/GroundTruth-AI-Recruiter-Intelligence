@@ -166,7 +166,14 @@ def transition_application(
     db: Session = Depends(get_db),
 ) -> ApplicationResponse:
     application = service.get_application_for_recruiter(db, user, application_id)
-    updated = service.transition_status(db, user, application, to_status=payload.to_status)
+    updated = service.transition_status(
+        db,
+        user,
+        application,
+        to_status=payload.to_status,
+        close_reason=payload.close_reason.value if payload.close_reason else None,
+        close_note=payload.close_note,
+    )
     return ApplicationResponse.model_validate(updated)
 
 
@@ -227,6 +234,20 @@ def _verify_recruiter_can_view_candidate(db: Session, user: User, candidate_prof
 @recruiter_router.get("/candidates/{candidate_profile_id}/evidence", response_model=EvidenceRecordResponse)
 def get_candidate_evidence(
     candidate_profile_id: uuid.UUID,
+    # Optional, and the reason the `match` block is ever populated.
+    #
+    # `build_evidence_record` has always accepted this and this endpoint has
+    # always omitted it, so `record.match` came back `null` on every call —
+    # which silently emptied the drawer's *primary* section, "Verified
+    # skills", since that renders from `match.matched_required_skills`. The
+    # drawer looked like a candidate with no evidence rather than like a
+    # missing parameter.
+    #
+    # It stays optional because the standalone full-report page has a
+    # candidate but no job in scope, and a profile-wide view of someone's
+    # evidence is a legitimate thing to ask for. When it is absent the record
+    # simply carries no per-job match, which is the honest answer.
+    job_posting_id: uuid.UUID | None = None,
     user: User = Depends(get_current_user),
     _recruiter: RecruiterProfile = Depends(get_own_recruiter_profile),
     db: Session = Depends(get_db),
@@ -248,7 +269,9 @@ def get_candidate_evidence(
     )
     db.commit()
 
-    return EvidenceRecordResponse(record=build_evidence_record(db, profile))
+    return EvidenceRecordResponse(
+        record=build_evidence_record(db, profile, job_posting_id=job_posting_id)
+    )
 
 
 @recruiter_router.get("/applications/{application_id}/messages", response_model=ConversationResponse)
@@ -300,6 +323,20 @@ def get_recruiter_funnel(
     recruiter: RecruiterProfile = Depends(get_own_recruiter_profile), db: Session = Depends(get_db)
 ) -> dict:
     return analytics.recruiter_funnel(db, recruiter)
+
+
+@recruiter_router.get("/analytics/activity")
+def get_recruiter_activity(
+    recruiter: RecruiterProfile = Depends(get_own_recruiter_profile), db: Session = Depends(get_db)
+) -> dict:
+    """Daily match/application counts backing the dashboard sparklines.
+
+    Separate from `/funnel` rather than another key on it: the funnel is
+    current-state and this is a time series, they are read by different
+    widgets, and a dashboard that renders the stat tiles before the charts
+    should not wait on the heavier of the two.
+    """
+    return analytics.recruiter_activity(db, recruiter)
 
 
 # --------------------------------------------------------------------------

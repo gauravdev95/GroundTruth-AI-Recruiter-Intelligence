@@ -45,9 +45,10 @@ from src.domains.resume.models import (
 from src.domains.student.completeness import (
     SECTION_BASIC,
     SECTION_CERTIFICATES,
+    SECTION_CODING,
     SECTION_EXPERIENCE,
+    SECTION_GITHUB,
     SECTION_PROJECTS,
-    SECTION_TECHNICAL,
     ProfileCompleteness,
     SectionScore,
 )
@@ -85,23 +86,55 @@ _UPLOAD_STATUS_TO_PARSE_STATE = {
 }
 
 
+#: The two steps that are not profile sections. Both are real steps a student
+#: walks through, so they are numbered and rendered like the rest, but neither
+#: has a `SectionScore` behind it — their status comes from the profile row.
+STEP_CHOOSE = "choose"
+STEP_REVIEW = "review"
+
+
 @dataclass(frozen=True)
 class StepMeta:
     key: str
     title: str
     subtitle: str
+    #: The `completeness.py` section this step saves, or None for the two
+    #: bookend steps. Keeping the mapping explicit (rather than assuming
+    #: `key == section key`) is what lets the flow have steps that are not
+    #: sections without a parallel list to keep in sync.
+    section_key: str | None
 
 
-# Copy is served from here rather than hardcoded in the component so the five
-# labels the screen shows and the five sections the API scores can never drift
-# apart. Order is the step order and is load-bearing — `index` is positional.
+# Copy is served from here rather than hardcoded in the component so the labels
+# the screen shows and the sections the API scores can never drift apart. Order
+# is the step order and is load-bearing — `index` is positional, and it is what
+# the client renders as "Step X of 8".
+#
+# GitHub and coding profiles are two steps, not the one `technical` step they
+# used to be. They are asked at different points and carry different weight:
+# GitHub is mandatory and starts the evidence pipeline, while a coding-platform
+# handle is a supporting signal the student may skip. Presenting them as one
+# step made the optional half look required, which is exactly the claim this
+# codebase refuses to make about a Codeforces rating.
+#
+# Projects sits between them, immediately after GitHub, because linking the
+# first repository is what starts the background pipeline — the optional steps
+# that follow are the student's remaining form-filling time, which the analysis
+# now runs underneath.
 SETUP_STEPS: tuple[StepMeta, ...] = (
-    StepMeta(SECTION_BASIC, "Basic Information", "Personal details & education"),
-    StepMeta(SECTION_TECHNICAL, "Technical Profiles", "GitHub, LeetCode & more"),
-    StepMeta(SECTION_PROJECTS, "Projects", "Add & verify your projects"),
-    StepMeta(SECTION_CERTIFICATES, "Certificates & Achievements", "Showcase your accomplishments"),
-    StepMeta(SECTION_EXPERIENCE, "Experience", "Add your work experience"),
+    StepMeta(STEP_CHOOSE, "Get Started", "Upload a resume or fill it in yourself", None),
+    StepMeta(SECTION_BASIC, "Basic Information", "Personal details & education", SECTION_BASIC),
+    StepMeta(SECTION_GITHUB, "Connect GitHub", "Read-only access to your public repositories", SECTION_GITHUB),
+    StepMeta(SECTION_PROJECTS, "Link Projects", "Choose up to three repositories", SECTION_PROJECTS),
+    StepMeta(SECTION_CODING, "Coding Profile", "Optional — a supporting signal", SECTION_CODING),
+    StepMeta(SECTION_CERTIFICATES, "Certificates", "Optional — issuer-verified credentials", SECTION_CERTIFICATES),
+    StepMeta(SECTION_EXPERIENCE, "Experience", "Optional — internships & jobs", SECTION_EXPERIENCE),
+    StepMeta(STEP_REVIEW, "Review & Submit", "Check everything, then submit", None),
 )
+
+#: Index of the final step. Named so the client's "last step" special-casing
+#: and the server's `current_step_index` clamp agree by construction.
+REVIEW_STEP_INDEX = len(SETUP_STEPS) - 1
 
 
 @dataclass(frozen=True)
@@ -142,6 +175,15 @@ class SetupState:
     blocking: tuple[str, ...]
     steps: tuple[SetupStep, ...]
     resume: ResumeSetupState
+    # Onboarding is finished — the student pressed Submit on the review step.
+    # The only thing that opens the dashboard.
+    is_submitted: bool
+    # Whether pressing Submit would succeed right now. Separate from
+    # `is_submitted` because the review step needs to render the difference
+    # between "you can finish" and "you already did", and separate from
+    # `meets_section_requirements` in *name* because that phrase is about
+    # scoring while this one is about a button.
+    can_submit: bool
 
 
 def _step_status(section: SectionScore) -> SetupStepStatus:
@@ -164,26 +206,78 @@ def _step_status(section: SectionScore) -> SetupStepStatus:
             return SetupStepStatus.SAVED
 
 
-def _current_step_index(sections: tuple[SectionScore, ...], statuses: tuple[SetupStepStatus, ...]) -> int:
-    """Where the "Current Step" pill sits.
+@dataclass(frozen=True)
+class _StepState:
+    """One step's derived state, before it is paired with its copy."""
 
-    Mandatory-but-incomplete wins over merely-empty, because a half-filled
-    section 1 is what actually blocks discoverability while an untouched
-    section 3 does not. Pointing at the first *empty* step instead would walk a
-    student past the one section they still owe fields on.
+    status: SetupStepStatus
+    is_mandatory: bool
+    is_complete: bool
+    filled_count: int
+    required_count: int
 
-    With everything complete the pill rests on the last step rather than
-    disappearing — the screen always has exactly one active circle.
+
+def _section_step_state(section: SectionScore) -> _StepState:
+    return _StepState(
+        status=_step_status(section),
+        is_mandatory=section.is_mandatory,
+        is_complete=section.is_complete,
+        filled_count=section.filled_count,
+        required_count=section.required_count,
+    )
+
+
+def _flag_step_state(*, done: bool) -> _StepState:
+    """The two steps with no section behind them.
+
+    Both are mandatory — a student cannot skip the fork or the submit — and
+    both are binary, so `filled_count`/`required_count` are 0/1 or 1/1 rather
+    than a count of fields. `SAVED`, never `VERIFIED`: neither answering the
+    fork nor pressing Submit is a verification of anything.
     """
-    for index, section in enumerate(sections):
-        if section.is_mandatory and not section.is_complete:
+    return _StepState(
+        status=SetupStepStatus.SAVED if done else SetupStepStatus.EMPTY,
+        is_mandatory=True,
+        is_complete=done,
+        filled_count=1 if done else 0,
+        required_count=1,
+    )
+
+
+def _current_step_index(states: tuple[_StepState, ...]) -> int:
+    """Where the "Current Step" pill sits, and where a returning student lands.
+
+    Three passes, in this order:
+
+    1. **The first incomplete mandatory step, review excluded.** A half-filled
+       section 1 is what actually blocks submission while an untouched section
+       4 does not, so pointing at the first merely-*empty* step would walk a
+       student past the one section they still owe fields on.
+
+       Review is excluded from this pass even though it is mandatory, because
+       it is permanently incomplete until the very last action of the flow.
+       Including it would send a student who finished the two required
+       sections straight to Submit, skipping the three optional steps they
+       have not seen yet — the pill would recommend finishing before they were
+       ever shown projects, certificates or experience.
+
+    2. **The first empty step.** This is where the optional steps get their
+       turn, and — once they are all touched — where review picks itself up,
+       since an unsubmitted review step is `EMPTY`.
+
+    3. **Review.** Everything is done and submitted; the pill rests on the last
+       step rather than disappearing, so the screen always has exactly one
+       active circle.
+    """
+    for index, state in enumerate(states):
+        if index != REVIEW_STEP_INDEX and state.is_mandatory and not state.is_complete:
             return index
 
-    for index, status in enumerate(statuses):
-        if status is SetupStepStatus.EMPTY:
+    for index, state in enumerate(states):
+        if state.status is SetupStepStatus.EMPTY:
             return index
 
-    return len(SETUP_STEPS) - 1
+    return REVIEW_STEP_INDEX
 
 
 def load_resume_state(db: Session, profile: CandidateProfile) -> ResumeSetupState:
@@ -233,11 +327,19 @@ def build_setup_state(
 ) -> SetupState:
     """Assemble the screen's payload. Pure — every input is already resolved."""
     by_key = {section.key: section for section in completeness.sections}
+
     # Iterate `SETUP_STEPS`, not `completeness.sections`, so step order is this
     # module's declared order and a reshuffle upstream cannot renumber the UI.
-    ordered = tuple(by_key[meta.key] for meta in SETUP_STEPS)
-    statuses = tuple(_step_status(section) for section in ordered)
-    current = _current_step_index(ordered, statuses)
+    states: list[_StepState] = []
+    for meta in SETUP_STEPS:
+        if meta.section_key is not None:
+            states.append(_section_step_state(by_key[meta.section_key]))
+        elif meta.key == STEP_CHOOSE:
+            states.append(_flag_step_state(done=completeness.onboarding_choice is not None))
+        else:
+            states.append(_flag_step_state(done=completeness.is_onboarding_submitted))
+
+    current = _current_step_index(tuple(states))
 
     steps = tuple(
         SetupStep(
@@ -245,13 +347,13 @@ def build_setup_state(
             index=index,
             title=meta.title,
             subtitle=meta.subtitle,
-            status=statuses[index],
-            is_mandatory=section.is_mandatory,
+            status=state.status,
+            is_mandatory=state.is_mandatory,
             is_current=index == current,
-            filled_count=section.filled_count,
-            required_count=section.required_count,
+            filled_count=state.filled_count,
+            required_count=state.required_count,
         )
-        for index, (meta, section) in enumerate(zip(SETUP_STEPS, ordered))
+        for index, (meta, state) in enumerate(zip(SETUP_STEPS, states))
     )
 
     return SetupState(
@@ -265,4 +367,19 @@ def build_setup_state(
         blocking=completeness.blocking,
         steps=steps,
         resume=resume,
+        is_submitted=completeness.is_onboarding_submitted,
+        # The submit gate is exactly the section requirements: basic, GitHub
+        # and one project. Coding profiles, certificates and experience stay
+        # optional for the same reason they are optional everywhere else — a
+        # first-year with no internships must still be able to finish
+        # onboarding, and a gate they cannot satisfy is a gate that ends the
+        # signup.
+        #
+        # Consent is deliberately *not* part of this. It is given on the review
+        # screen itself, so folding it in would leave `can_submit` false on the
+        # only screen that can turn it true, and the client would have no way
+        # to tell "you still owe a project" from "tick the box below". The
+        # server still refuses a submission without it —
+        # `service.submit_onboarding`.
+        can_submit=completeness.meets_section_requirements,
     )

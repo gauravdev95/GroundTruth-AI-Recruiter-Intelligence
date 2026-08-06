@@ -65,12 +65,42 @@ export interface EvidenceRecord {
     match_score: number;
     semantic_score: number;
     evidence_score: number;
+    /** The stored `match_reasons` halves, under the names the read path uses
+     * (`pipeline/evidence.py`). Each entry carries the concrete evidence that
+     * backs the skill, which is what lets the drawer link a percentage to a
+     * repository instead of asserting one. */
+    matched_required_skills: EvidenceSkillReason[];
+    matched_desirable_skills: EvidenceSkillReason[];
   } | null;
 }
 
+export interface EvidenceSkillReason {
+  skill_name: string;
+  candidate_has_skill: boolean;
+  candidate_proficiency: string | null;
+  evidence_weight: number | null;
+  evidence_sources: {
+    type: string;
+    project_id?: string;
+    title?: string;
+    repo_url?: string | null;
+    verification_score?: number | null;
+  }[];
+}
+
 export const evidenceApi = {
-  getForCandidate: async (candidateProfileId: string): Promise<EvidenceRecord> => {
-    const res = await apiClient.get<{ record: EvidenceRecord }>(`/recruiter/candidates/${candidateProfileId}/evidence`);
+  /**
+   * `jobId` is what populates `record.match`, and therefore the drawer's
+   * "Verified skills" section and its radar chart. Omit it only where there
+   * is genuinely no job in scope (the standalone full-report page) — the
+   * record then carries no match, which the UI renders as "no job context"
+   * rather than as "no evidence".
+   */
+  getForCandidate: async (candidateProfileId: string, jobId?: string): Promise<EvidenceRecord> => {
+    const res = await apiClient.get<{ record: EvidenceRecord }>(
+      `/recruiter/candidates/${candidateProfileId}/evidence`,
+      jobId ? { params: { job_posting_id: jobId } } : undefined,
+    );
     return res.data.record;
   },
 };

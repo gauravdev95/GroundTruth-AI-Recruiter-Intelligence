@@ -4,7 +4,25 @@ import { apiClient } from "@/lib/apiClient";
 
 export type ApplicationStatus = "applied" | "shortlisted" | "interview_scheduled" | "hired" | "rejected";
 
-export interface PipelineCandidatePreview {
+/** `domains/pipeline/schemas.py::CloseReason`. Optional everywhere — the
+ * rejection modal's Skip path sends none. */
+export type CloseReason = "skills_gap" | "experience_mismatch" | "role_filled" | "other";
+
+/** The three fields every board card renders under the score, shared by both
+ * column shapes (`schemas.py::_CandidateCardFields`) so a candidate cannot be
+ * described one way in `Matched` and another way in `Shortlisted`. */
+export interface CandidateCardFields {
+  /** Top matched skills, best-evidenced first, at most three. */
+  matched_skills: string[];
+  /** Composed from stored evidence by `matching/tiers.py::build_reasoning`.
+   * Never LLM-narrated — see that module. */
+  reasoning: string;
+  /** `candidate_profiles.is_discoverable`: verified evidence *and* a
+   * completed code-grounded interview. */
+  is_verified: boolean;
+}
+
+export interface PipelineCandidatePreview extends CandidateCardFields {
   candidate_profile_id: string;
   headline: string | null;
   match_score: number;
@@ -26,7 +44,7 @@ export interface ScoreDrift {
   is_meaningful: boolean;
 }
 
-export interface PipelineApplicationPreview {
+export interface PipelineApplicationPreview extends CandidateCardFields {
   application_id: string;
   candidate_profile_id: string;
   headline: string | null;
@@ -82,9 +100,19 @@ export const pipelineApi = {
     const res = await apiClient.get<PipelineBoard>(`/recruiter/jobs/${jobId}/pipeline`);
     return res.data;
   },
-  transition: async (applicationId: string, toStatus: ApplicationStatus): Promise<Application> => {
+  /** `closeReason`/`closeNote` are the optional structured feedback from the
+   * rejection modal, recorded on the transition's audit entry. Both omitted
+   * when the recruiter skips — the server treats absence as "no reason
+   * given", never as an error. */
+  transition: async (
+    applicationId: string,
+    toStatus: ApplicationStatus,
+    feedback?: { closeReason?: CloseReason; closeNote?: string },
+  ): Promise<Application> => {
     const res = await apiClient.post<Application>(`/recruiter/applications/${applicationId}/transition`, {
       to_status: toStatus,
+      ...(feedback?.closeReason ? { close_reason: feedback.closeReason } : {}),
+      ...(feedback?.closeNote ? { close_note: feedback.closeNote } : {}),
     });
     return res.data;
   },

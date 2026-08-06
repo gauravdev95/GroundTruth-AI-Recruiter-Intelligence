@@ -1,7 +1,7 @@
 """Integration tests for recruiter job postings — company activation, the
 job state machine, and authorization. The LLM extractor is stubbed (same
 pattern as `test_resume_import.py::stub_extractor`); this is not a test of
-Anthropic, it's a test of the state machine and the confirmation gate.
+Gemini, it's a test of the state machine and the confirmation gate.
 """
 
 from __future__ import annotations
@@ -84,7 +84,7 @@ def stub_extractor(monkeypatch):
 
 
 def _recruiter(db_session: Session, email: str = "hiring@acme.com") -> tuple[str, RecruiterProfile]:
-    user, otp, _ = auth_service.register_recruiter(
+    user = auth_service.register_recruiter(
         db_session,
         RecruiterRegisterRequest(
             full_name="Grace Hopper",
@@ -96,7 +96,6 @@ def _recruiter(db_session: Session, email: str = "hiring@acme.com") -> tuple[str
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     token = create_access_token(user_id=user.id, role=user.role.value)
     profile = db_session.execute(
         select(RecruiterProfile).where(RecruiterProfile.user_id == user.id)
@@ -105,7 +104,7 @@ def _recruiter(db_session: Session, email: str = "hiring@acme.com") -> tuple[str
 
 
 def _candidate(db_session: Session, email: str = "student@example.com") -> str:
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace",
@@ -117,7 +116,6 @@ def _candidate(db_session: Session, email: str = "student@example.com") -> str:
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     return create_access_token(user_id=user.id, role=user.role.value)
 
 

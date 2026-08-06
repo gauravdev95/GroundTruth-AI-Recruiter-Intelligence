@@ -71,10 +71,13 @@ class Embedding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 
 class MatchResult(UUIDPrimaryKeyMixin, Base):
-    """One row per `(job_posting, candidate)` pair that cleared
-    `MATCH_THRESHOLD` (`domains/matching/scoring.py`) — rows that don't clear
-    it are simply absent, which is what "below-threshold results go to
-    neither side" means as a query rather than a filter applied at read time.
+    """One row per `(job_posting, candidate)` pair that cleared the match
+    threshold (`domains/matching/scoring.py::get_match_threshold`, env
+    `MATCH_THRESHOLD`) — rows that don't clear it are simply absent, which is
+    what "below-threshold results go to neither side" means as a query rather
+    than a filter applied at read time. Because the threshold is configurable,
+    a row's presence reflects the threshold in force at its last recompute,
+    not necessarily the current one.
 
     Recomputed one side of the pair at a time (every candidate for a job on
     publish; every published job for a candidate on re-verification) — see

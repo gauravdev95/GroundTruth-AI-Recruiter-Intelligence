@@ -14,7 +14,6 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 
 from src.domains.auth.models import UserRole
 
-_PHONE_RE = re.compile(r"^\+?[1-9]\d{7,14}$")
 _UPPER_RE = re.compile(r"[A-Z]")
 _LOWER_RE = re.compile(r"[a-z]")
 _DIGIT_RE = re.compile(r"\d")
@@ -40,44 +39,58 @@ def _normalize_email(email: str) -> str:
 
 
 class CandidateRegisterRequest(BaseModel):
-    full_name: str = Field(min_length=2, max_length=200)
+    """Student signup. Email and password, and nothing else.
+
+    WHY THIS IS TWO FIELDS AND THE RECRUITER FORM IS SIX
+
+    Every field on a signup form is a place to abandon it, and a student
+    arriving from the landing page has not yet been shown anything worth
+    six fields of effort. Name, phone and the profile itself are collected
+    *inside* onboarding, where the student can already see what they are
+    building and each question has visible context.
+
+    A recruiter registering a company is a different transaction — a
+    company name and a work email are load-bearing there — so
+    `RecruiterRegisterRequest` deliberately keeps its fields.
+
+    WHAT MOVED, AND WHERE IT WENT
+
+    * `full_name`  -> `BasicInfoRequest`, the first onboarding section.
+      `User.full_name` is nullable until then, and `User.display_name`
+      supplies a neutral fallback for anything (email greetings) that
+      needs a name before the student has given one.
+    * `phone_number` -> optional profile data, stored `""` until supplied.
+      This is the same representation the Google OAuth signup path has
+      always written, so it is an existing pattern rather than a new one.
+    * `confirm_password` -> a client-side concern. A server that receives
+      two copies of a password learns nothing from comparing them that a
+      form cannot check on the keystroke, and the redesigned form uses a
+      reveal toggle plus live strength feedback instead.
+    * `accept_terms` -> the signup control now carries the consent line
+      ("By continuing you agree to..."), which is sign-in-wrap rather than
+      clickwrap. See the note in `router.py::candidate_register`.
+    """
+
     email: EmailStr
-    phone_number: str
     password: str
-    confirm_password: str
-    captcha_token: str = Field(min_length=1)
-    accept_terms: bool
+
+    #: Optional so the two-field form can post without one, but still
+    #: *verified* whenever a secret key is configured — `verify_captcha`
+    #: bypasses only when `RECAPTCHA_SECRET_KEY` is unset, which is the dev
+    #: case. In production with a key set, an empty token fails closed, so
+    #: removing the field from the form without wiring the widget breaks
+    #: signup loudly rather than silently disabling bot protection.
+    captcha_token: str = ""
 
     @field_validator("email")
     @classmethod
     def normalize_email(cls, v: str) -> str:
         return _normalize_email(v)
 
-    @field_validator("full_name")
-    @classmethod
-    def strip_name(cls, v: str) -> str:
-        return v.strip()
-
-    @field_validator("phone_number")
-    @classmethod
-    def validate_phone(cls, v: str) -> str:
-        cleaned = v.strip().replace(" ", "").replace("-", "")
-        if not _PHONE_RE.match(cleaned):
-            raise ValueError("Enter a valid phone number (8-15 digits, optional leading +)")
-        return cleaned
-
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
         return _validate_password_strength(v)
-
-    @model_validator(mode="after")
-    def validate_confirm_password(self) -> "CandidateRegisterRequest":
-        if self.password != self.confirm_password:
-            raise ValueError("Passwords do not match")
-        if not self.accept_terms:
-            raise ValueError("You must accept the Terms & Conditions")
-        return self
 
 
 class RecruiterRegisterRequest(BaseModel):
@@ -113,12 +126,6 @@ class RecruiterRegisterRequest(BaseModel):
         return self
 
 
-class RegisterResponse(BaseModel):
-    message: str
-    email: str
-    otp_expires_in_seconds: int
-
-
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
@@ -142,9 +149,11 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
-    full_name: str
+    # NULL for a student between signup and their first section save — see
+    # `User.full_name`. The client renders `email` in the header until then
+    # rather than inventing a name from the address.
+    full_name: str | None
     role: UserRole
-    is_email_verified: bool
 
     model_config = {"from_attributes": True}
 
@@ -154,25 +163,6 @@ class AccessTokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: UserResponse
-
-
-class VerifyEmailConfirmRequest(BaseModel):
-    email: EmailStr
-    otp: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
-
-    @field_validator("email")
-    @classmethod
-    def normalize_email(cls, v: str) -> str:
-        return _normalize_email(v)
-
-
-class VerifyEmailResendRequest(BaseModel):
-    email: EmailStr
-
-    @field_validator("email")
-    @classmethod
-    def normalize_email(cls, v: str) -> str:
-        return _normalize_email(v)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -203,8 +193,3 @@ class ResetPasswordRequest(BaseModel):
 
 class GenericMessageResponse(BaseModel):
     message: str
-
-
-class OtpExpiryResponse(BaseModel):
-    message: str
-    otp_expires_in_seconds: int

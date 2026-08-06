@@ -16,17 +16,28 @@ interface SetupStepperProps {
 }
 
 /**
- * The five-circle progress header.
+ * The flow overview shown on the two entry screens — the resume-or-manual fork
+ * and the resume upload page.
+ *
+ * **This is not the same component as `SetupProgressBar`, and the difference
+ * is which number each one shows.** The stage pages show *position in the
+ * flow*, a client-known constant per stage. This one shows the server's
+ * `profile_strength`, which is what a returning student actually wants on an
+ * overview: how complete their profile is, not how far along a form they are.
+ *
+ * Because both can appear within a click of each other, the pill here names
+ * its number explicitly ("35% profile strength"). An unlabelled percentage
+ * beside a differently-computed unlabelled percentage is two numbers the
+ * student has no way to tell apart.
  *
  * A separate component from `ProfileStepper` rather than a variant of it: that
  * one is a vertical sidebar list of buttons inside the builder, this is a
- * horizontal card that collapses to a "Step N of 5" strip on mobile. Sharing
+ * horizontal card that collapses to a "Step N of 8" strip on mobile. Sharing
  * one component would mean two layouts behind a flag and neither read clearly.
  *
- * Every number here is a server value. `completionPercentage` in particular is
- * `profile_strength` recomputed on the backend after each save — the client
- * never derives it from the step statuses, which would let a UI bug quietly
- * disagree with what recruiters actually filter on.
+ * The count comes from `steps.length`, never a literal — the server owns how
+ * many steps there are, and a hardcoded number here would be the thing that
+ * stayed behind when the flow grew from seven steps to eight.
  */
 export function SetupStepper({
   steps,
@@ -44,11 +55,11 @@ export function SetupStepper({
       <div className="mb-5 flex items-start justify-between gap-3">
         <h2 className="font-display text-sm font-semibold text-slate-900">Your progress</h2>
         <span className="shrink-0 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
-          {completionPercentage}% Complete
+          {completionPercentage}% profile strength
         </span>
       </div>
 
-      {/* Mobile: the five-across layout cannot survive a 360px viewport without
+      {/* Mobile: an eight-across layout cannot survive a 360px viewport without
           truncating every label to uselessness, so it collapses to the one
           fact that matters — which step you are on and what it is called. */}
       <div className="md:hidden">
@@ -63,7 +74,7 @@ export function SetupStepper({
           aria-valuenow={completionPercentage}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label="Profile completion"
+          aria-label="Profile strength"
         >
           <div
             className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 transition-[width] duration-500"
@@ -174,7 +185,7 @@ export function SetupStepperSkeleton() {
         <Skeleton className="h-6 w-28 rounded-full" />
       </div>
       <div className="flex items-start justify-between gap-2">
-        {[0, 1, 2, 3, 4].map((index) => (
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((index) => (
           <div key={index} className="flex flex-1 flex-col items-center gap-2">
             <Skeleton className="size-10 rounded-full" />
             <Skeleton className="h-3 w-16" />

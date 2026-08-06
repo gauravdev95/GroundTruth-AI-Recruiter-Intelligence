@@ -1,18 +1,27 @@
-"""Idempotent demo-data seed: candidates at varied verification levels,
-published jobs with confirmed requirements, a populated pipeline at every
-stage, and sample messages/notes.
+"""Idempotent demo-data seed, in two independent cohorts.
 
-Idempotent by construction: the first thing this does is look for the
-lead seed candidate's account. If it exists, this has already run against
-this database and the script exits immediately rather than duplicating
-anything. There is no partial-reseed path — delete the seed rows (or the
-whole database) and rerun if you want a fresh set.
+**Cohort 1 — verification states** (this module). Candidates at varied
+verification levels, published jobs with confirmed requirements, a populated
+pipeline at every stage, and sample messages/notes. Exercises the *states*:
+a rejected claim, a pending repo, a half-finished profile.
+
+**Cohort 2 — the scripted demo** (`seed_demo.py`). One recruiter, ten
+students, one open role, sized so the end-to-end hiring flow has a real
+spread of candidates to run against.
+
+Idempotent by construction, and the two cohorts are guarded **separately**:
+each looks for its own marker account and skips only itself. A database that
+already has cohort 1 still gets cohort 2 on the next run, which is what makes
+adding a cohort to an existing dev database possible at all. There is no
+partial-reseed path *within* a cohort — delete its rows (or the whole
+database) and rerun if you want a fresh set.
 
 Deliberately network-free: verification status/scores and embeddings are
 written directly rather than dispatched through Celery/real third-party
-APIs/a real embedding provider, so this runs the same way with or without
-a worker, Redis, or an OpenAI key — a seed script has no business being
-flaky because a third party is down.
+APIs/a real embedding model, so this runs the same way with or without a
+worker, Redis, or a downloaded model cache — a seed script has no business
+being flaky because a third party is down, and no business spending 440 MB
+of hub download on vectors it only needs to be self-consistent.
 
 Run: `make seed` (from the repo root) or `uv run python -m scripts.seed`
 (from `apps/backend`).
@@ -22,6 +31,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import os
 import re
 import sys
 import uuid
@@ -30,13 +40,21 @@ from datetime import date, datetime, timedelta, timezone
 import structlog
 from sqlalchemy import select
 
+# A zero-import leaf module, so this is safe above the deliberate
+# patch-before-import dance in `main()` — it caches no client and pulls in no
+# provider SDK.
+from src.domains.ai.embedding_constants import EMBEDDING_DIMENSIONS
+
 logger = structlog.get_logger(__name__)
 
 SEED_MARKER_EMAIL = "ada.lovelace@seed.groundtruth.dev"
 SEED_PASSWORD = "SeedPass1!"
 ACME_RECRUITER_EMAIL = "grace.hopper@seed.groundtruth.dev"
 INITECH_RECRUITER_EMAIL = "peter.gibbons@seed.groundtruth.dev"
-EMBEDDING_DIM = 1536
+# Tracks the real embedding width rather than restating it: the seeded
+# vectors go into the same `vector(N)` column real ones do, so a model
+# change that moves N must move these too or every seed insert fails.
+EMBEDDING_DIM = EMBEDDING_DIMENSIONS
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
@@ -228,7 +246,32 @@ def main() -> None:
         def embed(self, text: str) -> list[float]:
             return _deterministic_vector(text)
 
-    llm_module.get_embedder = lambda: _DeterministicEmbedder()  # type: ignore[assignment]
+    # The embedder is the one production component this seed can legitimately
+    # swap, and the default changed on 2026-08-06 from the deterministic
+    # stand-in to the real local model. Why:
+    #
+    # The stand-in is a hashing trick over tokens, so its "similarity" is
+    # proportional token overlap. Between a 90-word candidate profile and a
+    # 180-word job description that lands around 0.35-0.40 even when the two
+    # describe the same job — and the semantic term carries 0.40 of the score.
+    # The consequence was a seeded demo where the strongest possible candidate
+    # scored 65 and eight of ten students fell under MATCH_THRESHOLD, which
+    # reads as a broken matcher rather than as a stand-in embedder.
+    #
+    # `local_embedder.py` needs no API key and no network *after* its weights
+    # are cached, so the cost of the new default is a one-time ~440 MB hub
+    # fetch on a cold cache. `SEED_FAKE_EMBEDDINGS=1` restores the old
+    # behaviour for CI and offline boxes, where a fast, dependency-free seed
+    # matters more than a realistic spread.
+    #
+    # Note what is *not* swapped: `matching/scoring.py` runs untouched either
+    # way. The seed may choose how text becomes a vector; it may not choose
+    # how a vector becomes a score.
+    if os.environ.get("SEED_FAKE_EMBEDDINGS") == "1":
+        llm_module.get_embedder = lambda: _DeterministicEmbedder()  # type: ignore[assignment]
+        print("Embedding with the deterministic stand-in (SEED_FAKE_EMBEDDINGS=1).")
+    else:
+        print("Embedding with the local sentence-transformers model (set SEED_FAKE_EMBEDDINGS=1 to skip).")
 
     import src.jobs.dispatch as dispatch_module
 
@@ -237,15 +280,49 @@ def main() -> None:
     from src.db.database import SessionLocal
     from src.db import register_models  # noqa: F401 — ensures every model is mapper-configured
 
+    # Imported here, not at module scope: both modules touch app code at
+    # import time, and importing them above would bind the *real* embedder
+    # before the patch above replaces it — turning a network-free seed into a
+    # 440 MB model download.
+    from scripts import seed_demo
+
+    # Which cohorts to seed. Both by default; `SEED_COHORT=demo` or
+    # `SEED_COHORT=states` for one.
+    #
+    # This exists because the cohorts share a candidate pool and therefore
+    # show up in each other's results. Cohort 1's Ada Lovelace scores 50.5
+    # against the demo job — a genuine match by every rule the matcher
+    # applies, and a confusing ninth card on a board the demo script says has
+    # eight. `SEED_COHORT=demo` is the switch for a clean scripted run;
+    # leaving it unset is the honest default, because on a real platform
+    # other people's candidates *do* match your job.
+    cohort = os.environ.get("SEED_COHORT", "all").lower()
+    if cohort not in {"all", "demo", "states"}:
+        print(f"Unknown SEED_COHORT={cohort!r} — expected all, demo, or states.")
+        sys.exit(1)
+
     with SessionLocal() as db:
         from src.domains.auth.models import User
 
-        already_seeded = db.execute(select(User).where(User.email == SEED_MARKER_EMAIL)).scalar_one_or_none()
-        if already_seeded is not None:
-            print(f"Already seeded (found {SEED_MARKER_EMAIL}) — nothing to do.")
-            return
+        if cohort in {"all", "states"}:
+            already_seeded = db.execute(
+                select(User).where(User.email == SEED_MARKER_EMAIL)
+            ).scalar_one_or_none()
+            if already_seeded is not None:
+                print(f"Cohort 1 already seeded (found {SEED_MARKER_EMAIL}) — skipping.")
+            else:
+                _seed(db)
 
-        _seed(db)
+        # Guarded independently — see the module docstring. A database holding
+        # only cohort 1 still gets cohort 2 here.
+        if cohort in {"all", "demo"}:
+            if seed_demo.already_seeded(db):
+                print(f"Cohort 2 already seeded (found {seed_demo.DEMO_MARKER_EMAIL}) — skipping.")
+            else:
+                print("\n--- Demo cohort ---")
+                seed_demo.seed_demo(db)
+
+    print("\nSeed complete.")
 
 
 def _utcnow() -> datetime:
@@ -258,6 +335,7 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
     from src.domains.auth.schemas import CandidateRegisterRequest, RecruiterRegisterRequest
     from src.domains.matching import embeddings as embeddings_module
     from src.domains.matching import service as matching_service
+    from src.domains.matching.scoring import get_match_threshold
     from src.domains.matching.models import EmbeddableEntityType
     from src.domains.pipeline import messaging as messaging_module
     from src.domains.pipeline import notes as notes_module
@@ -278,21 +356,26 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
         ProjectKind,
         VerificationStatus,
     )
-    from src.domains.interview.models import Interview, InterviewStatus
+    from src.domains.interview.models import (
+        Interview,
+        InterviewGrounding,
+        InterviewStatus,
+        get_current_rubric_version,
+        get_rubric_weights,
+    )
 
     # -----------------------------------------------------------------
     # Recruiters / companies
     # -----------------------------------------------------------------
 
     def register_recruiter(full_name: str, company: str, email: str) -> tuple[RecruiterProfile, str]:
-        user, otp, _ = auth_service.register_recruiter(
+        user = auth_service.register_recruiter(
             db,
             RecruiterRegisterRequest(
                 full_name=full_name, company_name=company, company_email=email,
                 password=SEED_PASSWORD, confirm_password=SEED_PASSWORD, captcha_token="test", accept_terms=True,
             ),
         )
-        auth_service.confirm_email_otp(db, user.email, otp)
         profile = db.execute(select(RecruiterProfile).where(RecruiterProfile.user_id == user.id)).scalar_one()
         return profile, email
 
@@ -326,22 +409,24 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
     # -----------------------------------------------------------------
 
     def register_candidate(full_name: str, email: str) -> CandidateProfile:
-        user, otp, _ = auth_service.register_candidate(
+        user = auth_service.register_candidate(
             db,
-            CandidateRegisterRequest(
-                full_name=full_name, email=email, phone_number="+14155552671",
-                password=SEED_PASSWORD, confirm_password=SEED_PASSWORD, captcha_token="test", accept_terms=True,
-            ),
+            # Signup is email + password only; the name arrives with the
+            # first section save below, exactly as it does for a real student.
+            CandidateRegisterRequest(email=email, password=SEED_PASSWORD, captcha_token="test"),
         )
-        auth_service.confirm_email_otp(db, user.email, otp)
         return db.execute(select(CandidateProfile).where(CandidateProfile.user_id == user.id)).scalar_one()
 
-    def fill_basic(profile: CandidateProfile, *, headline: str, college: str, grad_year: int, location: str) -> None:
+    def fill_basic(
+        profile: CandidateProfile, *, full_name: str, headline: str, college: str,
+        grad_year: int, location: str,
+    ) -> None:
         student_service.replace_basic_info(
             db, profile,
             student_schemas.BasicInfoRequest(
+                full_name=full_name, phone_number="+14155552671",
                 headline=headline, college=college, degree="btech", branch="cse",
-                graduation_year=grad_year, location=location, target_role="backend",
+                graduation_year=grad_year, location=location, target_roles=["backend"],
             ),
         )
 
@@ -420,6 +505,18 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
         return cert
 
     def add_completed_interview(profile: CandidateProfile, project: Project, *, total_score: float) -> Interview:
+        # Seeded under the *current* rubric, read from config rather than
+        # hardcoded — hardcoding a weight table here is how the seed silently
+        # drifts from the scorer, producing demo reports whose dimensions the
+        # UI has no label for.
+        rubric = get_rubric_weights()
+        rationales = {
+            "technical_accuracy": "Accurate and specific.",
+            "code_understanding": "Matches the stored analysis.",
+            "problem_solving": "Reasoned about tradeoffs, not just mechanics.",
+            "repository_knowledge": "Grounded in the real repo.",
+            "communication": "Clear and well-structured.",
+        }
         questions = [
             {
                 "sequence": i,
@@ -429,10 +526,13 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
                 "time_taken_seconds": 90,
                 "exceeded_time_limit": False,
                 "scores": [
-                    {"dimension": "technical_accuracy", "weight": 0.40, "score": total_score, "rationale": "Accurate and specific."},
-                    {"dimension": "depth_of_reasoning", "weight": 0.25, "score": total_score - 5, "rationale": "Reasonable depth."},
-                    {"dimension": "codebase_specificity", "weight": 0.20, "score": total_score, "rationale": "Grounded in the real repo."},
-                    {"dimension": "repository_consistency", "weight": 0.15, "score": total_score, "rationale": "Consistent with stored analysis."},
+                    {
+                        "dimension": dimension,
+                        "weight": weight,
+                        "score": total_score,
+                        "rationale": rationales.get(dimension, "Scored against the rubric."),
+                    }
+                    for dimension, weight in rubric.items()
                 ],
                 "weighted_score": total_score,
             }
@@ -441,6 +541,8 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
         interview = Interview(
             candidate_profile_id=profile.id,
             project_id=project.id,
+            grounding=InterviewGrounding.REPOSITORY,
+            rubric_version=get_current_rubric_version(),
             status=InterviewStatus.COMPLETED,
             question_count=len(questions),
             total_score=total_score,
@@ -450,10 +552,7 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
                 "interview_id": str(uuid.uuid4()),
                 "project_id": str(project.id),
                 "total_score": total_score,
-                "rubric_weights": {
-                    "technical_accuracy": 0.40, "depth_of_reasoning": 0.25,
-                    "codebase_specificity": 0.20, "repository_consistency": 0.15,
-                },
+                "rubric_weights": dict(rubric),
                 "questions": questions,
                 "completed_at": _utcnow().isoformat(),
             },
@@ -465,7 +564,7 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
     # Ada — fully verified: verified GitHub, two verified repos with strong
     # contribution, a completed interview, a verified certificate.
     ada = register_candidate("Ada Lovelace", SEED_MARKER_EMAIL)
-    fill_basic(ada, headline="Backend engineer intern candidate — Python APIs, FastAPI, Postgres", college="IIT Bombay", grad_year=date.today().year, location="Bangalore, India")
+    fill_basic(ada, full_name="Ada Lovelace", headline="Backend engineer intern candidate — Python APIs, FastAPI, Postgres", college="IIT Bombay", grad_year=date.today().year, location="Bangalore, India")
     fill_technical(ada, github_username="ada-seed", leetcode_handle="ada_lc")
     set_github_status(ada, status=VerificationStatus.VERIFIED, score=95.0)
     ada_project = add_project(
@@ -485,7 +584,7 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
     # Grace — partially verified: verified GitHub, one repo still pending,
     # profile complete and discoverable.
     grace = register_candidate("Grace Kim", "grace.kim@seed.groundtruth.dev")
-    fill_basic(grace, headline="Frontend engineer, React specialist", college="BITS Pilani", grad_year=date.today().year, location="Bangalore, India")
+    fill_basic(grace, full_name="Grace Kim", headline="Frontend engineer, React specialist", college="BITS Pilani", grad_year=date.today().year, location="Bangalore, India")
     fill_technical(grace, github_username="grace-seed", leetcode_handle="grace_lc")
     set_github_status(grace, status=VerificationStatus.VERIFIED, score=80.0)
     add_project(
@@ -498,7 +597,7 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
     # Alan — a claim that failed verification: profile complete, but the
     # one listed repo was checked and rejected (near-empty fork).
     alan = register_candidate("Alan Turing", "alan.turing@seed.groundtruth.dev")
-    fill_basic(alan, headline="Backend engineer intern candidate — Python APIs and ML infrastructure", college="IIT Delhi", grad_year=date.today().year, location="Bangalore, India")
+    fill_basic(alan, full_name="Alan Turing", headline="Backend engineer intern candidate — Python APIs and ML infrastructure", college="IIT Delhi", grad_year=date.today().year, location="Bangalore, India")
     fill_technical(alan, github_username="alan-seed", leetcode_handle="alan_lc")
     set_github_status(alan, status=VerificationStatus.VERIFIED, score=60.0)
     add_project(
@@ -511,11 +610,11 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
     # Marie — freshly registered: only the mandatory basic section filled,
     # not yet discoverable, nothing verified.
     marie = register_candidate("Marie Curie", "marie.curie@seed.groundtruth.dev")
-    fill_basic(marie, headline="Aspiring data scientist", college="Delhi University", grad_year=date.today().year + 1, location="Delhi, India")
+    fill_basic(marie, full_name="Marie Curie", headline="Aspiring data scientist", college="Delhi University", grad_year=date.today().year + 1, location="Delhi, India")
 
     # Margaret — fully verified, headed for a "hired" outcome in the pipeline below.
     margaret = register_candidate("Margaret Hamilton", "margaret.hamilton@seed.groundtruth.dev")
-    fill_basic(margaret, headline="Backend engineer intern candidate — Python APIs, reliability-minded", college="NIT Trichy", grad_year=date.today().year, location="Bangalore, India")
+    fill_basic(margaret, full_name="Margaret Hamilton", headline="Backend engineer intern candidate — Python APIs, reliability-minded", college="NIT Trichy", grad_year=date.today().year, location="Bangalore, India")
     fill_technical(margaret, github_username="margaret-seed", leetcode_handle="margaret_lc")
     set_github_status(margaret, status=VerificationStatus.VERIFIED, score=90.0)
     margaret_project = add_project(
@@ -554,6 +653,18 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
     # -----------------------------------------------------------------
 
     def smart_apply(profile: CandidateProfile, job) -> object | None:
+        """Apply through the real Smart Apply path, which requires a live match.
+
+        Warns loudly when there is no match rather than returning None in
+        silence. `apply_to_job` needs a `MatchResult`, so a scoring or
+        threshold change that drops a seeded pair below the cut used to empty
+        the demo's Kanban board with no diagnostic at all — the board simply
+        rendered empty and the cause was three modules away.
+
+        Still returns None rather than raising: a partially-populated demo is
+        more useful than a seed script that refuses to finish, and the warning
+        names exactly which pair to look at.
+        """
         match = db.execute(
             select(matching_service.MatchResult).where(
                 matching_service.MatchResult.job_posting_id == job.id,
@@ -561,6 +672,11 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
             )
         ).scalar_one_or_none()
         if match is None:
+            print(
+                f"  !! no match for {profile.headline or profile.id} x {job.title} — "
+                f"below MATCH_THRESHOLD ({get_match_threshold()}), so no application was created. "
+                "The demo pipeline will be missing this candidate."
+            )
             return None
         return pipeline_service.apply_to_job(db, profile, job.id, cover_note="Excited to contribute — seeded demo application.")
 
@@ -595,7 +711,29 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
 
     db.commit()
     print("Pipeline populated: applied, shortlisted, interview-scheduled, hired, and rejected applications, with sample messages and a private note.")
-    print("\nSeed complete.")
+
+
+def _publish_jobs(db, recruiters_by_key: dict) -> dict:  # noqa: ANN001 — Session
+    """Every row of `JOB_SPECS`, walked through the real publish state
+    machine, keyed by title for the pipeline section below.
+
+    Titles are unique across `JOB_SPECS` and are what the caller reaches for
+    ("Backend Engineer Intern"), so they key the result rather than ids.
+    """
+    from scripts import seed_helpers as helpers
+
+    jobs_by_title = {}
+    for spec in JOB_SPECS:
+        job = helpers.publish_job(db, recruiters_by_key[spec["company"]], spec)
+        jobs_by_title[job.title] = job
+    print(f"Jobs: {len(jobs_by_title)} published across Acme Corp and Initech.")
+    return jobs_by_title
+
+
+def _recompute_all_matching(db) -> None:  # noqa: ANN001 — Session
+    from scripts import seed_helpers as helpers
+
+    helpers.recompute_all_matching(db)
 
 
 if __name__ == "__main__":

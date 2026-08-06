@@ -62,25 +62,25 @@ describe("ProfileSetupPage", () => {
 
     // No percentage at all — not "0%", which a returning student would read as
     // having lost their progress.
-    expect(screen.queryByText(/% Complete/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/% profile strength/)).not.toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
 
     resolve(makeSetupState({ completion_percentage: 35, current_step_index: 1 }));
-    expect(await screen.findByText("35% Complete")).toBeInTheDocument();
+    expect(await screen.findByText("35% profile strength")).toBeInTheDocument();
   });
 
   it("renders the active step from setup-state", async () => {
-    getState.mockResolvedValue(makeSetupState({ completion_percentage: 35, current_step_index: 1 }));
+    getState.mockResolvedValue(makeSetupState({ completion_percentage: 35, current_step_index: 2 }));
 
     renderPage();
 
-    expect(await screen.findByText("35% Complete")).toBeInTheDocument();
+    expect(await screen.findByText("35% profile strength")).toBeInTheDocument();
     // Scoped to the stepper's own list: the compact mobile indicator names the
     // active step too (jsdom renders both; only CSS hides one), and the option
     // cards contribute their own <ul>s to the page.
     const stepper = within(screen.getByRole("region", { name: "Profile setup progress" }));
     const active = within(stepper.getByRole("list"))
-      .getByText("Technical Profiles")
+      .getByText("Connect GitHub")
       .closest("[aria-current]");
     expect(active).toHaveAttribute("aria-current", "step");
   });
@@ -91,7 +91,7 @@ describe("ProfileSetupPage", () => {
     // Awaits a *data-gated* element first. The heading block renders
     // unconditionally, so waiting on it would proceed while the cards were
     // still skeletons.
-    expect(await screen.findByText("0% Complete")).toBeInTheDocument();
+    expect(await screen.findByText("0% profile strength")).toBeInTheDocument();
     expect(screen.getByText("Complete Your AI Verified Profile")).toBeInTheDocument();
     expect(
       screen.getByText(

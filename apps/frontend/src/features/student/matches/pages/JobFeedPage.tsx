@@ -1,9 +1,8 @@
 import { Briefcase, CheckCircle2, MapPin, XCircle } from "lucide-react";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { Badge, Button, EmptyState, ErrorState, MatchTimestamps, Skeleton } from "@/components";
-import { SmartApplyModal } from "@/features/student/applications/components/SmartApplyModal";
+import { Badge, EmptyState, ErrorState, MatchTimestamps, Skeleton } from "@/components";
+import { SmartApplyButton } from "@/features/student/applications/components/SmartApplyButton";
 import { useMyApplications } from "@/features/student/applications/hooks/useApplications";
 
 import type { MatchedJob, SkillMatchReason } from "../api/matchesApi";
@@ -29,8 +28,6 @@ function SkillReasonChip({ reason }: { reason: SkillMatchReason }) {
 }
 
 function JobCard({ match, alreadyApplied }: { match: MatchedJob; alreadyApplied: boolean }) {
-  const [applyOpen, setApplyOpen] = useState(false);
-
   return (
     <li className="rounded-2xl border border-rule bg-white p-5">
       <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
@@ -65,25 +62,25 @@ function JobCard({ match, alreadyApplied }: { match: MatchedJob; alreadyApplied:
         </div>
       ) : null}
 
-      <div className="flex justify-end">
-        {alreadyApplied ? (
-          <Badge variant="success">Applied</Badge>
-        ) : (
-          <Button type="button" size="sm" onClick={() => setApplyOpen(true)}>
-            Smart Apply
-          </Button>
-        )}
-      </div>
+      <p className="mb-3 text-xs leading-relaxed text-slate-500">{match.reasoning}</p>
 
-      <SmartApplyModal
-        open={applyOpen}
-        onClose={() => setApplyOpen(false)}
-        jobId={match.job.job_id}
-        jobTitle={match.job.title}
-        matchedSkills={match.matched_required_skills
-          .filter((r) => r.candidate_has_skill)
-          .map((r) => ({ label: r.skill_name }))}
-      />
+      <div className="flex items-center justify-end gap-2">
+        <Link
+          to={`/student/jobs/${match.job.job_id}`}
+          className="rounded-xl border border-rule px-3.5 py-2 text-[13px] font-semibold text-ink transition hover:bg-slate-50"
+        >
+          View details
+        </Link>
+        {/* No `emphasis` here even for a Tier B row: several of these sit in
+            one column, and a column of pulsing buttons is noise. The Tier B
+            interrupt lives on the dashboard card, once. */}
+        <SmartApplyButton
+          jobId={match.job.job_id}
+          jobTitle={match.job.title}
+          companyName={match.job.company_name}
+          hasApplied={alreadyApplied}
+        />
+      </div>
     </li>
   );
 }

@@ -1,70 +1,62 @@
-import { Access } from "./components/Access";
-import { Assessment } from "./components/Assessment";
-import { Audience } from "./components/Audience";
 import { Difference } from "./components/Difference";
-import { Failure } from "./components/Failure";
+import { Faq } from "./components/Faq";
+import { FinalCta } from "./components/FinalCta";
 import { Footer } from "./components/Footer";
-import { Matching } from "./components/Matching";
-import { Origin } from "./components/Origin";
-import { Questions } from "./components/Questions";
-import { Sources } from "./components/Sources";
-import { Start } from "./components/Start";
-import { System } from "./components/System";
-import { Verification } from "./components/Verification";
+import { ForEngineers } from "./components/ForEngineers";
+import { ForRecruiters } from "./components/ForRecruiters";
+import { HowItWorks } from "./components/HowItWorks";
+import { Preview } from "./components/Preview";
+import { Pricing } from "./components/Pricing";
+import { Problem } from "./components/Problem";
+import { Proof } from "./components/Proof";
+import { Team } from "./components/Team";
+import { Trust } from "./components/Trust";
+import { ToneShift } from "./components/ui/ToneShift";
 
 /**
- * Everything below the fold, in one lazily-imported chunk.
+ * Everything under the hero, in one lazily-loaded chunk.
  *
- * Twelve sections after the hero, and rendering all of them in the first commit
- * was the largest single contributor to Total Blocking Time — the cost is not
- * downloading them, it is constructing and laying them out inside the window
- * that decides LCP. None of it is on screen while that happens.
- *
- * Splitting here rather than per section is deliberate: twelve lazy boundaries
- * would mean twelve requests and twelve Suspense fallbacks to keep from
- * shifting layout, for chunks of a few kilobytes each. One boundary, loaded
- * immediately after the hero has painted, gets the whole benefit.
- *
- * Inserting this content cannot affect CLS: all of it lands below the viewport,
- * and layout shift is only counted for content the reader can see move.
- *
- * SECTION ORDER IS AN ARGUMENT, NOT A LIST
- *
- * Each section does one job, and no two do the same one — a page fails from
- * repetition, not from length. Three mechanism sections is the cap, and §03,
- * §04 and §05 are all three of them:
- *
- *   §01 failure      the problem
- *   §02 audience     the routing decision, before any mechanism
- *   §03 verification mechanism 1 — the pipeline and its artefact
- *   §04 assessment   mechanism 2 — the interview and its rubric
- *   §05 matching     mechanism 3 — one computation, both directions
- *   §06 difference   the payoff, stated plainly
- *   §07 access       the risk the page has been accumulating, answered
- *   §08 sources      provenance
- *   §09 questions    the remaining objections
- *   §10 system       the stack, checkable against this repository
- *   §11 origin       the reason, standing in for social proof
- *   §12 start        both audiences, one last time
+ * The page's rhythm is the alternation of `void` and `paper` sections, and it
+ * is the reason nothing here needs a divider between sections. Reordering these
+ * therefore is not free — two adjacent sections of the same tone read as one
+ * very long section, which is the failure this arrangement exists to avoid.
+ * `Preview` is the single gradient break, placed to land near the middle.
  */
 export default function BelowFold() {
   return (
-    <>
-      <main id="main">
-        <Failure />
-        <Audience />
-        <Verification />
-        <Assessment />
-        <Matching />
-        <Difference />
-        <Access />
-        <Sources />
-        <Questions />
-        <System />
-        <Origin />
-        <Start />
-      </main>
+    <main id="main">
+      <Proof />
+      {/* First soft crossing: out of the hero's black world into the argument. */}
+      <ToneShift direction="toLight" />
+      <Problem />
+      <HowItWorks />
+      <ForEngineers />
+      {/*
+        Second soft crossing, and the other place it is earned — the two
+        audience sections are the longest opposite-tone blocks on the page and
+        sit back to back, so the cut between them was the most abrupt edge in
+        the whole scroll. Every other boundary stays hard on purpose.
+      */}
+      <ToneShift direction="toDark" />
+      <ForRecruiters />
+      <Difference />
+      <Preview />
+      <Trust />
+
+      {/* TODO: Add testimonials section once real customers are live */}
+
+      <Pricing />
+      <Faq />
+      {/*
+        The one place two `paper` sections sit together, which is why `Team`
+        carries a top hairline that no other section needs. Making it `void`
+        instead would have put it against the equally dark final CTA, and two
+        black sections in a row is the failure this alternation exists to
+        prevent — a rule between two white ones is the cheaper compromise.
+      */}
+      <Team />
+      <FinalCta />
       <Footer />
-    </>
+    </main>
   );
 }

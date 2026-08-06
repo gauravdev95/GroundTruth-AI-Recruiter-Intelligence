@@ -18,6 +18,10 @@ import { ListReview, type ListItemState } from "./ListReview";
 import { TechnicalReview, type TechnicalFieldsState } from "./TechnicalReview";
 
 const BASIC_FIELDS: BasicFieldName[] = [
+  // Required by the section since signup stopped collecting it. Omitting it
+  // here made every basic-section confirm fail validation against a field the
+  // screen never rendered.
+  "full_name",
   "headline",
   "college",
   "degree",
@@ -27,7 +31,7 @@ const BASIC_FIELDS: BasicFieldName[] = [
   "target_role",
 ];
 
-const PLATFORMS: CodingPlatformType[] = ["leetcode", "codeforces", "hackerrank"];
+const PLATFORMS: CodingPlatformType[] = ["leetcode", "codeforces", "hackerrank", "codechef"];
 
 interface DraftReviewProps {
   detail: ResumeDraftDetail;
@@ -124,15 +128,31 @@ export function DraftReview({ detail, onDone }: DraftReviewProps) {
     // toggled section can't be submitted.
     const anyBasic = BASIC_FIELDS.some((name) => basic[name].included);
     if (anyBasic) {
-      const candidate = Object.fromEntries(
+      const candidate: Record<string, unknown> = Object.fromEntries(
         BASIC_FIELDS.map((name) => [name, basic[name].included ? basic[name].value : ""]),
       );
+      // The section takes one to three roles; this screen collects one.
+      //
+      // A resume states no target role at all — it is forward-looking, and
+      // `resume/confirm.py` reports it as unmapped for exactly that reason — so
+      // every value here is one the student just picked from a dropdown.
+      // Rendering a three-way chip picker to capture a field the parser never
+      // supplies would add a decision to a screen whose whole job is confirming
+      // what was extracted. They set the other two in the profile editor, where
+      // the full control lives.
+      const primaryRole = candidate.target_role;
+      delete candidate.target_role;
+      candidate.target_roles = primaryRole ? [primaryRole] : [];
+
       const parsed = basicInfoSchema.safeParse(candidate);
       if (parsed.success) {
         payload.basic = parsed.data;
       } else {
         for (const issue of parsed.error.issues) {
-          const field = issue.path[0] as BasicFieldName;
+          // `target_roles` is the schema's name for what this screen calls
+          // `target_role`; mapping it back is what puts the error under the
+          // dropdown the student can actually change.
+          const field = (issue.path[0] === "target_roles" ? "target_role" : issue.path[0]) as BasicFieldName;
           if (field) nextBasicErrors[field] = issue.message;
         }
         nextSectionErrors.basic =

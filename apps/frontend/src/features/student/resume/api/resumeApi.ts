@@ -70,7 +70,19 @@ export interface ResumeDraft {
 /** Server-mapped, section-shaped suggestions. Partial by design — `unmapped`
  * lists what the resume could not supply rather than guessing it. */
 export interface DraftSuggestions {
-  basic: Partial<BasicInfoPayload>;
+  /**
+   * `target_role` is singular here and plural in `BasicInfoPayload`, which is
+   * why this is not simply `Partial<BasicInfoPayload>`.
+   *
+   * A resume states one target role or none; the profile schema stores a list
+   * because a student can later pick several. `DraftReview` does that widening
+   * on confirm (`primaryRole ? [primaryRole] : []`) and maps `target_roles`
+   * validation errors back onto the singular field so the message lands under
+   * the input the student is actually looking at. Typing this as the plural
+   * form would have made the component's own read of `target_role` an error —
+   * which is exactly what it was until this was written down.
+   */
+  basic: Partial<Omit<BasicInfoPayload, "target_roles">> & { target_role?: string };
   technical: Partial<TechnicalPayload>;
   projects: ProjectsPayload["projects"];
   certificates: CertificatesPayload["certificates"];

@@ -16,8 +16,9 @@ dependencies = [
     "pyjwt>=2.9.0",
     "python-multipart>=0.0.9",
     "httpx>=0.27.2",
-    "openai>=1.47.0",
-    "anthropic>=0.34.2",
+    # The matching engine's embedding model runs in-process; there is no
+    # hosted embedding provider. Pulls torch + transformers transitively.
+    "sentence-transformers>=3.0.0",
     "slowapi>=0.1.9",
     "structlog>=24.4.0",
     "psycopg[binary]>=3.2.0",
@@ -27,6 +28,9 @@ dependencies = [
     "pypdf>=6.14.2",
     "python-docx>=1.2.0",
     "cryptography>=43.0.0",
+    # The only LLM SDK. Every model-backed capability calls Gemini through
+    # src/domains/ai/providers/; see src/domains/ai/llm.py for why there is
+    # exactly one provider.
     "google-genai>=1.0.0",
 ]
 

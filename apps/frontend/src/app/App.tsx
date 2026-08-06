@@ -9,6 +9,7 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ToastProvider } from "@/components/Toast";
 import { AuthProvider, authRoutes } from "@/features/auth";
 import { LandingPage } from "@/features/landing";
+import { legalRoutes } from "@/features/legal";
 import { recruiterRoutes } from "@/features/recruiter";
 import { studentRoutes } from "@/features/student";
 import { queryClient } from "@/lib/queryClient";
@@ -46,6 +47,7 @@ function App() {
             <Suspense fallback={null}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
+                {legalRoutes}
                 {authRoutes}
                 {studentRoutes}
                 {recruiterRoutes}

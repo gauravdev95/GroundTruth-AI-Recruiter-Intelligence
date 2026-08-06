@@ -3,10 +3,14 @@
 Nothing outside `domains/matching/` calls `domains.ai.llm.get_embedder()`
 directly; everything else goes through `embed_candidate_profile` /
 `embed_job_posting` here. Both build their entity's text blob and delegate
-the actual API call to the AI seam (`domains/ai/llm.py::get_embedder`),
+the actual encoding to the AI seam (`domains/ai/llm.py::get_embedder`),
 which is what "one embedding service... isolated behind one module" means
 in practice — one place decides what text represents a candidate or a job,
-one place calls the provider, one place upserts the `embeddings` row.
+one place calls the model, one place upserts the `embeddings` row.
+
+That the model is now local rather than a hosted API changes nothing in this
+module: `Embedder.embed` has the same signature, the same typed errors, and
+the same fixed output width, which is the point of the seam.
 """
 
 from __future__ import annotations
@@ -24,6 +28,19 @@ from src.domains.recruiter.models import JobPosting
 from src.domains.skills.models import CandidateSkill, Skill
 
 
+def _target_roles(profile: CandidateProfile) -> list[str]:
+    """The student's roles, newest representation first.
+
+    `target_roles` is the source of truth; the scalar `target_role` is its
+    first element and is only consulted for profiles written before the array
+    column existed, which the migration backfilled but which a fixture or a
+    direct insert can still produce.
+    """
+    if profile.target_roles:
+        return list(profile.target_roles)
+    return [profile.target_role.value] if profile.target_role else []
+
+
 def build_candidate_embedding_text(db: Session, profile: CandidateProfile) -> str:
     """Only what the platform has *filled and derived* — never raw resume
     text, never an unconfirmed draft. Mirrors the structure
@@ -32,10 +49,19 @@ def build_candidate_embedding_text(db: Session, profile: CandidateProfile) -> st
     framing, then a flat skills list)."""
     lines = [
         f"Headline: {profile.headline or ''}",
-        f"Target role: {profile.target_role.value if profile.target_role else ''}",
+        # Every role the student selected, not just the primary one. A
+        # candidate who chose backend *and* ML should surface for both kinds of
+        # job, and embedding only `target_role` would silently discard the
+        # second and third choices they made at onboarding. Falls back to the
+        # scalar for profiles saved before the array existed.
+        f"Target roles: {', '.join(_target_roles(profile))}",
         f"Degree: {(profile.degree.value if profile.degree else '')} "
         f"{(profile.branch.value if profile.branch else '')}".strip(),
         f"Location: {profile.location or ''}",
+        # Self-written and unverified, so it is included for *semantic* signal
+        # only — it can move the cosine similarity term but reaches no other
+        # part of the match score, and contributes no evidence or completeness.
+        f"About: {profile.about or ''}",
     ]
 
     skill_rows = db.execute(

@@ -1,9 +1,14 @@
 """Integration tests for the authentication API and service layer.
 
-Registration/verification are set up by calling `service` functions
-directly (the OTP is intentionally never exposed over HTTP), then the
+Accounts are set up by calling `service` functions directly, then the
 actual behavior under test goes through the real HTTP endpoints via
 `TestClient` so cookie/CSRF/status-code behavior is exercised for real.
+
+There is no email-verification step to set up: registration produces an
+account that can log in immediately. `test_a_brand_new_account_can_log_in_
+immediately` and `test_the_verify_email_endpoints_are_gone` are the
+regression tests for that, and they are the reason a future re-addition of
+a verification gate cannot land silently.
 """
 
 from __future__ import annotations
@@ -28,22 +33,15 @@ def _error_body_without_request_id(response) -> dict:
 
 
 def _register_candidate(db_session: Session, email: str = "candidate.flow@example.com"):
+    """A candidate account, ready to log in. Student signup is email and
+    password only — see `CandidateRegisterRequest` for where the other fields
+    went."""
     payload = CandidateRegisterRequest(
-        full_name="Ada Lovelace",
         email=email,
-        phone_number="+14155552671",
         password="StrongPass1!",
-        confirm_password="StrongPass1!",
         captcha_token="test",
-        accept_terms=True,
     )
     return service.register_candidate(db_session, payload)
-
-
-def _register_and_verify_candidate(db_session: Session, email: str = "candidate.flow@example.com"):
-    user, otp, _ = _register_candidate(db_session, email)
-    service.confirm_email_otp(db_session, user.email, otp)
-    return user
 
 
 def _register_recruiter(db_session: Session, email: str = "recruiter.flow@acme.com"):
@@ -60,7 +58,7 @@ def _register_recruiter(db_session: Session, email: str = "recruiter.flow@acme.c
 
 
 def test_candidate_full_auth_flow(client: TestClient, db_session: Session) -> None:
-    _register_and_verify_candidate(db_session)
+    _register_candidate(db_session)
 
     login_resp = client.post(
         "/api/v1/auth/login",
@@ -76,7 +74,6 @@ def test_candidate_full_auth_flow(client: TestClient, db_session: Session) -> No
     body = login_resp.json()
     access_token = body["access_token"]
     assert body["user"]["role"] == "candidate"
-    assert body["user"]["is_email_verified"] is True
     assert "refresh_token" in login_resp.cookies
     assert "csrf_token" in login_resp.cookies
 
@@ -114,11 +111,7 @@ def test_candidate_full_auth_flow(client: TestClient, db_session: Session) -> No
 
 
 def test_recruiter_full_auth_flow(client: TestClient, db_session: Session) -> None:
-    user, otp, _ = _register_recruiter(db_session)
-    verify_resp = client.post(
-        "/api/v1/auth/verify-email/confirm", json={"email": user.email, "otp": otp}
-    )
-    assert verify_resp.status_code == 200
+    user = _register_recruiter(db_session)
 
     login_resp = client.post(
         "/api/v1/auth/login",
@@ -138,7 +131,7 @@ def test_recruiter_full_auth_flow(client: TestClient, db_session: Session) -> No
 
 
 def test_role_mismatch_rejected(client: TestClient, db_session: Session) -> None:
-    _register_and_verify_candidate(db_session, email="wrongportal@example.com")
+    _register_candidate(db_session, email="wrongportal@example.com")
 
     resp = client.post(
         "/api/v1/auth/login",
@@ -160,7 +153,7 @@ def test_login_without_expected_role_succeeds_and_reports_role(
     """The unified `/login` page sends no `expected_role` — the role comes back
     on the session instead, and is what the client redirects on. A candidate
     signing in through it must not be treated as a role mismatch."""
-    _register_and_verify_candidate(db_session, email="roleagnostic@example.com")
+    _register_candidate(db_session, email="roleagnostic@example.com")
 
     resp = client.post(
         "/api/v1/auth/login",
@@ -176,8 +169,15 @@ def test_login_without_expected_role_succeeds_and_reports_role(
     assert resp.json()["user"]["role"] == "candidate"
 
 
-def test_unverified_email_cannot_login(client: TestClient, db_session: Session) -> None:
-    user, _otp, _ = _register_candidate(db_session, email="unverified@example.com")
+def test_a_brand_new_account_can_log_in_immediately(client: TestClient, db_session: Session) -> None:
+    """The inverse of the old `test_unverified_email_cannot_login`.
+
+    Nothing verifies an email address any more, so nothing may block a login
+    on having done so. This is the test that fails if an `EMAIL_NOT_VERIFIED`
+    gate is ever reintroduced into `service.authenticate` without the rest of
+    a verification mechanism to go with it.
+    """
+    user = _register_candidate(db_session, email="straight.through@example.com")
 
     resp = client.post(
         "/api/v1/auth/login",
@@ -189,22 +189,58 @@ def test_unverified_email_cannot_login(client: TestClient, db_session: Session) 
             "expected_role": "candidate",
         },
     )
-    assert resp.status_code == 403
-    assert resp.json()["error"]["code"] == "EMAIL_NOT_VERIFIED"
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["user"]["email"] == user.email
 
 
-def test_invalid_otp_rejected(client: TestClient, db_session: Session) -> None:
-    user, _otp, _ = _register_candidate(db_session, email="badotp@example.com")
-
+def test_registration_returns_a_usable_session(client: TestClient) -> None:
+    """Signup signs the account in. There is no second request, and no screen
+    between the form and the product — the register response carries the same
+    access token and cookies that `/login` would have issued."""
     resp = client.post(
-        "/api/v1/auth/verify-email/confirm", json={"email": user.email, "otp": "000000"}
+        "/api/v1/auth/candidate/register",
+        json={
+            "email": "autologin@example.com",
+            "password": "StrongPass1!",
+            "captcha_token": "test",
+        },
     )
-    assert resp.status_code == 400
-    assert resp.json()["error"]["code"] == "INVALID_OTP"
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["user"]["email"] == "autologin@example.com"
+    assert body["user"]["role"] == "candidate"
+    assert "refresh_token" in resp.cookies
+    assert "csrf_token" in resp.cookies
+
+    # The token works against a protected endpoint straight away.
+    me_resp = client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {body['access_token']}"}
+    )
+    assert me_resp.status_code == 200
+    assert me_resp.json()["email"] == "autologin@example.com"
+
+    # A signup is not a "remember this device" decision — see
+    # `router._register_and_sign_in`.
+    refresh_cookie = next(
+        c for c in resp.headers.get_list("set-cookie") if c.startswith("refresh_token=")
+    )
+    assert "Max-Age" not in refresh_cookie
+
+
+def test_the_verify_email_endpoints_are_gone(client: TestClient) -> None:
+    """Both OTP routes are unrouted, not merely unused. A 404 here (rather
+    than a 200 from a stub left behind) is what proves the flow cannot be
+    driven by an old client or a stale bookmark."""
+    confirm = client.post(
+        "/api/v1/auth/verify-email/confirm", json={"email": "a@example.com", "otp": "000000"}
+    )
+    resend = client.post("/api/v1/auth/verify-email/resend", json={"email": "a@example.com"})
+    assert confirm.status_code == 404
+    assert resend.status_code == 404
 
 
 def test_login_wrong_password_does_not_leak_existence(client: TestClient, db_session: Session) -> None:
-    _register_and_verify_candidate(db_session, email="realuser@example.com")
+    _register_candidate(db_session, email="realuser@example.com")
 
     real_user_resp = client.post(
         "/api/v1/auth/login",
@@ -233,7 +269,7 @@ def test_login_wrong_password_does_not_leak_existence(client: TestClient, db_ses
 def test_account_locks_after_repeated_failed_logins(db_session: Session) -> None:
     """Exercises service.authenticate directly so the 5-attempt account
     lockout is isolated from the endpoint's own 5/minute rate limit."""
-    user = _register_and_verify_candidate(db_session, email="lockout@example.com")
+    user = _register_candidate(db_session, email="lockout@example.com")
     bad_login = LoginRequest(
         email=user.email,
         password="WrongPass1!",
@@ -251,7 +287,7 @@ def test_account_locks_after_repeated_failed_logins(db_session: Session) -> None
 
 
 def test_password_reset_flow_and_session_revocation(client: TestClient, db_session: Session) -> None:
-    user = _register_and_verify_candidate(db_session, email="reset@example.com")
+    user = _register_candidate(db_session, email="reset@example.com")
     login_resp = client.post(
         "/api/v1/auth/login",
         json={
@@ -301,7 +337,7 @@ def test_password_reset_flow_and_session_revocation(client: TestClient, db_sessi
 
 
 def test_forgot_password_does_not_leak_existence(client: TestClient, db_session: Session) -> None:
-    _register_and_verify_candidate(db_session, email="knownuser@example.com")
+    _register_candidate(db_session, email="knownuser@example.com")
 
     known_resp = client.post("/api/v1/auth/forgot-password", json={"email": "knownuser@example.com"})
     unknown_resp = client.post("/api/v1/auth/forgot-password", json={"email": "unknown@example.com"})
@@ -315,13 +351,9 @@ def test_duplicate_registration_rejected(client: TestClient, db_session: Session
     resp = client.post(
         "/api/v1/auth/candidate/register",
         json={
-            "full_name": "Someone Else",
             "email": "dupe@example.com",
-            "phone_number": "+14155552671",
             "password": "StrongPass1!",
-            "confirm_password": "StrongPass1!",
             "captcha_token": "test",
-            "accept_terms": True,
         },
     )
     assert resp.status_code == 409
@@ -333,13 +365,9 @@ def test_registration_rate_limited(client: TestClient) -> None:
         return client.post(
             "/api/v1/auth/candidate/register",
             json={
-                "full_name": "Rate Limited",
                 "email": email,
-                "phone_number": "+14155552671",
                 "password": "StrongPass1!",
-                "confirm_password": "StrongPass1!",
                 "captcha_token": "test",
-                "accept_terms": True,
             },
         )
 

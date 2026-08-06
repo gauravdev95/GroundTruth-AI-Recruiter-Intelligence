@@ -131,7 +131,11 @@ answer that moved it.
 The single authentication identity for every role. Documented here only for cross-reference —
 see §Authentication Module in `README.md` for the full column list. Key columns relevant to
 this document: `id`, `email` (unique), `role` (`candidate|recruiter|admin`), `full_name`,
-`is_email_verified`, `is_active`.
+`is_active`.
+
+There is no `is_email_verified`. It was dropped with the OTP flow (migration
+`e6c04b83d71f`): nothing verifies an email address any more, so a stored "verified" flag would
+be a claim with no mechanism behind it.
 
 ### `candidate_profiles` *(existing, unchanged in this phase)*
 

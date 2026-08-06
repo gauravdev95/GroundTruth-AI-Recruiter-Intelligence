@@ -1,7 +1,7 @@
 """Integration tests for the code-grounded AI interview
 (`domains/interview/`, `jobs/tasks/interview.py`).
 
-The Anthropic-backed question generator/evaluator are stubbed (same pattern
+The Gemini-backed question generator/evaluator are stubbed (same pattern
 as `test_resume_import.py::stub_extractor`) — this is not a test of the LLM,
 it's a test of the state machine: a repository must be `VERIFIED` before an
 interview can start, one attempt is allowed per repository, resuming returns
@@ -73,12 +73,21 @@ def stub_question_generator(monkeypatch):
 def stub_answer_evaluator(monkeypatch):
     class _Stub:
         def evaluate_answer(self, *, question, answer_transcript, repository_context):
+            # The **v2** rubric vocabulary, which is the only one a new
+            # evaluation may use (`AnswerEvaluation` rejects anything else).
+            # `RUBRIC_WEIGHTS_V1`'s names — `depth_of_reasoning`,
+            # `codebase_specificity`, `repository_consistency` — survive only
+            # so interviews already scored under v1 stay readable; see
+            # `interview/models.py::RUBRIC_V1_TO_V2`. Scores are carried across
+            # that map from the original fixture so the arithmetic below is
+            # still checking the same per-dimension inputs.
             return AnswerEvaluation(
                 scores=[
                     {"dimension": "technical_accuracy", "score": 80, "rationale": "Solid technical grasp of the concept."},
-                    {"dimension": "depth_of_reasoning", "score": 70, "rationale": "Reasonable depth, could go further."},
-                    {"dimension": "codebase_specificity", "score": 60, "rationale": "Specific enough to this repository."},
-                    {"dimension": "repository_consistency", "score": 90, "rationale": "Consistent with the stored analysis."},
+                    {"dimension": "problem_solving", "score": 70, "rationale": "Reasonable depth, could go further."},
+                    {"dimension": "repository_knowledge", "score": 60, "rationale": "Specific enough to this repository."},
+                    {"dimension": "code_understanding", "score": 90, "rationale": "Consistent with the stored analysis."},
+                    {"dimension": "communication", "score": 65, "rationale": "Clear, occasionally rambling."},
                 ]
             )
 
@@ -88,7 +97,7 @@ def stub_answer_evaluator(monkeypatch):
 
 
 def _candidate(db_session: Session, email: str = "interview.me@example.com") -> tuple[str, CandidateProfile]:
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace",
@@ -100,7 +109,6 @@ def _candidate(db_session: Session, email: str = "interview.me@example.com") -> 
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     token = create_access_token(user_id=user.id, role=user.role.value)
     profile = db_session.execute(
         select(CandidateProfile).where(CandidateProfile.user_id == user.id)
@@ -229,14 +237,16 @@ def test_full_interview_flow_start_answer_evaluate_report(
     assert report_resp.status_code == 200, report_resp.text
     report = report_resp.json()
     assert len(report["questions"]) == 5
-    # (0.4*80 + 0.25*70 + 0.2*60 + 0.15*90) = 32+17.5+12+13.5 = 75.0 per question
-    assert report["questions"][0]["weighted_score"] == pytest.approx(75.0)
-    assert report["total_score"] == pytest.approx(75.0)
-    assert report["rubric_weights"]["technical_accuracy"] == 0.40
+    # v2 weights (`config.py::rubric_weights`), per question:
+    #   0.30*80 + 0.25*90 + 0.20*70 + 0.15*60 + 0.10*65
+    # =   24    +   22.5  +   14    +    9    +   6.5   = 76.0
+    assert report["questions"][0]["weighted_score"] == pytest.approx(76.0)
+    assert report["total_score"] == pytest.approx(76.0)
+    assert report["rubric_weights"]["technical_accuracy"] == 0.30
 
     interview = db_session.get(Interview, interview_id)
     assert interview.status is InterviewStatus.COMPLETED
-    assert interview.total_score == pytest.approx(75.0)
+    assert interview.total_score == pytest.approx(76.0)
 
 
 def test_report_is_not_available_before_evaluation_completes(

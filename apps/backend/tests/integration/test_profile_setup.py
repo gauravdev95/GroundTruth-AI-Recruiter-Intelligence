@@ -5,9 +5,9 @@ upload validation that guards the resume path. Everything asserted here is a
 derivation from persisted rows — the point of these tests is that the screen has
 no state of its own to get wrong.
 
-Accounts are created through `domains.auth.service` (the OTP is never exposed
-over HTTP) and every assertion then goes through the real endpoints, so auth,
-validation and the error envelope are exercised for real.
+Accounts are created through `domains.auth.service` and every assertion then
+goes through the real endpoints, so auth, validation and the error envelope
+are exercised for real.
 """
 
 from __future__ import annotations
@@ -32,13 +32,29 @@ RESUME_BASE = "/api/v1/student/resume"
 SETUP_STATE = f"{PROFILE_BASE}/setup-state"
 
 VALID_BASIC = {
+    "full_name": "Ada Lovelace",
     "headline": "Final-year CS student building compilers",
     "college": "IIT Bombay",
     "degree": "btech",
     "branch": "cse",
     "graduation_year": 2026,
     "location": "Mumbai, India",
-    "target_role": "backend",
+    "target_roles": ["backend"],
+}
+
+#: `claimed_technologies`, never `technologies` — the plain name belongs to
+#: the list the verification worker detects from dependency manifests, and
+#: the request model rejects it outright.
+VALID_PROJECTS = {
+    "projects": [
+        {
+            "kind": "described",
+            "title": "Toy compiler",
+            "description": "A small compiler for a Lisp dialect, written in Rust.",
+            "claimed_technologies": ["Rust"],
+            "is_primary": True,
+        }
+    ]
 }
 
 VALID_TECHNICAL = {
@@ -46,13 +62,28 @@ VALID_TECHNICAL = {
     "coding_profiles": [{"platform": "leetcode", "handle": "ada_lovelace"}],
 }
 
-EXPECTED_STEP_KEYS = ["basic", "technical", "projects", "certificates", "experience"]
+#: The eight stages the client renders, in order. `choose` and `review` are
+#: real steps with no `SectionScore` behind them; `github` and `coding` are
+#: separate because only GitHub is mandatory.
+EXPECTED_STEP_KEYS = [
+    "choose",
+    "basic",
+    "github",
+    "projects",
+    "coding",
+    "certificates",
+    "experience",
+    "review",
+]
 EXPECTED_STEP_TITLES = [
+    "Get Started",
     "Basic Information",
-    "Technical Profiles",
-    "Projects",
-    "Certificates & Achievements",
+    "Connect GitHub",
+    "Link Projects",
+    "Coding Profile",
+    "Certificates",
     "Experience",
+    "Review & Submit",
 ]
 
 
@@ -77,7 +108,7 @@ def stub_storage(monkeypatch):
 
 
 def _candidate_token(db_session: Session, email: str = "setup.student@example.com") -> str:
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace",
@@ -89,12 +120,11 @@ def _candidate_token(db_session: Session, email: str = "setup.student@example.co
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     return create_access_token(user_id=user.id, role=user.role.value)
 
 
 def _recruiter_token(db_session: Session, email: str = "setup.recruiter@acme.com") -> str:
-    user, otp, _ = auth_service.register_recruiter(
+    user = auth_service.register_recruiter(
         db_session,
         RecruiterRegisterRequest(
             full_name="Grace Hopper",
@@ -106,7 +136,6 @@ def _recruiter_token(db_session: Session, email: str = "setup.recruiter@acme.com
             accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     return create_access_token(user_id=user.id, role=user.role.value)
 
 
@@ -185,8 +214,8 @@ def test_empty_profile_derives_zero_percent_and_first_step(
 
     assert [step["key"] for step in body["steps"]] == EXPECTED_STEP_KEYS
     assert [step["title"] for step in body["steps"]] == EXPECTED_STEP_TITLES
-    assert [step["status"] for step in body["steps"]] == ["empty"] * 5
-    assert [step["is_current"] for step in body["steps"]] == [True, False, False, False, False]
+    assert [step["status"] for step in body["steps"]] == ["empty"] * len(EXPECTED_STEP_KEYS)
+    assert [step["is_current"] for step in body["steps"]] == [True] + [False] * 7
     assert body["resume"]["has_upload"] is False
 
 
@@ -205,54 +234,66 @@ def test_partial_basic_keeps_current_step_on_the_incomplete_mandatory_section(
     db_session.commit()
 
     body = client.get(SETUP_STATE, headers=_auth(token)).json()
+    steps = {step["key"]: step for step in body["steps"]}
 
     assert body["completion_percentage"] == 10  # 2 of 7 basic fields x 5 points
+    # The fork is unanswered and mandatory, so the pill sits there — ahead of
+    # the half-filled section it would otherwise point at.
     assert body["current_step_index"] == 0
-    assert body["steps"][0]["status"] == "saved"
-    assert body["steps"][0]["filled_count"] == 2
-    assert body["steps"][0]["required_count"] == 7
-    assert body["steps"][1]["status"] == "empty"
+    assert steps["basic"]["status"] == "saved"
+    assert steps["basic"]["filled_count"] == 2
+    assert steps["basic"]["required_count"] == 7
+    assert steps["github"]["status"] == "empty"
     assert body["meets_section_requirements"] is False
 
 
-def test_basic_complete_moves_current_step_to_technical(
+def test_basic_complete_moves_current_step_to_github(
     client: TestClient, db_session: Session
 ) -> None:
     token = _candidate_token(db_session, "setup.basic@example.com")
+    client.post(f"{PROFILE_BASE}/onboarding", json={"choice": "manual_entry"}, headers=_auth(token))
     response = client.put(
         f"{PROFILE_BASE}/sections/basic", json=VALID_BASIC, headers=_auth(token)
     )
     assert response.status_code == 200, response.text
 
     body = client.get(SETUP_STATE, headers=_auth(token)).json()
+    steps = {step["key"]: step for step in body["steps"]}
 
     assert body["completion_percentage"] == 35
-    assert body["current_step_index"] == 1
-    assert body["steps"][0]["status"] == "saved"
-    assert body["steps"][1]["is_current"] is True
+    assert body["current_step_index"] == EXPECTED_STEP_KEYS.index("github")
+    assert steps["basic"]["status"] == "saved"
+    assert steps["github"]["is_current"] is True
     assert body["meets_section_requirements"] is False
 
 
 def test_mandatory_complete_profile_meets_requirements(
     client: TestClient, db_session: Session
 ) -> None:
-    """Sections 1 and 2 done: 65%, requirements met, and the pill has moved past
-    both mandatory steps to the first untouched optional one."""
+    """All three mandatory stages done — basic, GitHub, and one project — with
+    the pill moved on to the first untouched optional one."""
     token = _candidate_token(db_session, "setup.mandatory@example.com")
+    client.post(f"{PROFILE_BASE}/onboarding", json={"choice": "manual_entry"}, headers=_auth(token))
     client.put(f"{PROFILE_BASE}/sections/basic", json=VALID_BASIC, headers=_auth(token))
     response = client.put(
         f"{PROFILE_BASE}/sections/technical", json=VALID_TECHNICAL, headers=_auth(token)
     )
     assert response.status_code == 200, response.text
+    projects = client.put(
+        f"{PROFILE_BASE}/sections/projects", json=VALID_PROJECTS, headers=_auth(token)
+    )
+    assert projects.status_code == 200, projects.text
 
     body = client.get(SETUP_STATE, headers=_auth(token)).json()
+    steps = {step["key"]: step for step in body["steps"]}
 
-    assert body["completion_percentage"] == 65  # 35 basic + 30 technical
+    # 35 basic + 15 GitHub + 10 first project + 5 one coding profile.
+    assert body["completion_percentage"] == 65
     assert body["meets_section_requirements"] is True
-    # Filled, not verified: the accounts were just queued for verification, so
+    # Filled, not verified: the account was just queued for verification, so
     # the step must read as pending rather than as a proven claim.
-    assert body["steps"][1]["status"] == "pending_verification"
-    assert body["current_step_index"] == 2
+    assert steps["github"]["status"] == "pending_verification"
+    assert body["current_step_index"] == EXPECTED_STEP_KEYS.index("certificates")
     # Still not discoverable — that additionally needs a profile embedding.
     assert body["is_discoverable"] is False
 
@@ -267,21 +308,11 @@ def test_percentage_is_recomputed_server_side_after_each_save(
     assert client.get(SETUP_STATE, headers=_auth(token)).json()["completion_percentage"] == 35
 
     saved = client.put(
-        f"{PROFILE_BASE}/sections/projects",
-        json={
-            "projects": [
-                {
-                    "kind": "described",
-                    "title": "Toy compiler",
-                    "description": "A small compiler for a Lisp dialect, written in Rust.",
-                    "technologies": ["Rust"],
-                }
-            ]
-        },
-        headers=_auth(token),
+        f"{PROFILE_BASE}/sections/projects", json=VALID_PROJECTS, headers=_auth(token)
     )
     assert saved.status_code == 200, saved.text
-    assert client.get(SETUP_STATE, headers=_auth(token)).json()["completion_percentage"] == 40
+    # 35 basic + 10 for the first project, which is worth double the others.
+    assert client.get(SETUP_STATE, headers=_auth(token)).json()["completion_percentage"] == 45
 
 
 def test_client_cannot_supply_a_percentage(client: TestClient, db_session: Session) -> None:

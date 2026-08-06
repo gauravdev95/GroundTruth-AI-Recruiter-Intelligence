@@ -46,11 +46,13 @@ from src.domains.matching.embeddings import get_embedding
 from src.domains.pipeline.models import Application
 from src.domains.matching.models import EmbeddableEntityType, Embedding, MatchResult
 from src.domains.matching.scoring import (
-    MATCH_THRESHOLD,
     TOP_K,
+    compute_competency_score,
     compute_evidence_score,
     compute_match_score,
+    get_match_threshold,
 )
+from src.domains.verification.competencies import COMPETENCY_NAMES
 from src.domains.recruiter.models import ExperienceLevel, JobPosting, JobRequirement, JobStatus
 from src.domains.skills.models import CandidateSkill, Skill
 from src.domains.student.models import Project, VerificationStatus
@@ -134,6 +136,25 @@ def _semantic_pool(
         .limit(limit)
     ).all()
     return [(row.entity_id, round(1.0 - float(row.distance), 5)) for row in rows]
+
+
+#: Competency names, casefolded once, for splitting them back out of the flat
+#: skill-weight map. They live in `candidate_skills` like any other skill —
+#: that is what lets a recruiter require "Problem Solving" on a job posting —
+#: but they are weighted by their own term in the formula, so the two must be
+#: separable at scoring time.
+_COMPETENCY_KEYS: frozenset[str] = frozenset(name.casefold() for name in COMPETENCY_NAMES)
+
+
+def _competency_weights(skill_weights: dict[str, float]) -> dict[str, float]:
+    """The coding-profile competencies out of a candidate's skill weights.
+
+    Derived from the map already loaded for the evidence term rather than a
+    second query: competencies are ordinary `candidate_skills` rows, so they
+    are already present, and re-fetching them per candidate would add a query
+    per row in the scored pool.
+    """
+    return {name: weight for name, weight in skill_weights.items() if name in _COMPETENCY_KEYS}
 
 
 def _candidate_skill_weights(db: Session, candidate_ids: list[uuid.UUID]) -> dict[uuid.UUID, dict[str, float]]:
@@ -333,6 +354,25 @@ def _existing_for_job(db: Session, job_id: uuid.UUID) -> dict[tuple[uuid.UUID, u
     }
 
 
+def pool_scores_for_job(db: Session, job_posting_id: uuid.UUID) -> list[float]:
+    """Every persisted `match_score` for one job — the population Tier B's
+    percentile is measured against (`domains/matching/tiers.py`).
+
+    Deliberately the *whole* persisted pool, not the subset a given recompute
+    happened to touch. A candidate-triggered recompute (`recompute_for_candidate`)
+    produces one new pair for this job and knows nothing about the other
+    two hundred; scoring its percentile against a pool of one would make
+    every single new match the top of its own distribution, which is exactly
+    the notification spam Tier B exists to prevent.
+    """
+    return [
+        float(score)
+        for score in db.execute(
+            select(MatchResult.match_score).where(MatchResult.job_posting_id == job_posting_id)
+        ).scalars()
+    ]
+
+
 def recompute_for_job(db: Session, job: JobPosting) -> RecomputeResult:
     """Recomputes every `match_results` row for this job as an upsert.
 
@@ -398,6 +438,11 @@ def recompute_for_job(db: Session, job: JobPosting) -> RecomputeResult:
     ).all():
         proficiency_by_candidate.setdefault(candidate_id, {})[skill_name.casefold()] = proficiency.value
 
+    # Read once for the whole pass, not per candidate: every pair in one
+    # recompute must be cut against the same number, or a mid-run config
+    # reload could persist a set of rows no single threshold explains.
+    threshold = get_match_threshold()
+
     scored: list[ScoredPair] = []
     for candidate_id in pool_ids:
         candidate = candidates_by_id.get(candidate_id)
@@ -411,8 +456,13 @@ def recompute_for_job(db: Session, job: JobPosting) -> RecomputeResult:
             semantic_score=semantic_by_id[candidate_id],
             evidence_score=evidence_score,
             profile_strength=candidate.profile_strength,
+            interview_score=float(candidate.interview_score) if candidate.interview_score else None,
+            competency_score=compute_competency_score(
+                required_skill_names=required_skill_names,
+                competency_weights=_competency_weights(skill_weights),
+            ),
         )
-        if match_score < MATCH_THRESHOLD:
+        if match_score < threshold:
             continue
 
         required_reasons, desirable_reasons = _build_match_reasons(
@@ -499,6 +549,9 @@ def recompute_for_candidate(db: Session, candidate_profile: CandidateProfile) ->
         ).scalars()
     )
 
+    # Same reasoning as `recompute_for_job`: one threshold for the whole pass.
+    threshold = get_match_threshold()
+
     scored: list[ScoredPair] = []
     for job in published_jobs:
         job_embedding = get_embedding(db, entity_type=EmbeddableEntityType.JOB_POSTING, entity_id=job.id)
@@ -526,8 +579,15 @@ def recompute_for_candidate(db: Session, candidate_profile: CandidateProfile) ->
             semantic_score=semantic_score,
             evidence_score=evidence_score,
             profile_strength=candidate_profile.profile_strength,
+            interview_score=(
+                float(candidate_profile.interview_score) if candidate_profile.interview_score else None
+            ),
+            competency_score=compute_competency_score(
+                required_skill_names=required_skill_names,
+                competency_weights=_competency_weights(skill_weights),
+            ),
         )
-        if match_score < MATCH_THRESHOLD:
+        if match_score < threshold:
             continue
 
         required_reasons, desirable_reasons = _build_match_reasons(

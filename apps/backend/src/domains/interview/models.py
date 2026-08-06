@@ -29,21 +29,50 @@ from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, N
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.config.config import get_interview_settings
 from src.db.database import Base
 from src.shared.db_mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
-# Fixed rubric weights (§6 of the task): technical accuracy 40%, depth of
-# reasoning 25%, specificity to the candidate's own codebase 20%, consistency
-# with the stored repository analysis 15%. Defined here (not just in the AI
-# provider) because `interview_scores.dimension` values are validated against
-# this set — a scoring row for a dimension outside the rubric is a bug, not a
-# new feature.
-RUBRIC_WEIGHTS: dict[str, float] = {
+#: The v1 rubric, kept verbatim so interviews scored under it remain readable.
+#: Never used to score a new interview — `get_rubric_weights()` returns the
+#: configured (v2) rubric. An evidence report is written once and never edited,
+#: so a v1 interview keeps its v1 dimensions forever rather than being
+#: retroactively re-judged against a rubric the candidate never sat.
+RUBRIC_WEIGHTS_V1: dict[str, float] = {
     "technical_accuracy": 0.40,
     "depth_of_reasoning": 0.25,
     "codebase_specificity": 0.20,
     "repository_consistency": 0.15,
 }
+
+#: How a v1 dimension maps onto its v2 successor, for rendering a mixed history
+#: under one vocabulary. Presentation only — no stored row is rewritten.
+RUBRIC_V1_TO_V2: dict[str, str] = {
+    "technical_accuracy": "technical_accuracy",
+    "depth_of_reasoning": "problem_solving",
+    "codebase_specificity": "repository_knowledge",
+    "repository_consistency": "code_understanding",
+}
+
+RUBRIC_VERSION_V1 = 1
+
+
+def get_rubric_weights(version: int | None = None) -> dict[str, float]:
+    """Weights for `version`, defaulting to the configured current rubric.
+
+    `interview_scores.dimension` values are validated against the returned key
+    set — a score row naming a dimension outside its own interview's rubric is
+    a bug, not a new feature. Reading through a function rather than a module
+    constant is what lets the weights be configurable
+    (`InterviewSettings.rubric_weights`) without freezing them at import.
+    """
+    if version == RUBRIC_VERSION_V1:
+        return dict(RUBRIC_WEIGHTS_V1)
+    return get_interview_settings().rubric_weights
+
+
+def get_current_rubric_version() -> int:
+    return get_interview_settings().interview_rubric_version
 
 DEFAULT_QUESTION_TIME_LIMIT_SECONDS = 300
 MIN_QUESTIONS = 5
@@ -65,17 +94,52 @@ class InterviewStatus(str, enum.Enum):
     FAILED = "failed"
 
 
+class InterviewGrounding(str, enum.Enum):
+    """What an interview's questions are generated from.
+
+    `REPOSITORY` is the original, strongest form: every question traces to a
+    specific file in one verified repository's stored analysis.
+
+    `PROFILE` is the candidate-level interview, grounded in the union of their
+    verified evidence — repositories, coding-profile competencies, confirmed
+    resume content, certificates and experience. It exists so that a candidate
+    with no verifiable repository still has a route to a completed interview,
+    which discoverability now requires; without it, anyone GitHub cannot
+    verify would be permanently undiscoverable with no action available to
+    them. It is deliberately the weaker of the two: it draws on evidence that
+    is broader but less specific than a single codebase.
+    """
+
+    REPOSITORY = "repository"
+    PROFILE = "profile"
+
+
 class Interview(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """One attempt at the code-grounded interview for one verified repository."""
+    """One attempt at an AI interview — repository-grounded or profile-grounded."""
 
     __tablename__ = "interviews"
 
     candidate_profile_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("candidate_profiles.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    # Nullable **only** for `grounding=PROFILE`, which is scoped to the
+    # candidate rather than to one repository. A REPOSITORY interview without a
+    # project is meaningless, so that pairing is enforced in
+    # `service.py::start_interview` rather than by a CHECK constraint — the
+    # rule reports as a domain error there, not an opaque DB failure.
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True
     )
+    grounding: Mapped[InterviewGrounding] = mapped_column(
+        SAEnum(InterviewGrounding, name="interview_grounding", native_enum=True),
+        default=InterviewGrounding.REPOSITORY,
+        nullable=False,
+        index=True,
+    )
+    # Which rubric this attempt was scored under. Stored per row because the
+    # weights are configurable and an evidence report is never rewritten — see
+    # `get_rubric_weights`.
+    rubric_version: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
     status: Mapped[InterviewStatus] = mapped_column(
         SAEnum(InterviewStatus, name="interview_status", native_enum=True),
         default=InterviewStatus.PENDING,

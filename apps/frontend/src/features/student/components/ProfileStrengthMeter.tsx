@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 
 import type { ProfileCompleteness } from "../api/profileApi";
 import { SECTIONS } from "../constants";
+import { formSectionStatus } from "../lib/sectionScoring";
 
 /**
  * Live profile strength, server-computed. The number is never derived in the
@@ -13,8 +14,7 @@ import { SECTIONS } from "../constants";
  * is a real state, and the badges are where verification is communicated.
  */
 export function ProfileStrengthMeter({ completeness }: { completeness: ProfileCompleteness }) {
-  const { profile_strength: strength, sections } = completeness;
-  const byKey = new Map(sections.map((section) => [section.key, section]));
+  const { profile_strength: strength } = completeness;
 
   return (
     <div className="rounded-2xl border border-rule bg-panel p-5">
@@ -45,7 +45,7 @@ export function ProfileStrengthMeter({ completeness }: { completeness: ProfileCo
 
       <dl className="mt-4 space-y-1.5">
         {SECTIONS.map((meta) => {
-          const section = byKey.get(meta.key);
+          const section = formSectionStatus(completeness, meta.key);
           if (!section) return null;
           return (
             <div key={meta.key} className="flex items-center justify-between gap-3 text-xs">

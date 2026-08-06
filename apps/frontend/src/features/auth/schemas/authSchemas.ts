@@ -10,13 +10,6 @@ export const passwordSchema = z
   .regex(/\d/, "Include at least one number")
   .regex(/[^\w\s]/, "Include at least one special character");
 
-const phoneSchema = z
-  .string()
-  .trim()
-  .min(1, "Phone number is required")
-  .transform((v) => v.replace(/[\s-]/g, ""))
-  .refine((v) => /^\+?[1-9]\d{7,14}$/.test(v), "Enter a valid phone number");
-
 const emailSchema = z.string().trim().min(1, "Email is required").email("Enter a valid email address");
 
 const acceptTermsSchema = z
@@ -25,20 +18,30 @@ const acceptTermsSchema = z
 
 const captchaSchema = z.string().min(1, "Please complete the CAPTCHA");
 
-export const candidateSignupSchema = z
-  .object({
-    full_name: z.string().trim().min(2, "Enter your full name").max(200),
-    email: emailSchema,
-    phone_number: phoneSchema,
-    password: passwordSchema,
-    confirm_password: z.string(),
-    captcha_token: captchaSchema,
-    accept_terms: acceptTermsSchema,
-  })
-  .refine((data) => data.password === data.confirm_password, {
-    message: "Passwords do not match",
-    path: ["confirm_password"],
-  });
+/**
+ * Student signup: email and password.
+ *
+ * Mirrors `CandidateRegisterRequest` — see that schema for why the other
+ * fields moved. In short: every field on a signup form is a place to abandon
+ * it, and a student arriving from the landing page has not been shown enough
+ * yet to justify six of them. Name and phone are collected in the first
+ * onboarding section, where they have visible context.
+ *
+ * No `confirm_password`. Retyping a password catches a typo the user cannot
+ * see, so the redesigned form solves the actual problem instead — a reveal
+ * toggle plus live strength feedback, which lets them *look* at what they
+ * typed. Recruiter signup keeps the confirm field, because that form is
+ * longer and its password is further from the submit button.
+ *
+ * `captcha_token` stays in the shape but is optional: the widget is only
+ * mounted when a site key is configured, and the server fails closed if a
+ * secret key is set and the token is empty.
+ */
+export const candidateSignupSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+  captcha_token: z.string().optional().default(""),
+});
 
 export type CandidateSignupFormValues = z.infer<typeof candidateSignupSchema>;
 

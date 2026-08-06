@@ -84,7 +84,7 @@ def _notify_new_message_by_email(db: Session, *, recipient_user_id: uuid.UUID, a
     try:
         send_new_message_email(
             to_email=recipient.email,
-            full_name=recipient.full_name,
+            full_name=recipient.display_name,
             job_title=job.title if job is not None else "your application",
             application_url=application_url,
         )

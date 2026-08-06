@@ -23,6 +23,7 @@ from src.core.mail.service import send_stage_change_email
 from src.domains.auth.models import CandidateProfile, User
 from src.domains.company.models import Company
 from src.domains.matching.models import MatchResult
+from src.domains.matching.tiers import build_reasoning
 from src.domains.pipeline import notifications
 from src.domains.pipeline.drift import ScoreDrift, compute_drift
 from src.domains.pipeline.evidence import build_evidence_record
@@ -57,7 +58,7 @@ def _notify_stage_change_by_email(db: Session, *, user_id: uuid.UUID, applicatio
     try:
         send_stage_change_email(
             to_email=user.email,
-            full_name=user.full_name,
+            full_name=user.display_name,
             job_title=job_title,
             status_label=status_label,
             application_url=application_url,
@@ -265,11 +266,33 @@ def get_application_for_recruiter_with_context(
 
 
 def transition_status(
-    db: Session, user: User, application: Application, *, to_status: ApplicationStatus
+    db: Session,
+    user: User,
+    application: Application,
+    *,
+    to_status: ApplicationStatus,
+    close_reason: str | None = None,
+    close_note: str | None = None,
 ) -> Application:
     """Server-validated Kanban transition — no arbitrary jumps
     (`ALLOWED_TRANSITIONS`). Writes an `audit_log` row and notifies the
-    candidate, in the same transaction as the status change."""
+    candidate, in the same transaction as the status change.
+
+    **Every transition is a recruiter action.** There is no system-initiated
+    caller anywhere in this codebase: nothing schedules a rejection, no
+    threshold drop triggers one, and a job closing leaves its applications
+    where they are. A candidate leaves this pipeline because a human moved
+    them.
+
+    `close_reason`/`close_note` are the optional structured feedback the
+    rejection modal collects. They ride on the audit entry rather than on a
+    column of `applications`, for three reasons: the audit row is already
+    the record of *this* decision (a column would be overwritten by the next
+    one, losing the reason a rolled-back rejection was made for), it is
+    already actor-attributed, and it is already the thing
+    `resolve_rollback_target` reads back. Nothing is stored when neither is
+    given, so a skipped modal leaves no trace of having been skipped.
+    """
     allowed = ALLOWED_TRANSITIONS.get(application.status, frozenset())
     if to_status not in allowed:
         raise Conflict(
@@ -281,6 +304,17 @@ def transition_status(
     application.status_updated_at = _utcnow()
     db.flush()
 
+    after: dict = {"status": to_status.value}
+    # Recorded only on the transition they describe. A "skills gap" reason
+    # attached to a shortlisting would be nonsense, and `_StrictModel` cannot
+    # reject the combination without also rejecting clients that send the
+    # field unconditionally.
+    if to_status is ApplicationStatus.REJECTED:
+        if close_reason:
+            after["close_reason"] = close_reason
+        if close_note:
+            after["close_note"] = close_note
+
     write_audit_log(
         db,
         actor_user_id=user.id,
@@ -288,7 +322,7 @@ def transition_status(
         entity_type="application",
         entity_id=application.id,
         before={"status": before_status},
-        after={"status": to_status.value},
+        after=after,
     )
 
     candidate = db.get(CandidateProfile, application.candidate_profile_id)
@@ -553,11 +587,7 @@ def get_pipeline(db: Session, job: JobPosting) -> dict[str, list]:
         ).all()
     )
     matched_column = [
-        {
-            "candidate_profile_id": str(candidate.id),
-            "headline": candidate.headline,
-            "match_score": float(match.match_score),
-        }
+        _candidate_preview(match, candidate)
         for match, candidate in matched_rows
         if candidate.id not in applied_candidate_ids
     ]
@@ -576,11 +606,19 @@ def get_pipeline(db: Session, job: JobPosting) -> dict[str, list]:
     # natural pair — not by `Application.match_id`, which is `SET NULL` on a
     # pruned match and would report "no live score" for a pair that has since
     # been re-matched and does have one.
-    live_score_by_candidate = (
+    # `match_reasons` rides along on the same query rather than a second one:
+    # the applied columns render the identical card as `matched`, so they need
+    # the identical evidence line, and fetching it separately would be a
+    # second full scan of the same rows.
+    live_match_by_candidate = (
         {
-            candidate_id: float(score)
-            for candidate_id, score in db.execute(
-                select(MatchResult.candidate_profile_id, MatchResult.match_score).where(
+            candidate_id: (float(score), reasons)
+            for candidate_id, score, reasons in db.execute(
+                select(
+                    MatchResult.candidate_profile_id,
+                    MatchResult.match_score,
+                    MatchResult.match_reasons,
+                ).where(
                     MatchResult.job_posting_id == job.id,
                     MatchResult.candidate_profile_id.in_(candidate_ids),
                 )
@@ -596,12 +634,22 @@ def get_pipeline(db: Session, job: JobPosting) -> dict[str, list]:
 
     for application in applications:
         candidate = candidates_by_id.get(application.candidate_profile_id)
+        live_score, live_reasons = live_match_by_candidate.get(
+            application.candidate_profile_id, (None, None)
+        )
         drift = compute_drift(
             score_at_apply=(
                 float(application.score_at_apply) if application.score_at_apply is not None else None
             ),
-            live_score=live_score_by_candidate.get(application.candidate_profile_id),
+            live_score=live_score,
         )
+        # Falls back to the frozen `evidence_snapshot`'s copy of the match
+        # when the live row has been pruned. Without it, an application whose
+        # match was pruned (its job closed and reopened, say) would lose the
+        # one line explaining why the candidate is on the board at all — and
+        # the snapshot is the honest source in that case anyway: it is what
+        # was true when they applied.
+        reasons = live_reasons if live_reasons is not None else _snapshot_match_reasons(application)
         columns[application.status.value].append(
             {
                 "application_id": str(application.id),
@@ -615,6 +663,9 @@ def get_pipeline(db: Session, job: JobPosting) -> dict[str, list]:
                 "drift_points": drift.points,
                 "drift_direction": drift.direction,
                 "drift_is_meaningful": drift.is_meaningful,
+                "matched_skills": _verified_skill_names(reasons, CARD_SKILL_COUNT),
+                "reasoning": build_reasoning(reasons),
+                "is_verified": candidate.is_discoverable if candidate is not None else False,
                 # Precomputed here rather than left to the client: the client
                 # cannot know `ALLOWED_ROLLBACKS`' `REJECTED` case without the
                 # audit trail, and a button that 409s is not a UX.
@@ -623,6 +674,82 @@ def get_pipeline(db: Session, job: JobPosting) -> dict[str, list]:
         )
 
     return columns
+
+
+def _snapshot_match_reasons(application: Application) -> dict | None:
+    """The `match_reasons`-shaped half of a frozen `evidence_snapshot`.
+
+    `build_evidence_snapshot` stores the match under `"match"` with the two
+    halves under their read-path names (`matched_required_skills` /
+    `matched_desirable_skills`, see `pipeline/evidence.py`), so this
+    translates back to the `{"required": ..., "desirable": ...}` shape the
+    formatter takes rather than teaching the formatter a second vocabulary.
+    """
+    match = (application.evidence_snapshot or {}).get("match")
+    if not isinstance(match, dict):
+        return None
+    return {
+        "required": match.get("matched_required_skills") or [],
+        "desirable": match.get("matched_desirable_skills") or [],
+    }
+
+
+#: How many matched skill names a board card carries. The card renders them
+#: as a single `Rust · Postgres · Distributed` line; the reasoning string
+#: underneath already states the full count, so sending more would be data
+#: the card has nowhere to put.
+CARD_SKILL_COUNT = 3
+
+
+def _verified_skill_names(match_reasons: dict | None, limit: int) -> list[str]:
+    """The must-have skills this candidate has actual evidence for, strongest
+    first, then desirables if there is room.
+
+    Ordered by `evidence_weight` rather than by the job's requirement order:
+    the card shows three of them, and the three worth showing are the three
+    best-evidenced, not the first three the recruiter happened to type.
+    """
+    reasons = match_reasons or {}
+    ranked: list[tuple[float, str]] = []
+    # Required first, unconditionally — a desirable skill with perfect
+    # evidence still matters less on a screening card than a must-have.
+    for bucket, floor in ((reasons.get("required") or [], 1.0), (reasons.get("desirable") or [], 0.0)):
+        for reason in bucket:
+            if not isinstance(reason, dict) or not reason.get("candidate_has_skill"):
+                continue
+            name = reason.get("skill_name")
+            if not isinstance(name, str) or not name:
+                continue
+            ranked.append((floor + float(reason.get("evidence_weight") or 0.0), name))
+
+    ranked.sort(key=lambda pair: (-pair[0], pair[1]))
+    return [name for _, name in ranked[:limit]]
+
+
+def _candidate_preview(match: MatchResult, candidate: CandidateProfile) -> dict:
+    """One card in the `matched` column.
+
+    Carries the reasoning string and the top matched skills rather than the
+    raw `match_reasons` payload: the board renders 5 columns of these and the
+    full payload is an order of magnitude larger than the two lines a card
+    shows. The single-candidate evidence endpoint
+    (`GET /recruiter/candidates/{id}/evidence`) is where the full trail
+    lives, and the drawer fetches it on open.
+
+    `is_verified` is `is_discoverable`, renamed for what it means *to a
+    recruiter*: that flag already requires verified evidence plus a completed
+    code-grounded interview (`domains/student/completeness.py`), which is
+    exactly the claim the card's checkmark makes. It is not a second,
+    weaker notion of verification invented for this card.
+    """
+    return {
+        "candidate_profile_id": str(candidate.id),
+        "headline": candidate.headline,
+        "match_score": float(match.match_score),
+        "matched_skills": _verified_skill_names(match.match_reasons, CARD_SKILL_COUNT),
+        "reasoning": build_reasoning(match.match_reasons),
+        "is_verified": candidate.is_discoverable,
+    }
 
 
 def _board_offers_rollback(status: ApplicationStatus) -> bool:

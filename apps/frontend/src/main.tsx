@@ -6,6 +6,10 @@ import { createRoot } from "react-dom/client";
 // to carry, so no third-party request sits in front of first paint.
 import "@fontsource/archivo/latin-600.css";
 import "@fontsource/archivo/latin-700.css";
+// The landing page's display face, and the only weight of it that ships: every
+// element set in Space Grotesk is set at 700. Loading 400/500 as well would put
+// two more faces in front of first paint for weights nothing asks for.
+import "@fontsource/space-grotesk/latin-700.css";
 import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";

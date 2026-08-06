@@ -1,4 +1,4 @@
-import { BarChart3, Briefcase } from "lucide-react";
+import { BarChart3, Briefcase, LayoutDashboard } from "lucide-react";
 
 import { DashboardShell, type DashboardNavItem } from "@/components";
 import { useAuthContext } from "@/features/auth";
@@ -6,6 +6,7 @@ import { useLogout } from "@/features/auth/hooks/useAuth";
 import { NotificationBell } from "@/features/notifications";
 
 const NAV_ITEMS: DashboardNavItem[] = [
+  { label: "Dashboard", icon: LayoutDashboard, to: "/recruiter/dashboard" },
   { label: "Job postings", icon: Briefcase, to: "/recruiter/jobs" },
   { label: "Analytics", icon: BarChart3, to: "/recruiter/analytics" },
 ];

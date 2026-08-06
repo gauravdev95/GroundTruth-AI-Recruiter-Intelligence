@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 
+import { FIELD_TONE, type FieldTone } from "./fieldTone";
+
 interface GrecaptchaApi {
   render: (container: HTMLElement, params: Record<string, unknown>) => number;
   reset: (widgetId?: number) => void;
@@ -32,6 +34,8 @@ function loadRecaptchaScript(): Promise<void> {
 interface CaptchaWidgetProps {
   onChange: (token: string | null) => void;
   error?: string;
+  /** Which surface this sits on. See `fieldTone.ts`. */
+  tone?: FieldTone;
 }
 
 /**
@@ -42,7 +46,7 @@ interface CaptchaWidgetProps {
  * development — the backend independently gates its own bypass on
  * APP_ENV=development, so this never weakens production.
  */
-export function CaptchaWidget({ onChange, error }: CaptchaWidgetProps) {
+export function CaptchaWidget({ onChange, error, tone = "light" }: CaptchaWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<number | null>(null);
   const id = useId();
@@ -73,7 +77,16 @@ export function CaptchaWidget({ onChange, error }: CaptchaWidgetProps) {
 
   if (!siteKey) {
     return (
-      <div className="rounded-xl border border-dashed border-amber-400/40 bg-amber-400/10 px-4 py-3 text-xs text-amber-300">
+      <div
+        className={
+          tone === "dark"
+            ? "rounded-lg border border-dashed border-amber-400/40 bg-amber-400/10 px-4 py-3 text-xs text-amber-200 backdrop-blur-sm"
+            : // Was `text-amber-300` on `bg-amber-400/10` over a white card —
+              // roughly 1.6:1, i.e. effectively invisible. The whole notice is
+              // dark-on-dark styling that only ever rendered on a light card.
+              "rounded-xl border border-dashed border-flagged/30 bg-amber-50 px-4 py-3 text-xs text-flagged"
+        }
+      >
         CAPTCHA isn't configured for this environment — verification is skipped in development.
       </div>
     );
@@ -83,7 +96,7 @@ export function CaptchaWidget({ onChange, error }: CaptchaWidgetProps) {
     <div>
       <div id={id} ref={containerRef} />
       {error ? (
-        <p role="alert" className="mt-1 text-xs text-red-400">
+        <p role="alert" className={FIELD_TONE[tone].error}>
           {error}
         </p>
       ) : null}

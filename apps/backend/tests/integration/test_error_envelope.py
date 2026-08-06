@@ -7,7 +7,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from tests.integration.test_auth_flow import _register_and_verify_candidate
+from tests.integration.test_auth_flow import _register_candidate
 
 
 def test_unauthenticated_request_returns_401_envelope(client: TestClient) -> None:
@@ -29,7 +29,7 @@ def test_invalid_token_returns_401(client: TestClient) -> None:
 
 
 def test_role_mismatch_returns_403_envelope(client: TestClient, db_session: Session) -> None:
-    _register_and_verify_candidate(db_session, email="envelope.role@example.com")
+    _register_candidate(db_session, email="envelope.role@example.com")
 
     resp = client.post(
         "/api/v1/auth/login",

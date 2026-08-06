@@ -34,14 +34,13 @@ WS_URL = "/api/v1/realtime/ws"
 
 @pytest.fixture()
 def candidate(db_session: Session) -> tuple[User, str]:
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace", email="socket@example.com", phone_number="+14155552671",
             password="StrongPass1!", confirm_password="StrongPass1!", captcha_token="test", accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     db_session.execute(select(CandidateProfile).where(CandidateProfile.user_id == user.id)).scalar_one()
     return user, create_access_token(user_id=user.id, role=user.role.value)
 

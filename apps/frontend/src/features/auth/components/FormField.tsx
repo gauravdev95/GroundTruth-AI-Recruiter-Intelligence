@@ -1,20 +1,25 @@
 import { forwardRef, useId } from "react";
 import type { InputHTMLAttributes } from "react";
 
+import { FIELD_TONE, type FieldTone } from "./fieldTone";
+
 interface FormFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
+  /** Which surface this sits on. See `fieldTone.ts`. */
+  tone?: FieldTone;
 }
 
 export const FormField = forwardRef<HTMLInputElement, FormFieldProps>(function FormField(
-  { label, error, className, ...props },
+  { label, error, tone = "light", className, ...props },
   ref,
 ) {
   const id = useId();
+  const styles = FIELD_TONE[tone];
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-slate-700">
+      <label htmlFor={id} className={styles.label}>
         {label}
       </label>
       <input
@@ -23,13 +28,10 @@ export const FormField = forwardRef<HTMLInputElement, FormFieldProps>(function F
         id={id}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={
-          className ??
-          "w-full rounded border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
-        }
+        className={className ?? styles.input}
       />
       {error ? (
-        <p id={`${id}-error`} role="alert" className="text-xs text-red-500">
+        <p id={`${id}-error`} role="alert" className={styles.error}>
           {error}
         </p>
       ) : null}

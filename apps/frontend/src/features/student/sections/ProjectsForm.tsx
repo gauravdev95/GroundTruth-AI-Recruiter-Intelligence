@@ -9,7 +9,7 @@ import { Button, Input, Select, useToast } from "@/components";
 import type { ProjectsSection, SectionStatus } from "../api/profileApi";
 import { GithubRepoPicker } from "../components/GithubRepoPicker";
 import { VerificationBadge } from "../components/SectionBadges";
-import { SectionShell } from "../components/SectionShell";
+import { SectionShell, type SectionNav } from "../components/SectionShell";
 import { TechnologiesField } from "../components/TechnologiesField";
 import { SECTIONS } from "../constants";
 import { useSaveProjects } from "../hooks/useProfileSection";
@@ -24,9 +24,47 @@ const KIND_OPTIONS = [
   { value: "described", label: "Described project" },
 ];
 
+/**
+ * Read-only view of the technologies verification detected in a repository's
+ * dependency manifests.
+ *
+ * This replaced an editable tag input. The whole product claim is that a skill
+ * on a profile was *found*, not typed — an editable field here produced
+ * self-declared technologies that rendered identically to detected ones, so
+ * neither the candidate nor a recruiter could tell them apart.
+ *
+ * The empty state says *why* it is empty rather than hiding, because a blank
+ * space next to a repository that has not been analysed yet reads as a bug.
+ */
+function DetectedTechnologies({ technologies }: { technologies: string[] }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium text-slate-700">Detected technologies</span>
+      {technologies.length > 0 ? (
+        <ul className="flex flex-wrap gap-1.5">
+          {technologies.map((tech) => (
+            <li
+              key={tech}
+              className="rounded-full border border-verified/30 bg-verified/10 px-2.5 py-1 text-xs font-medium text-slate-700"
+            >
+              {tech}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-slate-500">
+          Nothing detected yet — these are read from the repository&apos;s dependency files when
+          verification runs, not entered by hand.
+        </p>
+      )}
+    </div>
+  );
+}
+
 interface ProjectsFormProps {
   data: ProjectsSection;
   status: SectionStatus | undefined;
+  nav?: SectionNav;
 }
 
 function toDefaults(data: ProjectsSection): ProjectsFormValues {
@@ -36,12 +74,14 @@ function toDefaults(data: ProjectsSection): ProjectsFormValues {
       title: project.title,
       description: project.description ?? "",
       repo_url: project.repo_url ?? null,
-      technologies: project.technologies,
+      live_demo_url: project.live_demo_url ?? null,
+      is_primary: project.is_primary,
+      claimed_technologies: project.claimed_technologies ?? [],
     })),
   } as ProjectsFormValues;
 }
 
-export function ProjectsForm({ data, status }: ProjectsFormProps) {
+export function ProjectsForm({ data, status, nav }: ProjectsFormProps) {
   const save = useSaveProjects();
   const { showToast } = useToast();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -52,6 +92,7 @@ export function ProjectsForm({ data, status }: ProjectsFormProps) {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<ProjectsFormValues>({
     resolver: zodResolver(projectsSchema),
@@ -64,6 +105,18 @@ export function ProjectsForm({ data, status }: ProjectsFormProps) {
     reset(toDefaults(data));
   }, [data, reset]);
 
+  /** Nominating one project un-nominates the rest.
+   *
+   * Enforced here rather than by a native radio `name` group, because
+   * react-hook-form registers each row independently and a shared name would
+   * leave the *form state* holding two `true`s even while the DOM showed one
+   * — which is exactly the shape the server rejects. */
+  const setPrimary = (index: number) => {
+    fields.forEach((_field, i) => {
+      setValue(`projects.${i}.is_primary` as const, i === index, { shouldDirty: true });
+    });
+  };
+
   const onSubmit = handleSubmit((values) => {
     save.mutate(
       {
@@ -72,10 +125,17 @@ export function ProjectsForm({ data, status }: ProjectsFormProps) {
           title: project.title,
           description: project.description?.trim() ? project.description : null,
           repo_url: project.repo_url ?? null,
-          technologies: project.technologies,
+          live_demo_url: project.live_demo_url ?? null,
+          is_primary: project.is_primary,
+          claimed_technologies: project.claimed_technologies,
         })),
       },
-      { onSuccess: () => showToast("Projects saved.", "success") },
+      {
+        onSuccess: () => {
+          showToast("Projects saved.", "success");
+          nav?.onSaved();
+        },
+      },
     );
   });
 
@@ -86,6 +146,7 @@ export function ProjectsForm({ data, status }: ProjectsFormProps) {
       onSubmit={onSubmit}
       isSaving={save.isPending}
       errorMessage={save.isError ? getProfileErrorMessage(save.error) : null}
+      nav={nav}
     >
       {fields.length === 0 ? (
         <p className="rounded-xl border border-dashed border-rule bg-panel px-4 py-6 text-center text-sm text-slate-500">
@@ -139,14 +200,22 @@ export function ProjectsForm({ data, status }: ProjectsFormProps) {
                 />
               </div>
 
-              {kind === "repository" ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {kind === "repository" ? (
+                  <Input
+                    label="Repository URL"
+                    placeholder="https://github.com/you/project"
+                    error={errors.projects?.[index]?.repo_url?.message}
+                    {...register(`projects.${index}.repo_url` as const)}
+                  />
+                ) : null}
                 <Input
-                  label="Repository URL"
-                  placeholder="https://github.com/you/project"
-                  error={errors.projects?.[index]?.repo_url?.message}
-                  {...register(`projects.${index}.repo_url` as const)}
+                  label="Live demo (optional)"
+                  placeholder="https://your-project.vercel.app"
+                  error={errors.projects?.[index]?.live_demo_url?.message}
+                  {...register(`projects.${index}.live_demo_url` as const)}
                 />
-              ) : null}
+              </div>
 
               <div className="flex flex-col gap-1.5">
                 <label
@@ -171,15 +240,38 @@ export function ProjectsForm({ data, status }: ProjectsFormProps) {
 
               <Controller
                 control={control}
-                name={`projects.${index}.technologies` as const}
+                name={`projects.${index}.claimed_technologies` as const}
                 render={({ field: techField }) => (
                   <TechnologiesField
+                    label="Technologies"
                     value={techField.value ?? []}
                     onChange={techField.onChange}
-                    error={errors.projects?.[index]?.technologies?.message}
+                    error={errors.projects?.[index]?.claimed_technologies?.message}
                   />
                 )}
               />
+              <p className="-mt-3 text-xs text-slate-500">
+                What you built it with. Recruiters see this as your description of the project — the
+                skills on your profile come from the detected list below instead.
+              </p>
+
+              <DetectedTechnologies technologies={data.projects[index]?.technologies ?? []} />
+
+              <label className="flex items-start gap-2.5 rounded-lg border border-rule bg-white px-3 py-2.5">
+                <input
+                  type="radio"
+                  name="primary-project"
+                  className="mt-0.5 size-4 accent-violet-600"
+                  checked={watch(`projects.${index}.is_primary`) === true}
+                  onChange={() => setPrimary(index)}
+                />
+                <span className="text-sm text-slate-700">
+                  <span className="font-medium">Main project</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    The one that best matches the roles you want. Recruiters see it first.
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
         );
@@ -192,7 +284,15 @@ export function ProjectsForm({ data, status }: ProjectsFormProps) {
             variant="secondary"
             size="sm"
             onClick={() =>
-              append({ kind: "repository", title: "", description: "", repo_url: null, technologies: [] })
+              append({
+                kind: "repository",
+                title: "",
+                description: "",
+                repo_url: null,
+                live_demo_url: null,
+                is_primary: fields.length === 0,
+                claimed_technologies: [],
+              })
             }
           >
             <Plus size={14} aria-hidden="true" /> Add project

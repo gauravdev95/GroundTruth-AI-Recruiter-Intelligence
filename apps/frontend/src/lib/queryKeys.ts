@@ -66,9 +66,14 @@ export const queryKeys = {
     notes: (applicationId: string) => ["recruiter", "applications", applicationId, "notes"] as const,
   },
   evidence: {
-    candidate: (candidateProfileId: string) => ["recruiter", "candidates", candidateProfileId, "evidence"] as const,
+    /** `jobId` is part of the key, not incidental: the same candidate's
+     * record differs by job (the `match` block is per-pair), so caching them
+     * under one key would serve one job's match against another's board. */
+    candidate: (candidateProfileId: string, jobId?: string) =>
+      ["recruiter", "candidates", candidateProfileId, "evidence", jobId ?? null] as const,
   },
   recruiterAnalytics: {
     funnel: () => ["recruiter", "analytics", "funnel"] as const,
+    activity: () => ["recruiter", "analytics", "activity"] as const,
   },
 } as const;

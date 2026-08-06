@@ -6,6 +6,7 @@ import { DeadLetterBanner } from "@/features/jobs";
 
 import { useStudentAnalytics } from "../analytics/hooks/useStudentAnalytics";
 import { JobFeedPreview } from "../matches/components/JobFeedPreview";
+import { SmartApplyPrompts } from "../matches/components/SmartApplyPrompts";
 import { ProfileStrengthMeter } from "../components/ProfileStrengthMeter";
 import { RepoEvidenceCard } from "../components/RepoEvidenceCard";
 import { VerificationBadge } from "../components/SectionBadges";
@@ -68,6 +69,12 @@ export function DashboardHome() {
       </header>
 
       <DeadLetterBanner />
+
+      {/* Above the stat tiles, not inside the feed column: a Tier B match is
+          the one thing on this page that asks the student to *act*, and
+          burying an action under four sections of status is how it gets
+          missed. Renders nothing when there are no Tier B matches. */}
+      <SmartApplyPrompts />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatTile icon={Briefcase} label="Job matches" value={analytics.data?.match_count ?? 0} />

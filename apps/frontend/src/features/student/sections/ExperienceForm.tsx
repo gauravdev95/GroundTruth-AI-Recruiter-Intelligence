@@ -7,7 +7,7 @@ import { Button, Input, Select, useToast } from "@/components";
 
 import type { ExperiencesSection, SectionStatus } from "../api/profileApi";
 import { VerificationBadge } from "../components/SectionBadges";
-import { SectionShell } from "../components/SectionShell";
+import { SectionShell, type SectionNav } from "../components/SectionShell";
 import { TechnologiesField } from "../components/TechnologiesField";
 import { EMPLOYMENT_TYPE_OPTIONS, SECTIONS } from "../constants";
 import { useSaveExperiences } from "../hooks/useProfileSection";
@@ -22,6 +22,7 @@ const META = SECTIONS[4];
 interface ExperienceFormProps {
   data: ExperiencesSection;
   status: SectionStatus | undefined;
+  nav?: SectionNav;
 }
 
 function toDefaults(data: ExperiencesSection): ExperiencesFormValues {
@@ -38,7 +39,7 @@ function toDefaults(data: ExperiencesSection): ExperiencesFormValues {
   } as ExperiencesFormValues;
 }
 
-export function ExperienceForm({ data, status }: ExperienceFormProps) {
+export function ExperienceForm({ data, status, nav }: ExperienceFormProps) {
   const save = useSaveExperiences();
   const { showToast } = useToast();
 
@@ -67,7 +68,12 @@ export function ExperienceForm({ data, status }: ExperienceFormProps) {
           description: experience.description?.trim() ? experience.description : null,
         })),
       },
-      { onSuccess: () => showToast("Experience saved.", "success") },
+      {
+        onSuccess: () => {
+          showToast("Experience saved.", "success");
+          nav?.onSaved();
+        },
+      },
     );
   });
 
@@ -78,6 +84,7 @@ export function ExperienceForm({ data, status }: ExperienceFormProps) {
       onSubmit={onSubmit}
       isSaving={save.isPending}
       errorMessage={save.isError ? getProfileErrorMessage(save.error) : null}
+      nav={nav}
     >
       {fields.length === 0 ? (
         <p className="rounded-xl border border-dashed border-rule bg-panel px-4 py-6 text-center text-sm text-slate-500">

@@ -17,23 +17,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.config.config import get_security_settings
-from src.core.mail.service import send_password_reset_email, send_verification_otp_email
+from src.core.mail.service import send_password_reset_email
 from src.domains.company.service import get_or_create_company
 from src.domains.auth.exceptions import (
     AccountInactive,
     AccountLocked,
     EmailAlreadyRegistered,
-    EmailNotVerified,
     InvalidCredentials,
     InvalidOrExpiredToken,
-    InvalidOtp,
     InvalidRefreshToken,
-    OtpRequestTooSoon,
     RoleMismatch,
 )
 from src.domains.auth.models import (
     CandidateProfile,
-    EmailVerificationToken,
     PasswordResetToken,
     RecruiterProfile,
     RefreshToken,
@@ -45,9 +41,7 @@ from src.domains.auth.schemas import CandidateRegisterRequest, LoginRequest, Rec
 from src.domains.auth.security import (
     create_access_token,
     generate_opaque_token,
-    generate_otp,
     hash_opaque_token,
-    hash_otp,
     hash_password,
     verify_password,
 )
@@ -56,9 +50,6 @@ logger = structlog.get_logger(__name__)
 
 MAX_FAILED_LOGIN_ATTEMPTS = 5
 LOCKOUT_DURATION = timedelta(minutes=15)
-OTP_VALIDITY = timedelta(minutes=10)
-OTP_MAX_ATTEMPTS = 5
-OTP_RESEND_COOLDOWN = timedelta(seconds=60)
 RESET_TOKEN_VALIDITY = timedelta(minutes=30)
 SESSION_COOKIE_VALIDITY = timedelta(days=1)
 
@@ -72,9 +63,23 @@ def _get_user_by_email(db: Session, email: str) -> User | None:
 
 
 # --- Registration -------------------------------------------------------------
+#
+# THERE IS NO EMAIL VERIFICATION STEP. Registration creates a usable account
+# and the caller (`router.py`) issues a session for it immediately, so a new
+# user lands in the product rather than in an inbox.
+#
+# What that trades away, stated plainly: nothing here proves the registrant
+# controls the address they typed. A typo'd or someone else's address will
+# create an account and will receive that account's password-reset mail. The
+# one place ownership still matters — password reset — proves it on its own,
+# because the reset link is delivered to the address and is single-use
+# (`request_password_reset` / `reset_password` below). Re-introducing proof at
+# signup means a new verification mechanism, not a flag: `users` deliberately
+# no longer carries an `is_email_verified` column, because a column that
+# asserts "verified" while nothing verifies anything is worse than no column.
 
 
-def register_candidate(db: Session, payload: CandidateRegisterRequest) -> tuple[User, str, int]:
+def register_candidate(db: Session, payload: CandidateRegisterRequest) -> User:
     if _get_user_by_email(db, payload.email) is not None:
         raise EmailAlreadyRegistered()
 
@@ -82,20 +87,25 @@ def register_candidate(db: Session, payload: CandidateRegisterRequest) -> tuple[
         email=payload.email,
         password_hash=hash_password(payload.password),
         role=UserRole.CANDIDATE,
-        full_name=payload.full_name,
+        # No name at signup — it is collected in the first onboarding
+        # section. Until then `User.display_name` supplies the greeting.
+        full_name=None,
     )
     db.add(user)
     db.flush()
-    db.add(CandidateProfile(user_id=user.id, phone_number=payload.phone_number))
+    # `""` rather than NULL, matching what the Google OAuth signup path has
+    # always written for a profile created without a phone number. Reusing
+    # that representation keeps one answer to "no phone number yet" instead
+    # of two that every reader would have to handle.
+    db.add(CandidateProfile(user_id=user.id, phone_number=""))
     db.commit()
     db.refresh(user)
 
-    otp = _issue_otp(db, user)
     logger.info("candidate_registered", user_id=str(user.id))
-    return user, otp, int(OTP_VALIDITY.total_seconds())
+    return user
 
 
-def register_recruiter(db: Session, payload: RecruiterRegisterRequest) -> tuple[User, str, int]:
+def register_recruiter(db: Session, payload: RecruiterRegisterRequest) -> User:
     if _get_user_by_email(db, payload.company_email) is not None:
         raise EmailAlreadyRegistered()
 
@@ -112,94 +122,8 @@ def register_recruiter(db: Session, payload: RecruiterRegisterRequest) -> tuple[
     db.commit()
     db.refresh(user)
 
-    otp = _issue_otp(db, user)
     logger.info("recruiter_registered", user_id=str(user.id), company_id=str(company.id))
-    return user, otp, int(OTP_VALIDITY.total_seconds())
-
-
-# --- Email verification ---------------------------------------------------------
-
-
-def _issue_otp(db: Session, user: User) -> str:
-    # Invalidate any outstanding OTPs so only the newest one is valid.
-    stale = (
-        db.query(EmailVerificationToken)
-        .filter(EmailVerificationToken.user_id == user.id, EmailVerificationToken.consumed_at.is_(None))
-        .all()
-    )
-    for token in stale:
-        token.consumed_at = _now()
-
-    otp = generate_otp()
-    db.add(
-        EmailVerificationToken(
-            user_id=user.id,
-            otp_hash=hash_otp(otp),
-            expires_at=_now() + OTP_VALIDITY,
-        )
-    )
-    db.commit()
-
-    send_verification_otp_email(
-        to_email=user.email,
-        full_name=user.full_name,
-        otp=otp,
-        expires_in_minutes=int(OTP_VALIDITY.total_seconds() // 60),
-    )
-    return otp
-
-
-def resend_verification_otp(db: Session, email: str) -> int:
-    user = _get_user_by_email(db, email)
-    if user is None or user.is_email_verified:
-        # Generic success — do not reveal whether the account exists or its state.
-        return int(OTP_VALIDITY.total_seconds())
-
-    latest = (
-        db.query(EmailVerificationToken)
-        .filter(EmailVerificationToken.user_id == user.id)
-        .order_by(EmailVerificationToken.created_at.desc())
-        .first()
-    )
-    if latest is not None and _now() - latest.created_at < OTP_RESEND_COOLDOWN:
-        raise OtpRequestTooSoon()
-
-    _issue_otp(db, user)
-    return int(OTP_VALIDITY.total_seconds())
-
-
-def confirm_email_otp(db: Session, email: str, otp: str) -> None:
-    user = _get_user_by_email(db, email)
-    if user is None:
-        raise InvalidOtp()
-
-    token = (
-        db.query(EmailVerificationToken)
-        .filter(
-            EmailVerificationToken.user_id == user.id,
-            EmailVerificationToken.consumed_at.is_(None),
-            EmailVerificationToken.expires_at > _now(),
-        )
-        .order_by(EmailVerificationToken.created_at.desc())
-        .first()
-    )
-    if token is None:
-        raise InvalidOtp()
-
-    if token.attempt_count >= OTP_MAX_ATTEMPTS:
-        token.consumed_at = _now()
-        db.commit()
-        raise InvalidOtp("Too many attempts. Please request a new code.")
-
-    if hash_otp(otp) != token.otp_hash:
-        token.attempt_count += 1
-        db.commit()
-        raise InvalidOtp()
-
-    token.consumed_at = _now()
-    user.is_email_verified = True
-    db.commit()
-    logger.info("email_verified", user_id=str(user.id))
+    return user
 
 
 # --- Login / sessions -----------------------------------------------------------
@@ -230,8 +154,8 @@ def authenticate(db: Session, payload: LoginRequest) -> User:
     if not user.is_active:
         raise AccountInactive()
 
-    if not user.is_email_verified:
-        raise EmailNotVerified()
+    # No email-verification gate. `is_email_verified` used to be checked here
+    # and the column no longer exists — see the registration note above.
 
     user.failed_login_attempts = 0
     user.locked_until = None
@@ -354,7 +278,7 @@ def request_password_reset(db: Session, email: str) -> str | None:
     reset_url = f"{settings.frontend_base_url}/reset-password?token={raw_token}"
     send_password_reset_email(
         to_email=user.email,
-        full_name=user.full_name,
+        full_name=user.display_name,
         reset_url=reset_url,
         expires_in_minutes=int(RESET_TOKEN_VALIDITY.total_seconds() // 60),
     )
@@ -399,18 +323,21 @@ def get_or_create_google_user(db: Session, info: GoogleUserInfo, role: UserRole)
     if user is not None:
         # Link the Google identity to the existing local account.
         user.google_id = info.google_id
-        if info.email_verified:
-            user.is_email_verified = True
         db.commit()
         db.refresh(user)
         return user
 
+    # `info.email_verified` is deliberately not persisted, and nothing acts on
+    # it any more. It was the only producer of a `True` `is_email_verified`,
+    # and with that column gone there is nowhere honest to put a fact that
+    # holds for Google accounts and for no other account in the table. It stays
+    # on `GoogleUserInfo` because that type mirrors Google's userinfo response
+    # and a lossy mirror is harder to reason about than an unread field.
     user = User(
         email=info.email,
         password_hash=None,
         role=role,
         full_name=info.full_name,
-        is_email_verified=info.email_verified,
         google_id=info.google_id,
     )
     db.add(user)

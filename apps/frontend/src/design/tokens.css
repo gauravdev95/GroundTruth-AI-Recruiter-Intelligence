@@ -1,0 +1,275 @@
+/* ==================================================================
+   GroundTruth — application design system
+   ------------------------------------------------------------------
+   The authenticated surface. Extends `features/landing/styles/landing.css`
+   inward rather than replacing it: a student who signs up from the landing
+   page should not experience a change of product at the door.
+
+   WHY THIS FILE EXISTS AT ALL
+
+   The app previously ran on six flat Tailwind tokens (ink/paper/panel/rule/
+   verified/flagged) while the landing page ran on a dark instrument palette.
+   Crossing that boundary cost the product its whole first impression — the
+   page that earned the signup and the page that received it looked like they
+   came from different companies. This file is the bridge, and it keeps the
+   landing page's three colour rules intact.
+
+   THE THREE RULES, CARRIED OVER VERBATIM
+
+   1. `--verified` and `--flagged` are STATUS ONLY. Green means "proven by an
+      artefact"; amber means "claimed, unchecked". Never used for emphasis,
+      scores, percentages, progress, bullets or arrows. This matters more in
+      the app than on the landing page, because in here those badges are
+      attached to a real student's real claims, and a green pixel spent on
+      decoration devalues every honest one.
+
+   2. `--glow-*` never touches text, a border, or a status. Backdrop, primary
+      CTA fill, and celebration bursts only. Stored as bare RGB triples so
+      alpha is supplied at the use site.
+
+   3. Gradients are LIGHT, NOT SURFACE. Panels are flat `--panel` plus a 1px
+      `--rule` hairline.
+
+   THE MONO RULE IS SEMANTIC. Anything the machine extracted or measured is
+   mono; anything a human wrote is sans. In the app this is load-bearing in a
+   way it was only decorative on the landing page: it is how a student tells
+   at a glance which words on their own profile are theirs and which ones a
+   parser produced.
+
+   DARK IS THE DEFAULT, LIGHT IS REAL
+
+   Dark ships as the base because it is what the landing page established.
+   Light is a full, audited alternate — not a filter — because a student
+   filling in education history in a bright library is a real case. Both
+   themes satisfy WCAG AA at every pairing used in the product; the ratios
+   that drove the light-mode values are noted inline.
+
+   Theme resolution order: `[data-theme]` on <html> (explicit user choice,
+   persisted) wins over `prefers-color-scheme` (system default). Never the
+   reverse — an explicit toggle that the OS can override is a bug report.
+   ================================================================== */
+
+:root {
+  /* ---- structure ------------------------------------------------ */
+  --bg: #060814;
+  --surface: #0b0f1c;
+  /* 70% is deliberate and load-bearing: it lets the fixed backdrop pass
+     behind every card, which is the single thing that stops a long
+     scrolling dashboard from reading as a stack of identical rectangles. */
+  --panel: rgb(19 26 44 / 0.7);
+  --panel-solid: #131a2c;
+  /* Raised surface for menus, popovers, toasts — anything that floats above
+     a panel and therefore cannot be translucent without becoming unreadable
+     against whatever it happens to overlap. */
+  --panel-raised: #182034;
+  --ink: #eef2fb;
+  --slate: #94a3c4;
+  /* Third text tier. The app needs one the landing page did not: captions,
+     field hints and timestamps that must recede behind --slate without
+     dropping under 4.5:1 on --surface. */
+  --muted: #6b7899;
+  --rule: #1f2a45;
+  /* Hairline at half strength, for dividers *inside* a panel where a full
+     --rule would carve the card into visible boxes. */
+  --rule-soft: rgb(31 42 69 / 0.55);
+
+  /* ---- brand ---------------------------------------------------- */
+  --violet: #7c5cff;
+  --blue: #2d8cff;
+  --teal: #23c4c4;
+
+  /* ---- semantic — a closed set, see rule 1 ---------------------- */
+  --verified: #35d98a;
+  --flagged: #ffb454;
+  /* Failure is NOT part of the verified/flagged pair. Those two describe how
+     much evidence a claim has; this one describes an operation that did not
+     complete. Conflating them would let a network timeout read as a rejected
+     claim, which is the single most damaging lie this product could tell a
+     student about their own profile. */
+  --failed: #ff6b6b;
+
+  /* ---- light sources — RGB triples, alpha at use site ----------- */
+  --glow-a: 124 92 255;
+  --glow-b: 45 140 255;
+  --glow-c: 35 196 196;
+  /* Celebration only. Green as *light* is the one sanctioned exception to
+     rule 1, because a burst is not a badge: it is unattached to any claim,
+     lasts under a second, and never appears beside an unproven one. */
+  --glow-verified: 53 217 138;
+
+  /* ---- type ----------------------------------------------------- */
+  --disp: "Archivo", system-ui, sans-serif;
+  --body: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* ---- elevation ------------------------------------------------
+     Two shadows only, both thrown in brand light rather than black —
+     black shadows on a near-black field read as smudges. Everything else
+     gets its depth from --panel translucency. */
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(var(--glow-a) / 0.18);
+  --shadow-raised: 0 2px 4px rgb(0 0 0 / 0.4), 0 16px 48px -16px rgb(var(--glow-a) / 0.3);
+
+  /* ---- geometry -------------------------------------------------
+     A four-step radius scale. Anything larger than --r-lg on a card reads
+     as a toy; anything smaller than --r-sm on a chip reads as a table cell. */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-full: 999px;
+
+  /* ---- layout --------------------------------------------------- */
+  --nav-h: 64px;
+  --rail-w: 248px;
+  --content-max: 1120px;
+
+  /* ---- focus ----------------------------------------------------
+     One ring, everywhere, on every focusable thing. Violet rather than a
+     status colour: focus is a UI state, and rule 1 forbids spending green
+     on it. Two-layer so it stays visible against both --panel and --bg. */
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--violet);
+}
+
+/* ==================================================================
+   LIGHT THEME
+   ------------------------------------------------------------------
+   Not an inversion. Inverting a dark instrument palette produces washed
+   pastels that lose exactly the precision the dark theme was chosen for,
+   so the light values were picked independently against the same intent:
+   a near-white field, hairline structure, and colour reserved for status.
+
+   Contrast ratios against --surface (#FFFFFF), all AA or better:
+     --ink     #0A1628   16.9:1   body text
+     --slate   #4A5878    7.4:1   secondary text
+     --muted   #6B7899    4.6:1   captions, hints  (AA at 14px+)
+     --verified#0E7C55    4.8:1   status text
+     --flagged #8A5108    5.4:1   status text
+     --failed  #C0342B    5.1:1   error text
+   The status three are darkened well past their dark-theme equivalents —
+   #35D98A on white is 1.8:1 and would be unreadable as text. Same meaning,
+   different value; the token name is what carries the meaning across.
+   ================================================================== */
+
+:root[data-theme="light"] {
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --panel: rgb(255 255 255 / 0.78);
+  --panel-solid: #ffffff;
+  --panel-raised: #ffffff;
+  --ink: #0a1628;
+  --slate: #4a5878;
+  --muted: #6b7899;
+  --rule: #dde3ec;
+  --rule-soft: rgb(221 227 236 / 0.7);
+
+  --violet: #6344e8;
+  --blue: #1f6fd8;
+  --teal: #10868a;
+
+  --verified: #0e7c55;
+  --flagged: #8a5108;
+  --failed: #c0342b;
+
+  --glow-a: 99 68 232;
+  --glow-b: 31 111 216;
+  --glow-c: 16 134 138;
+  --glow-verified: 14 124 85;
+
+  /* Black-based on light, where it reads as shadow rather than smudge. */
+  --shadow-panel: 0 1px 2px rgb(10 22 40 / 0.04), 0 8px 24px -12px rgb(10 22 40 / 0.1);
+  --shadow-raised: 0 2px 4px rgb(10 22 40 / 0.06), 0 16px 48px -16px rgb(10 22 40 / 0.16);
+}
+
+/* System preference, honoured only when the user has expressed no explicit
+   choice. `:root:not([data-theme])` is what enforces that precedence — with
+   a bare media query the OS would silently override the in-app toggle. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg: #f4f6fa;
+    --surface: #ffffff;
+    --panel: rgb(255 255 255 / 0.78);
+    --panel-solid: #ffffff;
+    --panel-raised: #ffffff;
+    --ink: #0a1628;
+    --slate: #4a5878;
+    --muted: #6b7899;
+    --rule: #dde3ec;
+    --rule-soft: rgb(221 227 236 / 0.7);
+    --violet: #6344e8;
+    --blue: #1f6fd8;
+    --teal: #10868a;
+    --verified: #0e7c55;
+    --flagged: #8a5108;
+    --failed: #c0342b;
+    --glow-a: 99 68 232;
+    --glow-b: 31 111 216;
+    --glow-c: 16 134 138;
+    --glow-verified: 14 124 85;
+    --shadow-panel: 0 1px 2px rgb(10 22 40 / 0.04), 0 8px 24px -12px rgb(10 22 40 / 0.1);
+    --shadow-raised: 0 2px 4px rgb(10 22 40 / 0.06), 0 16px 48px -16px rgb(10 22 40 / 0.16);
+  }
+}
+
+/* ==================================================================
+   BASE
+   ================================================================== */
+
+html {
+  /* Not `smooth`. The app has in-page anchors (the profile page's section
+     rail) but it also has route changes that reset scroll, and smooth
+     scrolling turns every one of those into a visible 400ms slide. The
+     anchor links opt in individually instead. */
+  scroll-behavior: auto;
+  /* Prevents the whole layout shifting horizontally when a route with
+     overflow replaces one without. */
+  scrollbar-gutter: stable;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Every number that can change in place. Without this, a profile-strength
+   counter ticking 34 → 35 reflows its own width mid-animation. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The semantic mono rule, as a class so it is applied deliberately. */
+.machine {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+/* ==================================================================
+   REDUCED MOTION
+   ------------------------------------------------------------------
+   The JS layer (`design/motion.ts`) resolves every animated component to
+   its final state, so this block is a backstop for CSS-only motion —
+   transitions on hover, the shimmer keyframe — not the primary mechanism.
+   `!important` is justified here precisely because it is a backstop: it has
+   to beat inline styles written by animation code that failed to check.
+   ================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

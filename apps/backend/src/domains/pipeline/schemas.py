@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -72,17 +73,55 @@ class RecruiterApplicationDetailResponse(BaseModel):
     rollback_target: ApplicationStatus | None
 
 
+#: Structured close reasons. A closed set rather than free text so the same
+#: answer means the same thing across every recruiter and every job — which
+#: is what makes it usable as a matching signal at all. `OTHER` exists so the
+#: set never forces a wrong answer; the free-text `note` is where the real
+#: reason goes in that case.
+class CloseReason(str, Enum):
+    SKILLS_GAP = "skills_gap"
+    EXPERIENCE_MISMATCH = "experience_mismatch"
+    ROLE_FILLED = "role_filled"
+    OTHER = "other"
+
+
 class TransitionRequest(_StrictModel):
     to_status: ApplicationStatus
+    #: Both optional, always. The rejection modal's Skip button sends the
+    #: transition with neither, and that path must stay exactly as fast as it
+    #: was before feedback existed — a required reason is a reason recruiters
+    #: learn to click past, which produces worse data than no reason at all.
+    #:
+    #: Only meaningful on a transition to `REJECTED`; the router records them
+    #: on the audit entry and ignores them otherwise rather than 422-ing, so
+    #: a client that always sends the field is not a client that breaks.
+    close_reason: CloseReason | None = None
+    close_note: str | None = Field(default=None, max_length=200)
 
 
-class PipelineCandidatePreview(BaseModel):
+class _CandidateCardFields(BaseModel):
+    """The three fields every board card renders below the score, shared by
+    both column shapes so the `matched` and applied columns cannot drift into
+    describing the same candidate differently.
+
+    `reasoning` is composed from stored evidence by
+    `domains/matching/tiers.py::build_reasoning` — never LLM-narrated.
+    """
+
+    matched_skills: list[str] = Field(default_factory=list)
+    reasoning: str = ""
+    #: `candidate_profiles.is_discoverable` — verified evidence *and* a
+    #: completed code-grounded interview. See `service.py::_candidate_preview`.
+    is_verified: bool = False
+
+
+class PipelineCandidatePreview(_CandidateCardFields):
     candidate_profile_id: str
     headline: str | None
     match_score: float
 
 
-class PipelineApplicationPreview(BaseModel):
+class PipelineApplicationPreview(_CandidateCardFields):
     application_id: str
     candidate_profile_id: str
     headline: str | None

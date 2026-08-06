@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.domains.ai.embedding_constants import EMBEDDING_DIMENSIONS
 from src.domains.ai.job_extraction_schema import ExtractedSkill, JobRequirementExtraction
 from src.domains.auth import service as auth_service
 from src.domains.auth.models import CandidateProfile, RecruiterProfile
@@ -44,7 +45,7 @@ VALID_CREATE = {
 EXTRACTION = JobRequirementExtraction(
     must_have_skills=[ExtractedSkill(name="Python", min_proficiency="intermediate")], desirable_skills=[]
 )
-FIXED_VECTOR = [0.1] * 1536
+FIXED_VECTOR = [0.1] * EMBEDDING_DIMENSIONS
 
 
 class _FixedEmbedder:
@@ -94,28 +95,26 @@ def _auth(token: str) -> dict[str, str]:
 
 
 def _recruiter(db_session: Session, email: str, company_name: str = "Acme Corp") -> tuple[str, RecruiterProfile]:
-    user, otp, _ = auth_service.register_recruiter(
+    user = auth_service.register_recruiter(
         db_session,
         RecruiterRegisterRequest(
             full_name="Grace Hopper", company_name=company_name, company_email=email,
             password="StrongPass1!", confirm_password="StrongPass1!", captcha_token="test", accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     token = create_access_token(user_id=user.id, role=user.role.value)
     profile = db_session.execute(select(RecruiterProfile).where(RecruiterProfile.user_id == user.id)).scalar_one()
     return token, profile
 
 
 def _candidate(db_session: Session, email: str) -> tuple[str, CandidateProfile]:
-    user, otp, _ = auth_service.register_candidate(
+    user = auth_service.register_candidate(
         db_session,
         CandidateRegisterRequest(
             full_name="Ada Lovelace", email=email, phone_number="+14155552671",
             password="StrongPass1!", confirm_password="StrongPass1!", captcha_token="test", accept_terms=True,
         ),
     )
-    auth_service.confirm_email_otp(db_session, user.email, otp)
     token = create_access_token(user_id=user.id, role=user.role.value)
     profile = db_session.execute(select(CandidateProfile).where(CandidateProfile.user_id == user.id)).scalar_one()
 
@@ -1046,3 +1045,145 @@ def test_new_message_emails_the_other_party(
     candidate_emails = [m for m in mail_outbox if m.to_email == "msg-email.candidate@example.com"]
     assert len(candidate_emails) == 1
     assert "new message" in candidate_emails[0].subject.lower()
+
+
+# ==========================================================================
+# Board card payload + structured close feedback
+# ==========================================================================
+
+
+def test_board_cards_carry_the_reasoning_string_and_top_skills(
+    client: TestClient, db_session: Session, stub_extractor
+) -> None:
+    """Every column renders the same card, so both shapes carry the same three
+    fields (`schemas.py::_CandidateCardFields`).
+
+    The reasoning is composed from the stored `match_reasons` payload by
+    `matching/tiers.py::build_reasoning` — the assertion is deliberately on
+    its *shape* rather than on an exact sentence, because the sentence is that
+    module's contract and is pinned by its own unit tests.
+    """
+    recruiter_token, _rp = _recruiter(db_session, "cards@acme.com")
+    candidate_token, candidate_profile = _candidate(db_session, "cards.candidate@example.com")
+    job_id = _matched_job(client, db_session, recruiter_token, candidate_profile)
+
+    matched = client.get(f"{JOBS_BASE}/{job_id}/pipeline", headers=_auth(recruiter_token)).json()["matched"]
+    assert len(matched) == 1
+    card = matched[0]
+    assert card["reasoning"], "a card without a reasoning line explains nothing"
+    assert isinstance(card["matched_skills"], list)
+    assert len(card["matched_skills"]) <= 3, "the card renders three; sending more is data with nowhere to go"
+    assert isinstance(card["is_verified"], bool)
+
+    # The applied column describes the same candidate the same way.
+    client.post(f"{STUDENT_BASE}/jobs/{job_id}/apply", json={}, headers=_auth(candidate_token))
+    applied = client.get(f"{JOBS_BASE}/{job_id}/pipeline", headers=_auth(recruiter_token)).json()["applied"]
+    assert applied[0]["reasoning"] == card["reasoning"]
+    assert applied[0]["matched_skills"] == card["matched_skills"]
+
+
+def test_a_close_reason_is_recorded_on_the_transition_audit_entry(
+    client: TestClient, db_session: Session, stub_extractor
+) -> None:
+    recruiter_token, _rp = _recruiter(db_session, "closereason@acme.com")
+    candidate_token, candidate_profile = _candidate(db_session, "closereason.candidate@example.com")
+    job_id = _matched_job(client, db_session, recruiter_token, candidate_profile)
+    application_id = _apply_and_get_application_id(
+        client, db_session, recruiter_token, candidate_token, job_id
+    )
+
+    response = client.post(
+        f"{RECRUITER_BASE}/applications/{application_id}/transition",
+        json={"to_status": "rejected", "close_reason": "skills_gap", "close_note": "No Rust evidence."},
+        headers=_auth(recruiter_token),
+    )
+    assert response.status_code == 200
+
+    entry = db_session.execute(
+        select(AuditLog)
+        .where(AuditLog.entity_type == "application", AuditLog.entity_id == uuid.UUID(application_id))
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        .limit(1)
+    ).scalar_one()
+    assert entry.after["status"] == "rejected"
+    assert entry.after["close_reason"] == "skills_gap"
+    assert entry.after["close_note"] == "No Rust evidence."
+
+
+def test_skipping_the_reason_closes_the_candidate_and_records_nothing_extra(
+    client: TestClient, db_session: Session, stub_extractor
+) -> None:
+    """Skip must stay exactly as fast as closing was before feedback existed,
+    and must leave no trace of having been skipped — an empty reason field is
+    not a data point about the recruiter."""
+    recruiter_token, _rp = _recruiter(db_session, "skipreason@acme.com")
+    candidate_token, candidate_profile = _candidate(db_session, "skipreason.candidate@example.com")
+    job_id = _matched_job(client, db_session, recruiter_token, candidate_profile)
+    application_id = _apply_and_get_application_id(
+        client, db_session, recruiter_token, candidate_token, job_id
+    )
+
+    response = client.post(
+        f"{RECRUITER_BASE}/applications/{application_id}/transition",
+        json={"to_status": "rejected"},
+        headers=_auth(recruiter_token),
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+
+    entry = db_session.execute(
+        select(AuditLog)
+        .where(AuditLog.entity_type == "application", AuditLog.entity_id == uuid.UUID(application_id))
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        .limit(1)
+    ).scalar_one()
+    assert entry.after == {"status": "rejected"}
+
+
+def test_a_close_reason_sent_with_a_forward_move_is_ignored_not_rejected(
+    client: TestClient, db_session: Session, stub_extractor
+) -> None:
+    """A client that always sends the field is not a client that breaks — but
+    "skills gap" attached to a shortlisting is nonsense and must not be
+    stored."""
+    recruiter_token, _rp = _recruiter(db_session, "strayreason@acme.com")
+    candidate_token, candidate_profile = _candidate(db_session, "strayreason.candidate@example.com")
+    job_id = _matched_job(client, db_session, recruiter_token, candidate_profile)
+    application_id = _apply_and_get_application_id(
+        client, db_session, recruiter_token, candidate_token, job_id
+    )
+
+    response = client.post(
+        f"{RECRUITER_BASE}/applications/{application_id}/transition",
+        json={"to_status": "shortlisted", "close_reason": "role_filled"},
+        headers=_auth(recruiter_token),
+    )
+    assert response.status_code == 200
+
+    entry = db_session.execute(
+        select(AuditLog)
+        .where(AuditLog.entity_type == "application", AuditLog.entity_id == uuid.UUID(application_id))
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        .limit(1)
+    ).scalar_one()
+    assert entry.after == {"status": "shortlisted"}
+
+
+def test_an_unknown_close_reason_is_refused(
+    client: TestClient, db_session: Session, stub_extractor
+) -> None:
+    """The reason set is closed on purpose: it is only usable as a matching
+    signal if the same answer means the same thing everywhere."""
+    recruiter_token, _rp = _recruiter(db_session, "badreason@acme.com")
+    candidate_token, candidate_profile = _candidate(db_session, "badreason.candidate@example.com")
+    job_id = _matched_job(client, db_session, recruiter_token, candidate_profile)
+    application_id = _apply_and_get_application_id(
+        client, db_session, recruiter_token, candidate_token, job_id
+    )
+
+    response = client.post(
+        f"{RECRUITER_BASE}/applications/{application_id}/transition",
+        json={"to_status": "rejected", "close_reason": "vibes"},
+        headers=_auth(recruiter_token),
+    )
+    assert response.status_code == 422

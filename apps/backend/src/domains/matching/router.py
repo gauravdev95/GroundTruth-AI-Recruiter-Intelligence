@@ -21,6 +21,8 @@ from sqlalchemy.orm import Session
 from src.db.database import get_db
 from src.domains.auth.models import CandidateProfile
 from src.domains.company.models import Company
+from src.domains.matching import service as matching_service
+from src.domains.matching import tiers
 from src.domains.matching.models import MatchResult
 from src.domains.matching.schemas import (
     JobFeedResponse,
@@ -90,6 +92,17 @@ def get_job_feed(
         .order_by(MatchResult.match_score.desc())
     ).all()
 
+    # Tier B is defined relative to *the rest of each job's pool*, so the
+    # cutoff is a property of the job and not of this student. One
+    # `pool_scores_for_job` per distinct job in the feed, cached across rows:
+    # a student matching twelve jobs asks twelve cheap aggregate questions,
+    # not one per row, and two rows for the same job can never disagree about
+    # where the bar was.
+    cutoffs: dict[uuid.UUID, float] = {}
+    for _match, job, _company in rows:
+        if job.id not in cutoffs:
+            cutoffs[job.id] = tiers.tier_b_cutoff(matching_service.pool_scores_for_job(db, job.id))
+
     jobs = [
         MatchedJobResponse(
             match_score=float(match.match_score),
@@ -99,6 +112,13 @@ def get_job_feed(
             matched_desirable_skills=_reasons(match.matched_desirable_skills),
             computed_at=match.computed_at,
             updated_at=match.updated_at,
+            tier=(
+                resolved.value
+                if (resolved := tiers.resolve_tier(float(match.match_score), cutoff_b=cutoffs[job.id]))
+                is not None
+                else None
+            ),
+            reasoning=tiers.build_reasoning(match.match_reasons),
             job=MatchedJobPreview(
                 job_id=job.id,
                 title=job.title,
@@ -108,6 +128,7 @@ def get_job_feed(
                 location=job.location,
                 is_remote=job.is_remote,
                 deadline=job.deadline,
+                description=job.description,
             ),
         )
         for match, job, company in rows

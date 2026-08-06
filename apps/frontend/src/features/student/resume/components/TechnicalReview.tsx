@@ -51,13 +51,19 @@ export function TechnicalReview({
         />
       </FieldToggle>
 
-      {CODING_PLATFORM_OPTIONS.map((option) => {
-        const platform = option.value as CodingPlatformType;
+      {/* Driven by the *state* the parent built, not by the full platform
+          list. The two are not the same set and must not be assumed to be: the
+          resume extractor only reads a handful of handles off a document, so
+          iterating every platform the profile supports rendered a row for
+          platforms that had no state at all. */}
+      {(Object.keys(fields.platforms) as CodingPlatformType[]).map((platform) => {
         const state = fields.platforms[platform];
+        const label =
+          CODING_PLATFORM_OPTIONS.find((option) => option.value === platform)?.label ?? platform;
         return (
           <FieldToggle
             key={platform}
-            label={`${option.label} handle`}
+            label={`${label} handle`}
             included={state.included}
             fromResume={state.fromResume}
             onToggle={(included) => onPlatformChange(platform, { included })}
