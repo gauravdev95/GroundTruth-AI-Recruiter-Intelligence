@@ -24,11 +24,11 @@ import { stageBySectionKey, stagePath } from "../lib/stages";
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-2 py-1.5">
-      <dt className="text-xs uppercase tracking-wide text-slate-400">{label}</dt>
+      <dt className="text-xs uppercase tracking-wide text-[var(--muted)]">{label}</dt>
       {/* An unfilled optional field says so rather than rendering blank — a gap
           in a summary reads as data the flow lost. */}
-      <dd className="text-sm text-slate-700">
-        {value?.trim() ? value : <span className="text-slate-400">Not provided</span>}
+      <dd className="text-sm text-[var(--slate)]">
+        {value?.trim() ? value : <span className="text-[var(--muted)]">Not provided</span>}
       </dd>
     </div>
   );
@@ -57,16 +57,16 @@ function Panel({
   const to = stage ? stagePath(stage) : ".";
 
   return (
-    <section className="rounded-2xl border border-rule bg-white p-5">
-      <header className="mb-3 flex items-center justify-between gap-3 border-b border-rule pb-3">
-        <h3 className="flex items-center gap-2 font-display text-sm font-semibold text-ink">
+    <section className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
+      <header className="mb-3 flex items-center justify-between gap-3 border-b border-[var(--rule)] pb-3">
+        <h3 className="flex items-center gap-2 font-display text-sm font-semibold text-[var(--ink)]">
           {filled ? (
-            <Check size={15} className="text-verified" aria-hidden="true" />
+            <Check size={15} className="text-[var(--verified)]" aria-hidden="true" />
           ) : (
-            <Circle size={13} className="text-slate-300" aria-hidden="true" />
+            <Circle size={13} className="text-[var(--muted)]" aria-hidden="true" />
           )}
           {title}
-          {!filled ? <span className="font-normal text-slate-400">— Skipped</span> : null}
+          {!filled ? <span className="font-normal text-[var(--muted)]">— Skipped</span> : null}
         </h3>
         {/* A real link, not a button with an onClick: "Edit" navigates to
             another stage, so it must be middle-clickable and copyable like
@@ -74,7 +74,7 @@ function Panel({
             this borrows its ghost styling rather than nesting the two. */}
         <Link
           to={to}
-          className="inline-flex shrink-0 items-center rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-panel hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="inline-flex shrink-0 items-center rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--slate)] transition hover:bg-[var(--panel)] hover:text-[var(--ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--violet)]"
         >
           {filled ? (
             <>
@@ -178,9 +178,9 @@ export function StageReviewPage() {
 
   return (
     <div className="space-y-4">
-      <header className="rounded-2xl border border-violet-100 bg-white p-5">
-        <h1 className="font-display text-lg font-semibold text-ink">Review &amp; submit</h1>
-        <p className="mt-1 text-sm text-slate-500">
+      <header className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-5">
+        <h1 className="font-display text-lg font-semibold text-[var(--ink)]">Review &amp; submit</h1>
+        <p className="mt-1 text-sm text-[var(--slate)]">
           This is everything on your profile. Edit any section, then submit — verification starts in
           the background and you&apos;ll be emailed when it finishes.
         </p>
@@ -189,7 +189,7 @@ export function StageReviewPage() {
       {!state.can_submit ? (
         <p
           role="alert"
-          className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+          className="flex items-start gap-2 rounded-xl border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 px-4 py-3 text-sm text-[var(--flagged)]"
         >
           <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
           <span>Still needed before you can submit: {state.blocking.join(", ")}.</span>
@@ -197,7 +197,7 @@ export function StageReviewPage() {
       ) : null}
 
       <Panel title="Basic information" section="basic" filled>
-        <dl className="divide-y divide-rule">
+        <dl className="divide-y divide-[var(--rule)]">
           <Row label="Name" value={basicData.full_name} />
           <Row label="Headline" value={basicData.headline} />
           <Row label="College" value={basicData.college} />
@@ -212,7 +212,7 @@ export function StageReviewPage() {
       </Panel>
 
       <Panel title="GitHub" section="github" filled={technicalData.github_account !== null}>
-        <dl className="divide-y divide-rule">
+        <dl className="divide-y divide-[var(--rule)]">
           <Row label="Connected as" value={technicalData.github_account?.github_username} />
           <Row
             label="Projects linked"
@@ -223,24 +223,24 @@ export function StageReviewPage() {
 
       <Panel title={`Projects (${projectList.length})`} section="projects" filled={projectList.length > 0}>
         {projectList.length === 0 ? (
-          <p className="text-sm text-slate-400">None linked.</p>
+          <p className="text-sm text-[var(--muted)]">None linked.</p>
         ) : (
-          <ul className="divide-y divide-rule">
+          <ul className="divide-y divide-[var(--rule)]">
             {projectList.map((project) => (
               <li key={project.id} className="py-2">
-                <p className="text-sm font-medium text-slate-800">
+                <p className="text-sm font-medium text-[var(--ink)]">
                   {project.title}
                   {project.is_primary ? (
-                    <span className="ml-2 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+                    <span className="ml-2 rounded-full bg-[var(--violet)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--violet)]">
                       Main
                     </span>
                   ) : null}
                 </p>
                 {project.description ? (
-                  <p className="mt-0.5 text-xs text-slate-600">&ldquo;{project.description}&rdquo;</p>
+                  <p className="mt-0.5 text-xs text-[var(--slate)]">&ldquo;{project.description}&rdquo;</p>
                 ) : null}
                 {project.repo_url ? (
-                  <p className="truncate font-mono text-xs text-slate-500">{project.repo_url}</p>
+                  <p className="truncate font-mono text-xs text-[var(--slate)]">{project.repo_url}</p>
                 ) : null}
               </li>
             ))}
@@ -254,9 +254,9 @@ export function StageReviewPage() {
         filled={technicalData.coding_profiles.length > 0}
       >
         {technicalData.coding_profiles.length === 0 ? (
-          <p className="text-sm text-slate-400">None added.</p>
+          <p className="text-sm text-[var(--muted)]">None added.</p>
         ) : (
-          <dl className="divide-y divide-rule">
+          <dl className="divide-y divide-[var(--rule)]">
             {technicalData.coding_profiles.map((account) => (
               <Row
                 key={account.id}
@@ -274,13 +274,13 @@ export function StageReviewPage() {
         filled={certificateList.length > 0}
       >
         {certificateList.length === 0 ? (
-          <p className="text-sm text-slate-400">None added.</p>
+          <p className="text-sm text-[var(--muted)]">None added.</p>
         ) : (
-          <ul className="divide-y divide-rule">
+          <ul className="divide-y divide-[var(--rule)]">
             {certificateList.map((certificate) => (
               <li key={certificate.id} className="py-2">
-                <p className="text-sm font-medium text-slate-800">{certificate.title}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-sm font-medium text-[var(--ink)]">{certificate.title}</p>
+                <p className="text-xs text-[var(--slate)]">
                   {certificate.issuer}
                   {certificate.file_name ? ` · ${certificate.file_name}` : ""}
                 </p>
@@ -296,15 +296,15 @@ export function StageReviewPage() {
         filled={experienceList.length > 0}
       >
         {experienceList.length === 0 ? (
-          <p className="text-sm text-slate-400">None added.</p>
+          <p className="text-sm text-[var(--muted)]">None added.</p>
         ) : (
-          <ul className="divide-y divide-rule">
+          <ul className="divide-y divide-[var(--rule)]">
             {experienceList.map((experience) => (
               <li key={experience.id} className="py-2">
-                <p className="text-sm font-medium text-slate-800">
+                <p className="text-sm font-medium text-[var(--ink)]">
                   {experience.title} · {experience.company_name}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[var(--slate)]">
                   {experience.start_date} — {experience.end_date ?? "Present"}
                 </p>
               </li>
@@ -313,23 +313,23 @@ export function StageReviewPage() {
         )}
       </Panel>
 
-      <section className="rounded-2xl border border-rule bg-white p-5">
+      <section className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
         <label className="flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
             checked={consent}
             onChange={(event) => setConsent(event.target.checked)}
             disabled={state.is_submitted || submit.isPending}
-            className="mt-0.5 size-4 shrink-0 rounded border-slate-300 accent-ink"
+            className="mt-0.5 size-4 shrink-0 rounded border-[var(--rule)] accent-[var(--violet)]"
           />
-          <span className="text-sm leading-relaxed text-slate-700">
+          <span className="text-sm leading-relaxed text-[var(--slate)]">
             I consent to GroundTruth analysing my linked repositories and generating interview
             questions based on this data, as described in the{" "}
             <a
               href="/legal/privacy"
               target="_blank"
               rel="noreferrer"
-              className="underline hover:text-ink"
+              className="underline hover:text-[var(--ink)]"
             >
               Privacy Policy
             </a>
@@ -338,7 +338,7 @@ export function StageReviewPage() {
         </label>
       </section>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rule bg-white p-5">
+      <footer className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
         <Button type="button" variant="secondary" onClick={goBack} disabled={submit.isPending}>
           <ArrowLeft size={16} aria-hidden="true" className="mr-1.5" />
           Previous

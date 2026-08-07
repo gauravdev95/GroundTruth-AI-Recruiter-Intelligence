@@ -62,6 +62,12 @@ const ResumeImportPage = lazy(() =>
 const InterviewPage = lazy(() =>
   import("./interview/pages/InterviewPage").then((m) => ({ default: m.InterviewPage })),
 );
+/* Its own chunk, and worth it: the room pulls in the media, speech and
+   integrity layers plus a stylesheet, none of which any other screen touches
+   and none of which a student who never sits an interview should download. */
+const InterviewRoomPage = lazy(() =>
+  import("./interview/room/pages/InterviewRoomPage").then((m) => ({ default: m.InterviewRoomPage })),
+);
 const JobFeedPage = lazy(() =>
   import("./matches/pages/JobFeedPage").then((m) => ({ default: m.JobFeedPage })),
 );
@@ -155,6 +161,29 @@ export const studentRoutes = (
         deleted so in-flight sessions, bookmarks and any already-sent link do
         not 404 — there is exactly one fork now, and this points at it. */}
     <Route path="/student/onboarding" element={<Navigate to="/student/profile/setup" replace />} />
+
+    {/* The interview room.
+
+        Deliberately a sibling of the dashboard branch rather than a child of
+        it, so it renders *without* `StudentDashboardLayout`. A live interview
+        must own the whole viewport — a sidebar next to a video call is five
+        invitations to leave in the middle of a question — and the shell also
+        opens the app-wide realtime socket, which would be free to pop a
+        notification toast over somebody being assessed.
+
+        Same two guards as the dashboard, in the same order: this is still a
+        candidate-only screen and still requires a finished profile. Only the
+        chrome differs. */}
+    <Route
+      path="/student/interview/:projectId/room"
+      element={
+        <ProtectedRoute allow={["candidate"]}>
+          <RequireProfileSetup>
+            <InterviewRoomPage />
+          </RequireProfileSetup>
+        </ProtectedRoute>
+      }
+    />
 
     <Route
       path="/student"

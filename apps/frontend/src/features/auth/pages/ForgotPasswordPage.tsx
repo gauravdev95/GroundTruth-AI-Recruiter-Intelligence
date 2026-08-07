@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 
+import { buttonVariants } from "@/components/buttonVariants";
+
 import { AlertBanner } from "../components/AlertBanner";
 import { AuthLayout } from "../components/AuthLayout";
 import { FormField } from "../components/FormField";
@@ -40,7 +42,7 @@ export function ForgotPasswordPage() {
         >
           <Link
             to="/login"
-            className="mt-2 rounded bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-hover"
+            className={buttonVariants({ variant: "primary", size: "md", className: "mt-2" })}
           >
             Back to login
           </Link>
@@ -54,7 +56,7 @@ export function ForgotPasswordPage() {
       title="Forgot your password?"
       subtitle="Enter your email and we'll send you a reset link."
       footer={
-        <Link to="/login" className="font-medium text-ink underline decoration-rule underline-offset-2 transition hover:decoration-ink">
+        <Link to="/login" className="font-medium text-[var(--ink)] underline decoration-[var(--rule)] underline-offset-2 transition-colors hover:decoration-[var(--ink)]">
           Back to login
         </Link>
       }
@@ -74,7 +76,7 @@ export function ForgotPasswordPage() {
         <button
           type="submit"
           disabled={forgotPassword.isPending}
-          className="mt-1 flex items-center justify-center rounded bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-60"
+          className={buttonVariants({ variant: "primary", size: "md", className: "mt-1 w-full" })}
         >
           {forgotPassword.isPending ? "Sending…" : "Send reset link"}
         </button>

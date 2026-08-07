@@ -26,7 +26,7 @@ export function ApplicationDetailPage() {
   const detail = useApplication(applicationId ?? "");
 
   const backLink = (
-    <Link to="/student/applications" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink">
+    <Link to="/student/applications" className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] hover:text-[var(--ink)]">
       <ArrowLeft size={14} aria-hidden="true" /> Back to applications
     </Link>
   );
@@ -62,25 +62,25 @@ export function ApplicationDetailPage() {
 
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-semibold text-ink">{job_title}</h1>
-          <p className="text-sm text-slate-500">{company_name}</p>
+          <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">{job_title}</h1>
+          <p className="text-sm text-[var(--slate)]">{company_name}</p>
         </div>
         <ApplicationStatusBadge status={application.status} />
       </header>
 
       {application.cover_note ? (
-        <div className="rounded-2xl border border-rule bg-white p-5">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Your cover note</p>
-          <p className="whitespace-pre-wrap text-sm text-ink">{application.cover_note}</p>
+        <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Your cover note</p>
+          <p className="whitespace-pre-wrap text-sm text-[var(--ink)]">{application.cover_note}</p>
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-rule bg-white p-5">
-        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+      <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
+        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
           Evidence attached when you applied
         </p>
         {match ? (
-          <p className="mb-3 text-sm text-ink">
+          <p className="mb-3 text-sm text-[var(--ink)]">
             Match score at the time: <span className="font-semibold">{match.match_score.toFixed(0)}</span>
           </p>
         ) : null}
@@ -94,7 +94,7 @@ export function ApplicationDetailPage() {
           </div>
         ) : null}
         {projects.length > 0 ? (
-          <ul className="space-y-1.5 text-sm text-ink">
+          <ul className="space-y-1.5 text-sm text-[var(--ink)]">
             {projects.map((project) => (
               <li key={project.title} className="flex items-center justify-between">
                 <span>{project.title}</span>
@@ -108,7 +108,7 @@ export function ApplicationDetailPage() {
       </div>
 
       <div>
-        <p className="mb-2 text-sm font-semibold text-ink">Messages</p>
+        <p className="mb-2 text-sm font-semibold text-[var(--ink)]">Messages</p>
         <MessageThread rolePrefix="student" applicationId={applicationId} />
       </div>
     </div>

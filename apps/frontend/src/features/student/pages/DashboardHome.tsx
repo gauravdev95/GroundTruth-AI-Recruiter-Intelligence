@@ -14,13 +14,13 @@ import { useCertificatesSection, useProfileCompleteness, useProjectsSection, use
 
 function StatTile({ icon: Icon, label, value }: { icon: typeof Briefcase; label: string; value: number | string }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-rule bg-white p-4">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink/5 text-ink">
+    <div className="flex items-center gap-3 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-4">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--panel)] text-[var(--ink)]">
         <Icon size={16} aria-hidden="true" />
       </div>
       <div>
-        <p className="text-lg font-semibold tabular-nums text-ink">{value}</p>
-        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-lg font-semibold tabular-nums text-[var(--ink)]">{value}</p>
+        <p className="text-xs text-[var(--slate)]">{label}</p>
       </div>
     </div>
   );
@@ -58,8 +58,8 @@ export function DashboardHome() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-semibold text-ink">Your dashboard</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">Your dashboard</h1>
+        <p className="mt-1 text-sm text-[var(--slate)]">
           {completeness.data.is_discoverable
             ? "Your profile is discoverable to recruiters."
             : completeness.data.meets_section_requirements
@@ -90,18 +90,18 @@ export function DashboardHome() {
               names it as dashboard content, and a student who lands here
               should see what they matched to without a second navigation. */}
           <section>
-            <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink">
+            <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-[var(--ink)]">
               <Briefcase size={18} aria-hidden="true" /> Your job matches
             </h2>
             <JobFeedPreview />
           </section>
 
           <section>
-            <h2 className="mb-3 font-display text-lg font-semibold text-ink">Repositories</h2>
+            <h2 className="mb-3 font-display text-lg font-semibold text-[var(--ink)]">Repositories</h2>
             {projectList.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-rule p-6 text-center text-sm text-slate-500">
+              <p className="rounded-2xl border border-dashed border-[var(--rule)] p-6 text-center text-sm text-[var(--slate)]">
                 No repositories added yet.{" "}
-                <Link to="/student/profile" className="font-medium text-ink hover:underline">
+                <Link to="/student/profile" className="font-medium text-[var(--ink)] hover:underline">
                   Add one in your profile
                 </Link>
                 .
@@ -116,24 +116,24 @@ export function DashboardHome() {
           </section>
 
           <section>
-            <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink">
+            <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-[var(--ink)]">
               <Code2 size={18} aria-hidden="true" /> Coding platforms
             </h2>
             {githubAccount === null && codingProfiles.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-rule p-6 text-center text-sm text-slate-500">
+              <p className="rounded-2xl border border-dashed border-[var(--rule)] p-6 text-center text-sm text-[var(--slate)]">
                 No coding accounts connected yet.
               </p>
             ) : (
               <div className="space-y-2">
                 {githubAccount ? (
-                  <div className="flex items-center justify-between rounded-2xl border border-rule bg-white p-3.5">
-                    <span className="text-sm text-ink">GitHub — {githubAccount.github_username}</span>
+                  <div className="flex items-center justify-between rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-3.5">
+                    <span className="text-sm text-[var(--ink)]">GitHub — {githubAccount.github_username}</span>
                     <VerificationBadge status={githubAccount.verification_status} />
                   </div>
                 ) : null}
                 {codingProfiles.map((account) => (
-                  <div key={account.id} className="flex items-center justify-between rounded-2xl border border-rule bg-white p-3.5">
-                    <span className="text-sm capitalize text-ink">
+                  <div key={account.id} className="flex items-center justify-between rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-3.5">
+                    <span className="text-sm capitalize text-[var(--ink)]">
                       {account.platform} — {account.handle}
                     </span>
                     <VerificationBadge status={account.verification_status} />
@@ -144,17 +144,17 @@ export function DashboardHome() {
           </section>
 
           <section>
-            <h2 className="mb-3 font-display text-lg font-semibold text-ink">Certificates</h2>
+            <h2 className="mb-3 font-display text-lg font-semibold text-[var(--ink)]">Certificates</h2>
             {certificateList.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-rule p-6 text-center text-sm text-slate-500">
+              <p className="rounded-2xl border border-dashed border-[var(--rule)] p-6 text-center text-sm text-[var(--slate)]">
                 No certificates added yet.
               </p>
             ) : (
               <div className="space-y-2">
                 {certificateList.map((cert) => (
-                  <div key={cert.id} className="flex items-center justify-between rounded-2xl border border-rule bg-white p-3.5">
-                    <span className="text-sm text-ink">
-                      {cert.title} <span className="text-slate-400">· {cert.issuer}</span>
+                  <div key={cert.id} className="flex items-center justify-between rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-3.5">
+                    <span className="text-sm text-[var(--ink)]">
+                      {cert.title} <span className="text-[var(--muted)]">· {cert.issuer}</span>
                     </span>
                     <VerificationBadge status={cert.verification_status} />
                   </div>
@@ -165,7 +165,7 @@ export function DashboardHome() {
 
           {Object.entries(analytics.data?.application_outcomes ?? {}).some(([, count]) => count > 0) ? (
             <section>
-              <h2 className="mb-3 font-display text-lg font-semibold text-ink">Application outcomes</h2>
+              <h2 className="mb-3 font-display text-lg font-semibold text-[var(--ink)]">Application outcomes</h2>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(analytics.data?.application_outcomes ?? {})
                   .filter(([, count]) => count > 0)

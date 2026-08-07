@@ -51,7 +51,7 @@ export function OAuthCallbackPage() {
           <AlertBanner message={error} />
           <Link
             to="/login"
-            className="text-center text-sm font-medium text-ink underline decoration-rule underline-offset-2 transition hover:decoration-ink"
+            className="text-center text-sm font-medium text-[var(--ink)] underline decoration-[var(--rule)] underline-offset-2 transition-colors hover:decoration-[var(--ink)]"
           >
             Back to login
           </Link>
@@ -63,7 +63,7 @@ export function OAuthCallbackPage() {
   return (
     <AuthLayout title="Signing you in…">
       <div className="flex justify-center py-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-ink" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--rule)] border-t-[var(--violet)]" />
       </div>
     </AuthLayout>
   );

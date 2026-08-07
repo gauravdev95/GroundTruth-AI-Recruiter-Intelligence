@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useSearchParams } from "react-router-dom";
 
+import { buttonVariants } from "@/components/buttonVariants";
+
 import { AlertBanner } from "../components/AlertBanner";
 import { AuthLayout } from "../components/AuthLayout";
 import { PasswordInput } from "../components/PasswordInput";
@@ -49,7 +51,7 @@ export function ResetPasswordPage() {
         <SuccessScreen title="All set" description="Your password has been reset. You can now log in.">
           <Link
             to="/login"
-            className="mt-2 rounded bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-hover"
+            className={buttonVariants({ variant: "primary", size: "md", className: "mt-2" })}
           >
             Go to login
           </Link>
@@ -84,7 +86,7 @@ export function ResetPasswordPage() {
         <button
           type="submit"
           disabled={resetPassword.isPending}
-          className="mt-1 flex items-center justify-center rounded bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-60"
+          className={buttonVariants({ variant: "primary", size: "md", className: "mt-1 w-full" })}
         >
           {resetPassword.isPending ? "Updating…" : "Reset password"}
         </button>

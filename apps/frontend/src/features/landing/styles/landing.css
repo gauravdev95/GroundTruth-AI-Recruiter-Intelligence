@@ -2,16 +2,33 @@
    GroundTruth — landing page
    ------------------------------------------------------------------
    Almost nothing. The page is built in Tailwind against the `gt-*`
-   palette in `tailwind.config.ts`, and the four rules below are the
-   only ones that have no utility equivalent because they apply to
-   elements outside the React tree.
+   palette in `tailwind.config.ts`, and the rules below are the only
+   ones that have no utility equivalent because they apply to elements
+   outside the React tree.
+
+   WHY EVERY RULE HERE IS SCOPED TO `html:has([data-landing])`
+
+   This stylesheet is imported by `LandingPage.tsx`, but a stylesheet is
+   not unloaded when its route unmounts — once a visitor has seen the
+   landing page, these rules stay in the document for the rest of the
+   session. Unscoped, `scroll-behavior: smooth` and a #0A0A0A body
+   followed them into the authenticated app, where `design/tokens.css`
+   asks for the opposite of both.
+
+   The scoping does a second job. `design/tokens.css` also paints
+   `body`, and which of the two wins would otherwise depend on the
+   order two `import` statements happen to appear in — invisible at the
+   call site and one refactor away from silently inverting the landing
+   page. `html:has([data-landing])` is (0,1,0) more specific than the
+   bare `body` in the token file, so this file wins on the landing route
+   and loses everywhere else, whatever the bundler decides about order.
    ================================================================== */
 
 /*
  * Every navigation link on this page is an in-page anchor, and a jump that
  * teleports gives no sense of where you landed relative to where you were.
  */
-html {
+html:has([data-landing]) {
   scroll-behavior: smooth;
 }
 
@@ -20,9 +37,36 @@ html {
  * trackpad shows the browser's default white above a black hero, which reads as
  * a rendering fault rather than as overscroll.
  */
-html,
-body {
+html:has([data-landing]),
+html:has([data-landing]) body {
   background-color: #0a0a0a;
+}
+
+/*
+ * The landing page's own text default, held here rather than inherited from
+ * the token file's near-white `--ink`.
+ *
+ * Nothing on the page currently relies on it — `Section` sets a text colour
+ * alongside every tone it applies, which is what makes the black/white
+ * alternation safe. This exists so that invariant is not the only thing
+ * standing between a future unstyled paragraph and white-on-white.
+ */
+html:has([data-landing]) body {
+  color: #fafafa;
+}
+
+/*
+ * The focus ring, rebound rather than inherited.
+ *
+ * `design/tokens.css` styles `:focus-visible` globally and fills it with
+ * `--violet`, which is the app's accent and has no meaning on this page. The
+ * ring itself — two layers, so it stays visible against both a black and a
+ * white section — is worth keeping; only the colour is wrong here. Rebinding
+ * the variable keeps one ring implementation and gives this page the accent it
+ * actually uses.
+ */
+html:has([data-landing]) body {
+  --focus-ring: 0 0 0 2px #0a0a0a, 0 0 0 4px #2563eb;
 }
 
 /*
@@ -33,7 +77,7 @@ body {
  * scrolled across twelve sections.
  */
 @media (prefers-reduced-motion: reduce) {
-  html {
+  html:has([data-landing]) {
     scroll-behavior: auto;
   }
 }

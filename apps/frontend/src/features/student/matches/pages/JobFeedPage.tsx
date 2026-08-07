@@ -13,8 +13,8 @@ function SkillReasonChip({ reason }: { reason: SkillMatchReason }) {
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
         reason.candidate_has_skill
-          ? "border-verified/30 bg-verified/5 text-verified"
-          : "border-rule bg-panel text-slate-400"
+          ? "border-[var(--verified)]/30 bg-[var(--verified)]/10 text-[var(--verified)]"
+          : "border-[var(--rule)] bg-[var(--panel)] text-[var(--muted)]"
       }`}
     >
       {reason.candidate_has_skill ? (
@@ -29,19 +29,19 @@ function SkillReasonChip({ reason }: { reason: SkillMatchReason }) {
 
 function JobCard({ match, alreadyApplied }: { match: MatchedJob; alreadyApplied: boolean }) {
   return (
-    <li className="rounded-2xl border border-rule bg-white p-5">
+    <li className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
       <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-medium text-ink">{match.job.title}</p>
-          <p className="text-xs text-slate-500">{match.job.company_name}</p>
+          <p className="font-medium text-[var(--ink)]">{match.job.title}</p>
+          <p className="text-xs text-[var(--slate)]">{match.job.company_name}</p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-semibold tabular-nums text-ink">{match.match_score.toFixed(0)}</p>
-          <p className="text-xs text-slate-400">match score</p>
+          <p className="text-2xl font-semibold tabular-nums text-[var(--ink)]">{match.match_score.toFixed(0)}</p>
+          <p className="text-xs text-[var(--muted)]">match score</p>
         </div>
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+      <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-[var(--slate)]">
         <Badge variant="neutral">{match.job.job_type.replace("_", " ")}</Badge>
         <Badge variant="neutral">{match.job.experience_level}</Badge>
         <span className="flex items-center gap-1">
@@ -53,7 +53,7 @@ function JobCard({ match, alreadyApplied }: { match: MatchedJob; alreadyApplied:
 
       {match.matched_required_skills.length > 0 ? (
         <div className="mb-4">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Must-have skills</p>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Must-have skills</p>
           <div className="flex flex-wrap gap-1.5">
             {match.matched_required_skills.map((reason) => (
               <SkillReasonChip key={reason.skill_name} reason={reason} />
@@ -62,12 +62,12 @@ function JobCard({ match, alreadyApplied }: { match: MatchedJob; alreadyApplied:
         </div>
       ) : null}
 
-      <p className="mb-3 text-xs leading-relaxed text-slate-500">{match.reasoning}</p>
+      <p className="mb-3 text-xs leading-relaxed text-[var(--slate)]">{match.reasoning}</p>
 
       <div className="flex items-center justify-end gap-2">
         <Link
           to={`/student/jobs/${match.job.job_id}`}
-          className="rounded-xl border border-rule px-3.5 py-2 text-[13px] font-semibold text-ink transition hover:bg-slate-50"
+          className="rounded-xl border border-[var(--rule)] px-3.5 py-2 text-[13px] font-semibold text-[var(--ink)] transition hover:bg-[var(--panel-raised)]"
         >
           View details
         </Link>
@@ -123,12 +123,12 @@ export function JobFeedPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-semibold text-ink">Job matches</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">Job matches</h1>
+          <p className="mt-1 text-sm text-[var(--slate)]">
             Ranked for you, from the same computation recruiters use to find candidates.
           </p>
         </div>
-        <Link to="/student/applications" className="text-sm font-medium text-ink hover:underline">
+        <Link to="/student/applications" className="text-sm font-medium text-[var(--ink)] hover:underline">
           View my applications →
         </Link>
       </header>

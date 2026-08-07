@@ -196,13 +196,13 @@ function StudentSignupForm() {
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
       <Shake active={Boolean(formError)}>
-        {formError ? <AlertBanner message={formError} tone="dark" /> : null}
+        {formError ? <AlertBanner message={formError} tone="hero" /> : null}
       </Shake>
 
       <motion.div {...field(0)}>
         <FormField
           label="Email address"
-          tone="dark"
+          tone="hero"
           type="email"
           autoComplete="email"
           placeholder="you@example.com"
@@ -219,7 +219,7 @@ function StudentSignupForm() {
       <motion.div {...field(1)}>
         <PasswordInput
           label="Password"
-          tone="dark"
+          tone="hero"
           autoComplete="new-password"
           placeholder="••••••••"
           showStrengthMeter
@@ -231,7 +231,7 @@ function StudentSignupForm() {
 
       <motion.div {...field(2)}>
         <CaptchaWidget
-          tone="dark"
+          tone="hero"
           error={errors.captcha_token?.message}
           onChange={(token) => setValue("captcha_token", token ?? "", { shouldValidate: true })}
         />
@@ -252,7 +252,7 @@ function StudentSignupForm() {
       <motion.div {...field(4)} className="flex flex-col gap-4">
         <p className="text-center text-xs leading-relaxed text-white/45">{termsLine}</p>
         <Divider />
-        <GoogleButton role="candidate" tone="dark" label="Sign up with Google" />
+        <GoogleButton role="candidate" tone="hero" label="Sign up with Google" />
       </motion.div>
     </form>
   );
@@ -294,13 +294,13 @@ function RecruiterSignupForm() {
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
       <Shake active={Boolean(formError)}>
-        {formError ? <AlertBanner message={formError} tone="dark" /> : null}
+        {formError ? <AlertBanner message={formError} tone="hero" /> : null}
       </Shake>
 
       <motion.div {...field(0)} className="grid gap-4 sm:grid-cols-2">
         <FormField
           label="Full name"
-          tone="dark"
+          tone="hero"
           autoComplete="name"
           placeholder="Grace Hopper"
           error={errors.full_name?.message}
@@ -308,7 +308,7 @@ function RecruiterSignupForm() {
         />
         <FormField
           label="Company name"
-          tone="dark"
+          tone="hero"
           autoComplete="organization"
           placeholder="Acme Corp"
           error={errors.company_name?.message}
@@ -319,7 +319,7 @@ function RecruiterSignupForm() {
       <motion.div {...field(1)}>
         <FormField
           label="Company email"
-          tone="dark"
+          tone="hero"
           type="email"
           autoComplete="email"
           placeholder="you@company.com"
@@ -331,7 +331,7 @@ function RecruiterSignupForm() {
       <motion.div {...field(2)}>
         <PasswordInput
           label="Password"
-          tone="dark"
+          tone="hero"
           autoComplete="new-password"
           placeholder="••••••••"
           showStrengthMeter
@@ -344,7 +344,7 @@ function RecruiterSignupForm() {
       <motion.div {...field(3)}>
         <PasswordInput
           label="Confirm password"
-          tone="dark"
+          tone="hero"
           autoComplete="new-password"
           placeholder="••••••••"
           error={errors.confirm_password?.message}
@@ -354,7 +354,7 @@ function RecruiterSignupForm() {
 
       <motion.div {...field(4)}>
         <CaptchaWidget
-          tone="dark"
+          tone="hero"
           error={errors.captcha_token?.message}
           onChange={(token) => setValue("captcha_token", token ?? "", { shouldValidate: true })}
         />
@@ -363,7 +363,7 @@ function RecruiterSignupForm() {
       <motion.div {...field(5)}>
         <Checkbox
           label={termsCheckboxLabel}
-          tone="dark"
+          tone="hero"
           error={errors.accept_terms?.message}
           {...register("accept_terms")}
         />
@@ -374,7 +374,7 @@ function RecruiterSignupForm() {
           Create account
         </HeroSubmit>
         <Divider />
-        <GoogleButton role="recruiter" tone="dark" label="Sign up with Google" />
+        <GoogleButton role="recruiter" tone="hero" label="Sign up with Google" />
       </motion.div>
     </form>
   );

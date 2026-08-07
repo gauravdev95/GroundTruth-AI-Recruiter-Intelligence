@@ -71,7 +71,13 @@ export function LandingPage() {
   const showBelowFold = useDeferredBelowFold();
 
   return (
-    <div className="bg-gt-void">
+    /*
+     * `data-landing` is what scopes `styles/landing.css` to this route — the
+     * page-level background, the smooth anchor scrolling and the blue focus
+     * ring all hang off `html:has([data-landing])`. It is a marker, not a
+     * style hook; nothing should select it for appearance.
+     */
+    <div data-landing className="bg-gt-void">
       {/* First stop on the keyboard path, and it lands clear of the fixed nav. */}
       <a
         href="#main"

@@ -127,7 +127,7 @@ export function StageProjectsPage() {
       description="Pick up to three repositories. We'll analyse them in the background while you finish the rest — you won't wait on it."
     >
       {needsConnect ? (
-        <p className="rounded-xl border border-flagged/30 bg-flagged/5 p-4 text-sm text-slate-600">
+        <p className="rounded-xl border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 p-4 text-sm text-[var(--slate)]">
           Connect GitHub on the previous stage first — that&apos;s where this list comes from.
         </p>
       ) : repos.isPending || projects.isPending ? (
@@ -142,7 +142,7 @@ export function StageProjectsPage() {
         </p>
       ) : (
         <div className="space-y-4">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[var(--slate)]">
             {selected.length} of {MAX_REPOS} selected.
             {selected.length >= MAX_REPOS
               ? " Up to 3 for now — you can add more after verification."
@@ -160,7 +160,7 @@ export function StageProjectsPage() {
                     title={disabled ? "Up to 3 projects for now — you can add more after verification." : undefined}
                     className={cn(
                       "flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition",
-                      checked ? "border-ink bg-ink/5" : "border-rule bg-panel",
+                      checked ? "border-[var(--rule)] bg-[var(--panel)]" : "border-[var(--rule)] bg-[var(--panel)]",
                       disabled && "cursor-not-allowed opacity-50",
                     )}
                   >
@@ -172,13 +172,13 @@ export function StageProjectsPage() {
                       onChange={() => toggle(repo.full_name)}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink">
+                      <p className="flex items-center gap-1.5 truncate text-sm font-medium text-[var(--ink)]">
                         {repo.full_name}
                         {repo.fork ? (
-                          <GitFork size={12} className="shrink-0 text-slate-400" aria-hidden="true" />
+                          <GitFork size={12} className="shrink-0 text-[var(--muted)]" aria-hidden="true" />
                         ) : null}
                       </p>
-                      <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                      <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
                         {repo.language ? <span>{repo.language}</span> : null}
                         <span className="flex items-center gap-1">
                           <Star size={11} aria-hidden="true" /> {repo.stargazers_count}
@@ -194,7 +194,7 @@ export function StageProjectsPage() {
                     <div className="ml-8 mt-2 flex flex-col gap-1">
                       <label
                         htmlFor={`note-${repo.full_name}`}
-                        className="text-xs font-medium text-slate-600"
+                        className="text-xs font-medium text-[var(--slate)]"
                       >
                         Your role / contribution (optional)
                       </label>
@@ -207,9 +207,9 @@ export function StageProjectsPage() {
                           setNotes((current) => ({ ...current, [repo.full_name]: event.target.value }))
                         }
                         placeholder="What did you build, or what was your specific contribution?"
-                        className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
+                        className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
                       />
-                      <span className="self-end text-[11px] text-slate-400">
+                      <span className="self-end text-[11px] text-[var(--muted)]">
                         {(notes[repo.full_name] ?? "").length}/{MAX_CONTRIBUTION_CHARS}
                       </span>
                     </div>
@@ -219,7 +219,7 @@ export function StageProjectsPage() {
             })}
 
             {repos.data?.length === 0 ? (
-              <p className="py-6 text-center text-sm text-slate-500">
+              <p className="py-6 text-center text-sm text-[var(--slate)]">
                 No repositories found on your account.
               </p>
             ) : null}
@@ -231,7 +231,7 @@ export function StageProjectsPage() {
             </p>
           ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--rule)] pt-4">
             <Button type="button" variant="secondary" onClick={goBack} disabled={busy}>
               Previous
             </Button>

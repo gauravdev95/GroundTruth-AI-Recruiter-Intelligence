@@ -39,8 +39,8 @@ export function MyApplicationsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-semibold text-ink">My applications</h1>
-        <p className="mt-1 text-sm text-slate-500">Track where each application stands.</p>
+        <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">My applications</h1>
+        <p className="mt-1 text-sm text-[var(--slate)]">Track where each application stands.</p>
       </header>
 
       <ul className="space-y-3">
@@ -48,15 +48,15 @@ export function MyApplicationsPage() {
           <li key={application.id}>
             <Link
               to={`/student/applications/${application.id}`}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rule bg-white p-5 transition hover:border-ink/30"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5 transition hover:border-[var(--violet)]/40"
             >
               <div>
-                <p className="font-medium text-ink">{job_title}</p>
-                <p className="text-xs text-slate-500">{company_name}</p>
+                <p className="font-medium text-[var(--ink)]">{job_title}</p>
+                <p className="text-xs text-[var(--slate)]">{company_name}</p>
               </div>
               <div className="text-right">
                 <ApplicationStatusBadge status={application.status} />
-                <p className="mt-1.5 text-xs text-slate-400">
+                <p className="mt-1.5 text-xs text-[var(--muted)]">
                   Updated {new Date(application.status_updated_at).toLocaleDateString()}
                 </p>
               </div>

@@ -30,14 +30,14 @@ function FailureActions({ onRetry }: { onRetry: () => void }) {
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-violet-500/30 transition hover:from-violet-700 hover:to-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--violet)] to-[var(--blue)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[var(--shadow-panel)] transition   focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--violet)]"
       >
         <RotateCcw size={15} aria-hidden="true" />
         Try again
       </button>
       <Link
         to="/student/profile/setup/manual"
-        className="inline-flex items-center gap-2 rounded-xl border-2 border-amber-400 bg-white px-4 py-2.5 text-sm font-semibold text-amber-700 transition hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
+        className="inline-flex items-center gap-2 rounded-xl border-2 border-[var(--flagged)]/60 bg-[var(--panel)] px-4 py-2.5 text-sm font-semibold text-[var(--flagged)] transition hover:bg-[var(--flagged)]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--flagged)]"
       >
         <PencilLine size={15} aria-hidden="true" />
         Fill manually instead
@@ -130,14 +130,14 @@ export function SetupResumePage() {
       <div className="flex items-center justify-between gap-3">
         <Link
           to="/student/profile/setup"
-          className="inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-slate-500 transition hover:text-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+          className="inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-[var(--slate)] transition hover:text-[var(--violet)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--violet)]"
         >
           <ArrowLeft size={15} aria-hidden="true" />
           Back to setup
         </Link>
         <Link
           to="/student/profile/setup/manual"
-          className="rounded-lg text-sm font-medium text-amber-700 underline-offset-4 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
+          className="rounded-lg text-sm font-medium text-[var(--flagged)] underline-offset-4 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--flagged)]"
         >
           Switch to manual entry
         </Link>
@@ -146,13 +146,13 @@ export function SetupResumePage() {
       {isTransferring ? (
         <section
           aria-label="Uploading your resume"
-          className="rounded-2xl border border-violet-100 bg-white p-6 shadow-sm shadow-violet-900/5"
+          className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-6 shadow-sm shadow-[var(--shadow-panel)]"
         >
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-[var(--ink)]">
             Uploading {upload.fileName ?? "your resume"}…
           </p>
           <div
-            className="mt-3 h-2 w-full overflow-hidden rounded-full bg-violet-100"
+            className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[var(--violet)]/15"
             role="progressbar"
             aria-valuenow={upload.progress ?? 0}
             aria-valuemin={0}
@@ -160,11 +160,11 @@ export function SetupResumePage() {
             aria-label="Upload progress"
           >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 transition-[width] duration-200"
+              className="h-full rounded-full bg-gradient-to-r from-[var(--violet)] to-[var(--blue)] transition-[width] duration-200"
               style={{ width: `${upload.progress ?? 0}%` }}
             />
           </div>
-          <p className="mt-2 text-xs text-slate-500">{upload.progress ?? 0}% transferred</p>
+          <p className="mt-2 text-xs text-[var(--slate)]">{upload.progress ?? 0}% transferred</p>
         </section>
       ) : null}
 
@@ -180,13 +180,13 @@ export function SetupResumePage() {
         <section
           role="status"
           aria-live="polite"
-          className="rounded-2xl border border-violet-100 bg-white p-6 shadow-sm shadow-violet-900/5"
+          className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-6 shadow-sm shadow-[var(--shadow-panel)]"
         >
           <div className="flex items-center gap-3">
-            <Loader2 size={20} className="animate-spin text-violet-600" aria-hidden="true" />
+            <Loader2 size={20} className="animate-spin text-[var(--violet)]" aria-hidden="true" />
             <div>
-              <p className="text-sm font-semibold text-slate-900">Analyzing your resume…</p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="text-sm font-semibold text-[var(--ink)]">Analyzing your resume…</p>
+              <p className="mt-0.5 text-xs text-[var(--slate)]">
                 {job.data && job.data.attempts > 1
                   ? `Retrying (attempt ${job.data.attempts}). This can take a moment.`
                   : "This usually takes about 30 seconds. You can leave this page open."}
@@ -202,12 +202,12 @@ export function SetupResumePage() {
       ) : null}
 
       {hasTimedOut && !jobSucceeded && !serverParsed ? (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6">
+        <section className="rounded-2xl border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 p-6">
           <div className="flex items-start gap-3">
-            <AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
+            <AlertTriangle size={20} className="mt-0.5 shrink-0 text-[var(--flagged)]" aria-hidden="true" />
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">This is taking longer than expected</h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <h2 className="text-sm font-semibold text-[var(--ink)]">This is taking longer than expected</h2>
+              <p className="mt-1 text-sm text-[var(--slate)]">
                 We haven&apos;t heard back about your resume in a few minutes. Nothing was saved to
                 your profile.
               </p>
@@ -218,14 +218,14 @@ export function SetupResumePage() {
       ) : null}
 
       {(jobFailed || serverFailed) && !hasTimedOut ? (
-        <section className="rounded-2xl border border-red-200 bg-red-50/60 p-6">
+        <section className="rounded-2xl border border-[var(--failed)]/30 bg-[var(--failed)]/10 p-6">
           <div className="flex items-start gap-3">
-            <AlertTriangle size={20} className="mt-0.5 shrink-0 text-red-600" aria-hidden="true" />
+            <AlertTriangle size={20} className="mt-0.5 shrink-0 text-[var(--failed)]" aria-hidden="true" />
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">We couldn&apos;t read that resume</h2>
+              <h2 className="text-sm font-semibold text-[var(--ink)]">We couldn&apos;t read that resume</h2>
               {/* The worker prefixes its message with the exception class; the
                   student only needs the sentence after it. */}
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-[var(--slate)]">
                 {failureReason.includes(":")
                   ? failureReason.slice(failureReason.indexOf(":") + 1).trim()
                   : failureReason}
@@ -256,13 +256,13 @@ export function SetupResumePage() {
       ) : null}
 
       {draft.data && draft.data.draft.status !== "pending_review" ? (
-        <section className="rounded-2xl border border-violet-100 bg-white p-6 text-sm shadow-sm shadow-violet-900/5">
-          <p className="font-semibold text-slate-900">
+        <section className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-6 text-sm shadow-sm shadow-[var(--shadow-panel)]">
+          <p className="font-semibold text-[var(--ink)]">
             {draft.data.draft.status === "confirmed"
               ? "This resume has been imported."
               : "This draft was discarded."}
           </p>
-          <p className="mt-1 text-slate-500">
+          <p className="mt-1 text-[var(--slate)]">
             Carry on filling in the remaining sections, or upload a different resume.
           </p>
           <FailureActions onRetry={retry} />

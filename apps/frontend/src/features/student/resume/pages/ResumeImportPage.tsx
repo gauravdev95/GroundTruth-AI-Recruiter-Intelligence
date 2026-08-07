@@ -56,18 +56,18 @@ export function ResumeImportPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-semibold text-ink">Import from resume</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">Import from resume</h1>
+        <p className="mt-1 text-sm text-[var(--slate)]">
           Upload a PDF or DOCX. We&apos;ll read it and show you what we found — nothing is saved
           until you confirm it.
         </p>
       </header>
 
       {!uploadId ? (
-        <div className="rounded-2xl border border-dashed border-rule bg-panel p-10 text-center">
-          <Upload size={28} className="mx-auto text-slate-400" aria-hidden="true" />
-          <p className="mt-3 text-sm font-medium text-ink">Choose your resume</p>
-          <p className="mt-1 text-xs text-slate-500">PDF or DOCX, up to 10 MB.</p>
+        <div className="rounded-2xl border border-dashed border-[var(--rule)] bg-[var(--panel)] p-10 text-center">
+          <Upload size={28} className="mx-auto text-[var(--muted)]" aria-hidden="true" />
+          <p className="mt-3 text-sm font-medium text-[var(--ink)]">Choose your resume</p>
+          <p className="mt-1 text-xs text-[var(--slate)]">PDF or DOCX, up to 10 MB.</p>
           <input
             ref={inputRef}
             type="file"
@@ -88,7 +88,7 @@ export function ResumeImportPage() {
             {upload.isPending ? "Uploading..." : "Select file"}
           </Button>
           {upload.isError ? (
-            <p role="alert" className="mt-3 text-sm text-red-600">
+            <p role="alert" className="mt-3 text-sm text-[var(--failed)]">
               {getProfileErrorMessage(upload.error, "Could not upload that file.")}
             </p>
           ) : null}
@@ -96,12 +96,12 @@ export function ResumeImportPage() {
       ) : null}
 
       {uploadId && isWorking ? (
-        <div className="rounded-2xl border border-rule bg-white p-6" role="status">
+        <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6" role="status">
           <div className="flex items-center gap-3">
-            <Loader2 size={18} className="animate-spin text-ink" aria-hidden="true" />
+            <Loader2 size={18} className="animate-spin text-[var(--ink)]" aria-hidden="true" />
             <div>
-              <p className="text-sm font-medium text-ink">Reading your resume…</p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="text-sm font-medium text-[var(--ink)]">Reading your resume…</p>
+              <p className="mt-0.5 text-xs text-[var(--slate)]">
                 {job.data && job.data.attempts > 1
                   ? `Retrying (attempt ${job.data.attempts}). This can take a moment.`
                   : "This usually takes a few seconds. You can leave this page open."}
@@ -154,10 +154,10 @@ export function ResumeImportPage() {
         draft.data.draft.status === "pending_review" ? (
           <DraftReview detail={draft.data} onDone={reset} />
         ) : (
-          <div className="flex items-start gap-3 rounded-2xl border border-verified/30 bg-verified/5 p-4">
-            <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-verified" aria-hidden="true" />
+          <div className="flex items-start gap-3 rounded-2xl border border-[var(--verified)]/30 bg-[var(--verified)]/10 p-4">
+            <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-[var(--verified)]" aria-hidden="true" />
             <div className="text-sm">
-              <p className="font-medium text-ink">
+              <p className="font-medium text-[var(--ink)]">
                 {draft.data.draft.status === "confirmed"
                   ? "This resume has been imported."
                   : "This draft was discarded."}
@@ -170,7 +170,7 @@ export function ResumeImportPage() {
         )
       ) : null}
 
-      <p className="flex items-start gap-2 text-xs text-slate-500">
+      <p className="flex items-start gap-2 text-xs text-[var(--slate)]">
         <FileText size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
         Your resume is stored privately and only used to pre-fill this form. Imported accounts and
         links are queued for verification just like ones you type in yourself.

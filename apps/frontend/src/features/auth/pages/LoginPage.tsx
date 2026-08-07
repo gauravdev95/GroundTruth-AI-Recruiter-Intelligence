@@ -121,13 +121,13 @@ export function LoginPage() {
           the one already on screen and would look like nothing happened.
         */}
         <Shake active={Boolean(formError)}>
-          {formError ? <AlertBanner message={formError} tone="dark" /> : null}
+          {formError ? <AlertBanner message={formError} tone="hero" /> : null}
         </Shake>
 
         <motion.div {...field(0)}>
           <FormField
             label="Email"
-            tone="dark"
+            tone="hero"
             type="email"
             autoComplete="email"
             placeholder="you@example.com"
@@ -139,7 +139,7 @@ export function LoginPage() {
         <motion.div {...field(1)}>
           <PasswordInput
             label="Password"
-            tone="dark"
+            tone="hero"
             autoComplete="current-password"
             placeholder="••••••••"
             error={errors.password?.message}
@@ -148,7 +148,7 @@ export function LoginPage() {
         </motion.div>
 
         <motion.div {...field(2)} className="flex items-center justify-between gap-4">
-          <Checkbox label="Remember me" tone="dark" {...register("remember_me")} />
+          <Checkbox label="Remember me" tone="hero" {...register("remember_me")} />
           <Link to="/forgot-password" className={`text-sm ${heroLinkClass}`}>
             Forgot password?
           </Link>
@@ -156,7 +156,7 @@ export function LoginPage() {
 
         <motion.div {...field(3)}>
           <CaptchaWidget
-            tone="dark"
+            tone="hero"
             error={errors.captcha_token?.message}
             onChange={(token) => setValue("captcha_token", token ?? "", { shouldValidate: true })}
           />
@@ -181,8 +181,8 @@ export function LoginPage() {
             <div className="h-px flex-1 bg-white/12" />
           </div>
 
-          <GoogleButton role="candidate" tone="dark" label="Continue with Google as a student" />
-          <GoogleButton role="recruiter" tone="dark" label="Continue with Google as a recruiter" />
+          <GoogleButton role="candidate" tone="hero" label="Continue with Google as a student" />
+          <GoogleButton role="recruiter" tone="hero" label="Continue with Google as a recruiter" />
         </motion.div>
 
         {/* Renders nothing outside a dev build, and is stripped from the

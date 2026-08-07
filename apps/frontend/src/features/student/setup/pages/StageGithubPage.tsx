@@ -69,21 +69,21 @@ export function StageGithubPage() {
         </div>
       ) : account ? (
         <div className="space-y-5">
-          <div className="flex items-center gap-3 rounded-xl border border-verified/30 bg-verified/5 p-4">
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-verified/12">
-              <Check size={18} className="text-verified" aria-hidden="true" />
+          <div className="flex items-center gap-3 rounded-xl border border-[var(--verified)]/30 bg-[var(--verified)]/10 p-4">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--verified)]/12">
+              <Check size={18} className="text-[var(--verified)]" aria-hidden="true" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-ink">
+              <p className="truncate text-sm font-medium text-[var(--ink)]">
                 Connected as {account.github_username}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-[var(--slate)]">
                 We&apos;ll start analysing your repositories once you link them on the next stage.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--rule)] pt-4">
             <Button type="button" variant="secondary" onClick={goBack}>
               Previous
             </Button>
@@ -94,19 +94,19 @@ export function StageGithubPage() {
         </div>
       ) : (
         <div className="space-y-5">
-          <div className="rounded-xl border border-rule bg-panel p-4">
-            <h2 className="text-sm font-semibold text-ink">Before you connect</h2>
+          <div className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-4">
+            <h2 className="text-sm font-semibold text-[var(--ink)]">Before you connect</h2>
             <ul className="mt-2.5 space-y-1.5">
               {DISCLOSURE.map((line) => (
-                <li key={line} className="flex gap-2 text-xs leading-relaxed text-slate-600">
-                  <span aria-hidden="true" className="mt-1.5 size-1 shrink-0 rounded-full bg-slate-400" />
+                <li key={line} className="flex gap-2 text-xs leading-relaxed text-[var(--slate)]">
+                  <span aria-hidden="true" className="mt-1.5 size-1 shrink-0 rounded-full bg-[var(--muted)]" />
                   {line}
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-xs text-slate-500">
+            <p className="mt-3 text-xs text-[var(--slate)]">
               Full detail in our{" "}
-              <a href="/legal/privacy" className="underline hover:text-ink">
+              <a href="/legal/privacy" className="underline hover:text-[var(--ink)]">
                 privacy policy
               </a>
               .
@@ -120,15 +120,15 @@ export function StageGithubPage() {
             >
               <AlertCircle size={15} className="mt-0.5 shrink-0 text-failed" aria-hidden="true" />
               <div className="text-xs">
-                <p className="font-medium text-ink">We could not reach GitHub</p>
-                <p className="mt-0.5 text-slate-600">
+                <p className="font-medium text-[var(--ink)]">We could not reach GitHub</p>
+                <p className="mt-0.5 text-[var(--slate)]">
                   {getProfileErrorMessage(connect.error, "Try again in a moment.")}
                 </p>
               </div>
             </div>
           ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--rule)] pt-4">
             <Button type="button" variant="secondary" onClick={goBack}>
               Previous
             </Button>
@@ -145,7 +145,7 @@ export function StageGithubPage() {
           {/* Says plainly that the alternative does not exist yet, rather than
               offering a path that would produce weaker evidence while looking
               identical to the real one. */}
-          <p className="text-center text-xs leading-relaxed text-slate-400">
+          <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
             No GitHub account? Everything we verify is read from commit history, so there
             isn&apos;t a way to prove authorship without it yet. Create a free account and push
             your code, then come back — your progress is saved.

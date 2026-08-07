@@ -67,8 +67,8 @@ export function ProfileBuilderPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-semibold text-ink">Your profile</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">Your profile</h1>
+        <p className="mt-1 text-sm text-[var(--slate)]">
           Each section saves on its own — you can finish this over several sittings.
         </p>
       </header>
