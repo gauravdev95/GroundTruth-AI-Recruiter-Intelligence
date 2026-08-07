@@ -27,24 +27,24 @@ export function NotesPanel({ applicationId }: { applicationId: string }) {
   };
 
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4">
-      <div className="mb-3 flex items-center gap-1.5 text-amber-800">
+    <div className="rounded-2xl border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 p-4">
+      <div className="mb-3 flex items-center gap-1.5 text-[var(--flagged)]">
         <EyeOff size={14} aria-hidden="true" />
         <p className="text-xs font-semibold uppercase tracking-wide">Private team notes — not visible to the candidate</p>
       </div>
 
       <div className="mb-3 space-y-2">
         {notes.isPending ? (
-          <p className="text-xs text-slate-400">Loading…</p>
+          <p className="text-xs text-[var(--muted)]">Loading…</p>
         ) : notes.data && notes.data.length > 0 ? (
           notes.data.map((note) => (
-            <div key={note.id} className="rounded-xl border border-amber-200/70 bg-white p-3">
-              <p className="whitespace-pre-wrap text-sm text-ink">{note.body}</p>
-              <p className="mt-1 text-[11px] text-slate-400">{new Date(note.created_at).toLocaleString()}</p>
+            <div key={note.id} className="rounded-xl border border-[var(--flagged)]/30 bg-[var(--panel)] p-3">
+              <p className="whitespace-pre-wrap text-sm text-[var(--ink)]">{note.body}</p>
+              <p className="mt-1 text-[11px] text-[var(--muted)]">{new Date(note.created_at).toLocaleString()}</p>
             </div>
           ))
         ) : (
-          <p className="text-xs text-slate-400">No notes yet.</p>
+          <p className="text-xs text-[var(--muted)]">No notes yet.</p>
         )}
       </div>
 
@@ -55,7 +55,7 @@ export function NotesPanel({ applicationId }: { applicationId: string }) {
           rows={2}
           maxLength={4000}
           placeholder="Add a private note for your team…"
-          className="flex-1 resize-none rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-ink placeholder:text-slate-400 focus:border-amber-400 focus:outline-none"
+          className="flex-1 resize-none rounded-xl border border-[var(--flagged)]/30 bg-[var(--panel)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:border-[var(--flagged)]/60 focus:outline-none"
         />
         <Button type="button" size="sm" variant="secondary" onClick={submit} isLoading={addNote.isPending} disabled={!draft.trim()}>
           Add note

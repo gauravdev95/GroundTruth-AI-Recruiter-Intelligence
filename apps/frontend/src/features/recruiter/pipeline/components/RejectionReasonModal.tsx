@@ -70,9 +70,9 @@ export function RejectionReasonModal({
       className="max-w-md"
     >
       <div className="space-y-4">
-        <p className="text-sm leading-relaxed text-slate-600">
+        <p className="text-sm leading-relaxed text-[var(--slate)]">
           Reason for closing{" "}
-          <span className="text-slate-400">(optional — helps the candidate and improves matching)</span>
+          <span className="text-[var(--muted)]">(optional — helps the candidate and improves matching)</span>
         </p>
 
         <div className="space-y-1.5">
@@ -82,8 +82,8 @@ export function RejectionReasonModal({
               className={cn(
                 "flex cursor-pointer items-center gap-2.5 rounded border px-3 py-2 text-sm transition",
                 reason === option.value
-                  ? "border-ink bg-ink/5 font-medium text-ink"
-                  : "border-slate-200 text-slate-600 hover:border-ink/30",
+                  ? "border-[var(--rule)] bg-[var(--panel)] font-medium text-[var(--ink)]"
+                  : "border-[var(--rule)] text-[var(--slate)] hover:border-[var(--violet)]/40",
               )}
             >
               <input
@@ -101,10 +101,10 @@ export function RejectionReasonModal({
 
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between">
-            <label htmlFor="close-note" className="text-sm font-medium text-slate-700">
+            <label htmlFor="close-note" className="text-sm font-medium text-[var(--slate)]">
               Note
             </label>
-            <span className="tabular text-xs text-slate-400">
+            <span className="tabular text-xs text-[var(--muted)]">
               {note.length}/{NOTE_MAX}
             </span>
           </div>
@@ -115,11 +115,11 @@ export function RejectionReasonModal({
             value={note}
             onChange={(event) => setNote(event.target.value)}
             placeholder="Anything specific worth passing on."
-            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
+            className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
           />
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-rule pt-4">
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--rule)] pt-4">
           <Button type="button" variant="ghost" onClick={skip} disabled={isSaving}>
             Skip
           </Button>

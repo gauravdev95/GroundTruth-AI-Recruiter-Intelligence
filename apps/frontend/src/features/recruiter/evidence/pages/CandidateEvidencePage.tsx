@@ -13,7 +13,7 @@ export function CandidateEvidencePage() {
 
   return (
     <div className="space-y-4">
-      <Link to="/recruiter/jobs" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink">
+      <Link to="/recruiter/jobs" className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] hover:text-[var(--ink)]">
         <ArrowLeft size={14} aria-hidden="true" /> Back to jobs
       </Link>
       <EvidenceCard candidateProfileId={candidateProfileId} />

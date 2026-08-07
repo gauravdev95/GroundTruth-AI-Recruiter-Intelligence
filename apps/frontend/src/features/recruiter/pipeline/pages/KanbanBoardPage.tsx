@@ -163,7 +163,7 @@ export function KanbanBoardPage() {
   const backLink = (
     <Link
       to={`/recruiter/jobs/${jobId}`}
-      className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition hover:text-ink"
+      className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] transition hover:text-[var(--ink)]"
     >
       <ArrowLeft size={14} aria-hidden="true" /> Job
     </Link>
@@ -245,17 +245,17 @@ export function KanbanBoardPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">
               {job.data?.job.title ?? "Pipeline"}
             </h1>
             <Link
               to={`/recruiter/jobs/${jobId}`}
-              className="inline-flex items-center gap-1 text-xs text-slate-500 transition hover:text-ink"
+              className="inline-flex items-center gap-1 text-xs text-[var(--slate)] transition hover:text-[var(--ink)]"
             >
               <Pencil size={11} aria-hidden="true" /> Edit job
             </Link>
           </div>
-          <p className="tabular mt-0.5 text-sm text-slate-500">{summarise(data)}</p>
+          <p className="tabular mt-0.5 text-sm text-[var(--slate)]">{summarise(data)}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -373,11 +373,11 @@ export function KanbanBoardPage() {
               isDraggingAny={Boolean(draggingCard)}
               className="min-h-[2.5rem] space-y-2 p-1"
             >
-              <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-verified">
+              <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--verified)]">
                 Offer
               </p>
               {cards.hired.map((card) => (
-                <div key={card.dragId} className="border-l-2 border-verified pl-1.5">
+                <div key={card.dragId} className="border-l-2 border-[var(--verified)] pl-1.5">
                   {renderCard(card, false)}
                 </div>
               ))}
@@ -389,11 +389,11 @@ export function KanbanBoardPage() {
               isDraggingAny={Boolean(draggingCard)}
               className="mt-2 min-h-[2.5rem] space-y-2 p-1"
             >
-              <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-red-600">
+              <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--failed)]">
                 Closed
               </p>
               {cards.rejected.map((card) => (
-                <div key={card.dragId} className="border-l-2 border-red-500 pl-1.5">
+                <div key={card.dragId} className="border-l-2 border-[var(--failed)] pl-1.5">
                   {renderCard(card, false)}
                 </div>
               ))}

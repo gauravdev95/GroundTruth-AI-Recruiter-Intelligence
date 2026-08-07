@@ -45,7 +45,7 @@ export function ScoreWithDrift({
   // what the recruiter saw when they decided.
   if (scoreAtApply === null) {
     return (
-      <span className="text-xs text-slate-400">
+      <span className="text-xs text-[var(--muted)]">
         {liveScore === null ? "No score" : `Live ${liveScore.toFixed(0)} · none at apply`}
       </span>
     );
@@ -53,15 +53,15 @@ export function ScoreWithDrift({
 
   const Icon = direction === "unknown" ? null : DIRECTION_ICON[direction];
   const driftTone = !isMeaningful
-    ? "text-slate-400"
+    ? "text-[var(--muted)]"
     : direction === "up"
-      ? "text-verified"
-      : "text-flagged";
+      ? "text-[var(--verified)]"
+      : "text-[var(--flagged)]";
 
   return (
     <span className="flex items-baseline gap-2">
       <span
-        className={`font-semibold tabular-nums text-ink ${size === "lg" ? "text-2xl" : "text-sm"}`}
+        className={`font-semibold tabular-nums text-[var(--ink)] ${size === "lg" ? "text-2xl" : "text-sm"}`}
         title="Score when this candidate applied — what the shortlisting decision was made against"
       >
         {scoreAtApply.toFixed(0)}
@@ -70,7 +70,7 @@ export function ScoreWithDrift({
       {direction === "unknown" ? (
         // No live row: the pair no longer scores. Deliberately not rendered
         // as "0 change" — that would claim the candidate is unchanged.
-        <span className="text-[11px] text-slate-400" title="This pair no longer has a live match">
+        <span className="text-[11px] text-[var(--muted)]" title="This pair no longer has a live match">
           no live match
         </span>
       ) : (

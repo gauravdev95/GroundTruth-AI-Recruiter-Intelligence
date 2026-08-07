@@ -39,20 +39,20 @@ const KIND_OPTIONS = [
 function DetectedTechnologies({ technologies }: { technologies: string[] }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium text-slate-700">Detected technologies</span>
+      <span className="text-sm font-medium text-[var(--slate)]">Detected technologies</span>
       {technologies.length > 0 ? (
         <ul className="flex flex-wrap gap-1.5">
           {technologies.map((tech) => (
             <li
               key={tech}
-              className="rounded-full border border-verified/30 bg-verified/10 px-2.5 py-1 text-xs font-medium text-slate-700"
+              className="rounded-full border border-[var(--verified)]/30 bg-[var(--verified)]/10 px-2.5 py-1 text-xs font-medium text-[var(--slate)]"
             >
               {tech}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-[var(--slate)]">
           Nothing detected yet — these are read from the repository&apos;s dependency files when
           verification runs, not entered by hand.
         </p>
@@ -149,7 +149,7 @@ export function ProjectsForm({ data, status, nav }: ProjectsFormProps) {
       nav={nav}
     >
       {fields.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-rule bg-panel px-4 py-6 text-center text-sm text-slate-500">
+        <p className="rounded-xl border border-dashed border-[var(--rule)] bg-[var(--panel)] px-4 py-6 text-center text-sm text-[var(--slate)]">
           No projects yet. Add up to {MAX_PROJECTS} repositories or described projects.
         </p>
       ) : null}
@@ -159,15 +159,15 @@ export function ProjectsForm({ data, status, nav }: ProjectsFormProps) {
         const existing = data.projects[index];
 
         return (
-          <div key={field.id} className="rounded-xl border border-rule bg-panel p-4">
+          <div key={field.id} className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <span className="font-mono text-xs text-slate-500">Project {index + 1}</span>
+              <span className="font-mono text-xs text-[var(--slate)]">Project {index + 1}</span>
               <div className="flex items-center gap-2">
                 {existing ? <VerificationBadge status={existing.verification_status} /> : null}
                 {existing?.kind === "repository" && existing.verification_status === "verified" ? (
                   <Link
                     to={`/student/interview/${existing.id}`}
-                    className="text-xs font-medium text-ink underline decoration-rule underline-offset-2 hover:decoration-ink"
+                    className="text-xs font-medium text-[var(--ink)] underline decoration-[var(--rule)] underline-offset-2 hover:decoration-[var(--ink)]"
                   >
                     Take AI interview
                   </Link>
@@ -220,7 +220,7 @@ export function ProjectsForm({ data, status, nav }: ProjectsFormProps) {
               <div className="flex flex-col gap-1.5">
                 <label
                   htmlFor={`project-description-${index}`}
-                  className="text-sm font-medium text-slate-700"
+                  className="text-sm font-medium text-[var(--slate)]"
                 >
                   Description{kind === "described" ? "" : " (optional)"}
                 </label>
@@ -228,11 +228,11 @@ export function ProjectsForm({ data, status, nav }: ProjectsFormProps) {
                   id={`project-description-${index}`}
                   rows={3}
                   placeholder="What it does, what you built, what was hard."
-                  className="w-full rounded border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
+                  className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
                   {...register(`projects.${index}.description` as const)}
                 />
                 {errors.projects?.[index]?.description?.message ? (
-                  <p role="alert" className="text-xs text-red-500">
+                  <p role="alert" className="text-xs text-[var(--failed)]">
                     {errors.projects[index]?.description?.message}
                   </p>
                 ) : null}
@@ -250,14 +250,14 @@ export function ProjectsForm({ data, status, nav }: ProjectsFormProps) {
                   />
                 )}
               />
-              <p className="-mt-3 text-xs text-slate-500">
+              <p className="-mt-3 text-xs text-[var(--slate)]">
                 What you built it with. Recruiters see this as your description of the project — the
                 skills on your profile come from the detected list below instead.
               </p>
 
               <DetectedTechnologies technologies={data.projects[index]?.technologies ?? []} />
 
-              <label className="flex items-start gap-2.5 rounded-lg border border-rule bg-white px-3 py-2.5">
+              <label className="flex items-start gap-2.5 rounded-lg border border-[var(--rule)] bg-[var(--panel)] px-3 py-2.5">
                 <input
                   type="radio"
                   name="primary-project"
@@ -265,9 +265,9 @@ export function ProjectsForm({ data, status, nav }: ProjectsFormProps) {
                   checked={watch(`projects.${index}.is_primary`) === true}
                   onChange={() => setPrimary(index)}
                 />
-                <span className="text-sm text-slate-700">
+                <span className="text-sm text-[var(--slate)]">
                   <span className="font-medium">Main project</span>
-                  <span className="mt-0.5 block text-xs text-slate-500">
+                  <span className="mt-0.5 block text-xs text-[var(--slate)]">
                     The one that best matches the roles you want. Recruiters see it first.
                   </span>
                 </span>
@@ -298,7 +298,7 @@ export function ProjectsForm({ data, status, nav }: ProjectsFormProps) {
             <Plus size={14} aria-hidden="true" /> Add project
           </Button>
         ) : (
-          <p className="text-xs text-slate-500">Maximum of {MAX_PROJECTS} projects reached.</p>
+          <p className="text-xs text-[var(--slate)]">Maximum of {MAX_PROJECTS} projects reached.</p>
         )}
         <Button type="button" variant="secondary" size="sm" onClick={() => setPickerOpen(true)}>
           <Github size={14} aria-hidden="true" /> Import from GitHub
@@ -307,7 +307,7 @@ export function ProjectsForm({ data, status, nav }: ProjectsFormProps) {
 
       <GithubRepoPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
 
-      <p className="rounded-xl border border-rule bg-panel px-3 py-2 text-xs text-slate-500">
+      <p className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] px-3 py-2 text-xs text-[var(--slate)]">
         Repository links are queued for analysis on save. Described projects are recorded as your own
         account of the work and are not independently checked.
       </p>

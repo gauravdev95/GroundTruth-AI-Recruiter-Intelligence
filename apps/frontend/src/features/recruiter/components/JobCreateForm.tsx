@@ -174,13 +174,13 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <section className="space-y-5 rounded-xl border border-rule bg-white p-6">
+      <section className="space-y-5 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-3">
-            <label htmlFor="job-title" className="text-sm font-medium text-slate-700">
+            <label htmlFor="job-title" className="text-sm font-medium text-[var(--slate)]">
               Job title
             </label>
-            <span className="tabular text-xs text-slate-400">
+            <span className="tabular text-xs text-[var(--muted)]">
               {title.length}/{TITLE_MAX}
             </span>
           </div>
@@ -189,14 +189,14 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
             maxLength={TITLE_MAX}
             placeholder="Backend Engineer — Payments"
             aria-invalid={Boolean(errors.title)}
-            className="w-full rounded border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
+            className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
             {...register("title", {
               required: "A title is required",
               maxLength: { value: TITLE_MAX, message: `Keep the title under ${TITLE_MAX} characters` },
             })}
           />
           {errors.title ? (
-            <p role="alert" className="text-xs text-flagged">
+            <p role="alert" className="text-xs text-[var(--flagged)]">
               {errors.title.message}
             </p>
           ) : null}
@@ -204,13 +204,13 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
 
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-3">
-            <label htmlFor="job-description" className="text-sm font-medium text-slate-700">
+            <label htmlFor="job-description" className="text-sm font-medium text-[var(--slate)]">
               Description
             </label>
             <span
               className={cn(
                 "tabular text-xs",
-                descriptionLength < DESCRIPTION_MIN ? "text-slate-400" : "text-verified",
+                descriptionLength < DESCRIPTION_MIN ? "text-[var(--muted)]" : "text-[var(--verified)]",
               )}
             >
               {descriptionLength}/{DESCRIPTION_MIN} min
@@ -224,7 +224,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
             }
             aria-invalid={Boolean(errors.description)}
             aria-describedby="job-description-hint"
-            className="w-full rounded border border-slate-300 bg-white px-4 py-2.5 font-sans text-sm leading-relaxed text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
+            className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 font-sans text-sm leading-relaxed text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
             {...register("description", {
               required: "A description is required",
               minLength: {
@@ -234,11 +234,11 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
               onChange: (event) => setDescriptionLength(event.target.value.length),
             })}
           />
-          <p id="job-description-hint" className="text-xs text-slate-500">
+          <p id="job-description-hint" className="text-xs text-[var(--slate)]">
             Markdown-lite: <span className="font-semibold">**bold**</span> and <code>-</code> bullets.
           </p>
           {errors.description ? (
-            <p role="alert" className="text-xs text-flagged">
+            <p role="alert" className="text-xs text-[var(--flagged)]">
               {errors.description.message}
             </p>
           ) : null}
@@ -264,7 +264,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
         />
       </section>
 
-      <section className="space-y-5 rounded-xl border border-rule bg-white p-6">
+      <section className="space-y-5 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6">
         <div className="grid gap-4 sm:grid-cols-2">
           <Select label="Job type" options={JOB_TYPE_OPTIONS} {...register("jobType")} />
           <Select
@@ -277,7 +277,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
         {band.warning ? (
           <p
             role="status"
-            className="flex items-start gap-2 rounded-lg border border-flagged/30 bg-flagged/10 px-3 py-2.5 text-xs leading-relaxed text-flagged"
+            className="flex items-start gap-2 rounded-lg border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 px-3 py-2.5 text-xs leading-relaxed text-[var(--flagged)]"
           >
             <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
             {band.warning}
@@ -285,7 +285,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
         ) : null}
 
         <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1.5 text-sm font-medium text-slate-700">Work mode</legend>
+          <legend className="mb-1.5 text-sm font-medium text-[var(--slate)]">Work mode</legend>
           <div className="flex flex-wrap gap-2">
             {WORK_MODES.map((mode) => (
               <label
@@ -293,8 +293,8 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
                 className={cn(
                   "flex cursor-pointer items-center gap-2 rounded border px-3.5 py-2 text-sm transition",
                   workMode.value === mode.value
-                    ? "border-ink bg-ink/5 font-medium text-ink"
-                    : "border-slate-300 text-slate-600 hover:border-ink/40",
+                    ? "border-[var(--rule)] bg-[var(--panel)] font-medium text-[var(--ink)]"
+                    : "border-[var(--rule)] text-[var(--slate)] hover:border-[var(--rule)]/40",
                 )}
               >
                 <input
@@ -311,7 +311,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
 
         {workMode.needsLocation ? (
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="job-location" className="text-sm font-medium text-slate-700">
+            <label htmlFor="job-location" className="text-sm font-medium text-[var(--slate)]">
               Location
             </label>
             <input
@@ -320,7 +320,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
               placeholder="Bangalore, India"
               autoComplete="off"
               aria-invalid={Boolean(errors.location)}
-              className="w-full rounded border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
+              className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
               {...register("location", {
                 validate: (value, values) => {
                   const mode = WORK_MODES.find((m) => m.value === values.workMode);
@@ -335,11 +335,11 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
               ))}
             </datalist>
             {errors.location ? (
-              <p role="alert" className="text-xs text-flagged">
+              <p role="alert" className="text-xs text-[var(--flagged)]">
                 {errors.location.message}
               </p>
             ) : (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[var(--slate)]">
                 City level. Candidates who have not stated a location are still matched — a missing
                 answer is not a mismatch.
               </p>
@@ -355,8 +355,8 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
         />
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rule bg-panel px-5 py-4">
-        <p className="text-xs leading-relaxed text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--rule)] bg-[var(--panel)] px-5 py-4">
+        <p className="text-xs leading-relaxed text-[var(--slate)]">
           This creates a draft. Nothing is visible to candidates until you review what GroundTruth
           extracts and publish it yourself.
         </p>

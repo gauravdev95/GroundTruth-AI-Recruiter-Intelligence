@@ -32,10 +32,10 @@ export function DeadLetterBanner() {
   if (deadLettered.data.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+    <div className="rounded-2xl border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 p-4">
       <div className="mb-2 flex items-center gap-2">
-        <AlertTriangle size={16} className="text-amber-600" aria-hidden="true" />
-        <p className="text-sm font-semibold text-amber-900">
+        <AlertTriangle size={16} className="text-[var(--flagged)]" aria-hidden="true" />
+        <p className="text-sm font-semibold text-[var(--flagged)]">
           {deadLettered.data.length} background {deadLettered.data.length === 1 ? "task" : "tasks"} need attention
         </p>
       </div>
@@ -43,11 +43,11 @@ export function DeadLetterBanner() {
         {deadLettered.data.map((job) => (
           <li
             key={job.id}
-            className="flex items-center justify-between gap-3 rounded-xl border border-amber-200/70 bg-white px-3 py-2"
+            className="flex items-center justify-between gap-3 rounded-xl border border-[var(--flagged)]/30 bg-[var(--panel)] px-3 py-2"
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-ink">{JOB_TYPE_LABELS[job.job_type] ?? job.job_type}</p>
-              <p className="truncate text-xs text-slate-500">{job.error ?? "Failed after repeated attempts."}</p>
+              <p className="truncate text-sm font-medium text-[var(--ink)]">{JOB_TYPE_LABELS[job.job_type] ?? job.job_type}</p>
+              <p className="truncate text-xs text-[var(--slate)]">{job.error ?? "Failed after repeated attempts."}</p>
             </div>
             <button
               type="button"
@@ -58,7 +58,7 @@ export function DeadLetterBanner() {
                 })
               }
               disabled={retry.isPending}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900 transition hover:bg-amber-200 disabled:opacity-60"
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--flagged)]/40 bg-[var(--flagged)]/15 px-3 py-1.5 text-xs font-semibold text-[var(--flagged)] transition hover:bg-[var(--flagged)]/20 disabled:opacity-60"
             >
               <RotateCcw size={12} aria-hidden="true" />
               Retry

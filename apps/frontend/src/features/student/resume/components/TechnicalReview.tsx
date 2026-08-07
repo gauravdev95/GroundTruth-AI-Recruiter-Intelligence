@@ -78,14 +78,14 @@ export function TechnicalReview({
       })}
 
       {errors.platforms ? (
-        <p role="alert" className="text-xs text-red-500">
+        <p role="alert" className="text-xs text-[var(--failed)]">
           {errors.platforms}
         </p>
       ) : null}
 
-      <p className="rounded-xl border border-rule bg-panel px-3 py-2 text-xs text-slate-500">
+      <p className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] px-3 py-2 text-xs text-[var(--slate)]">
         Importing these queues them for verification — exactly as saving them by hand would. They
-        stay <span className="font-medium text-flagged">pending</span> until GroundTruth has checked
+        stay <span className="font-medium text-[var(--flagged)]">pending</span> until GroundTruth has checked
         them.
       </p>
     </div>

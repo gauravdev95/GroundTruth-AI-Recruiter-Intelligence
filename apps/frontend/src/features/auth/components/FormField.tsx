@@ -11,7 +11,7 @@ interface FormFieldProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const FormField = forwardRef<HTMLInputElement, FormFieldProps>(function FormField(
-  { label, error, tone = "light", className, ...props },
+  { label, error, tone = "app", className, ...props },
   ref,
 ) {
   const id = useId();

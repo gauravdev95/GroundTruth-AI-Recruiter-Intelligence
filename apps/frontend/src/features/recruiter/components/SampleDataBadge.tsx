@@ -21,7 +21,7 @@ export function SampleDataBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border border-flagged/40 bg-flagged/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-flagged",
+        "inline-flex items-center gap-1 rounded-full border border-[var(--flagged)]/40 bg-[var(--flagged)]/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[var(--flagged)]",
         className,
       )}
     >

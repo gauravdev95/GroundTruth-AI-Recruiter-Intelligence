@@ -88,17 +88,17 @@ export function ProfilePhotoField({ hasPhoto }: { hasPhoto: boolean }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-slate-700">Profile photo (optional)</span>
+      <span className="text-sm font-medium text-[var(--slate)]">Profile photo (optional)</span>
 
       <div className="flex items-center gap-4">
-        <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border border-rule bg-panel">
+        <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border border-[var(--rule)] bg-[var(--panel)]">
           {photo.data?.url ? (
             // Square-cropped by `object-cover` on a round frame — the spec's
             // "cropped to square" without shipping a crop editor for a
             // 64px avatar.
             <img src={photo.data.url} alt="Your profile photo" className="size-full object-cover" />
           ) : (
-            <User size={22} className="text-slate-400" aria-hidden="true" />
+            <User size={22} className="text-[var(--muted)]" aria-hidden="true" />
           )}
         </span>
 
@@ -145,7 +145,7 @@ export function ProfilePhotoField({ hasPhoto }: { hasPhoto: boolean }) {
         </div>
       </div>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-[var(--slate)]">
         PNG or JPEG, up to 2 MB. Doesn&apos;t affect your profile strength — it&apos;s how
         recruiters see you, not something we verify.
       </p>

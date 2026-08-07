@@ -46,14 +46,14 @@ export function JobCreatePage() {
     <div className="mx-auto w-full max-w-[720px] space-y-5">
       <Link
         to="/recruiter/jobs"
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition hover:text-ink"
+        className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] transition hover:text-[var(--ink)]"
       >
         <ArrowLeft size={14} aria-hidden="true" /> Job postings
       </Link>
 
       <header>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">New job posting</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">New job posting</h1>
+        <p className="mt-1 text-sm text-[var(--slate)]">
           Describe the role. GroundTruth reads the requirements out of it, and you confirm them
           before anything is published.
         </p>

@@ -72,14 +72,14 @@ export function TagInput({
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <label htmlFor={id} className="text-sm font-medium text-slate-700">
+      <label htmlFor={id} className="text-sm font-medium text-[var(--slate)]">
         {label}
       </label>
 
       <div
         className={cn(
-          "flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded border bg-white px-2 py-1.5 transition focus-within:ring-2 focus-within:ring-verified/25",
-          error ? "border-flagged focus-within:border-flagged" : "border-slate-300 focus-within:border-ink",
+          "flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded border bg-[var(--panel)] px-2 py-1.5 transition focus-within:ring-2 focus-within:",
+          error ? "border-[var(--flagged)] focus-within:border-[var(--flagged)]" : "border-[var(--rule)] focus-within:border-[var(--rule)]",
         )}
         // Clicking the padding of a tag field should focus it — otherwise the
         // hit target is only the last few pixels of the text cursor.
@@ -93,14 +93,14 @@ export function TagInput({
         {value.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 rounded-full border border-ink/15 bg-ink/5 py-0.5 pl-2.5 pr-1 text-xs font-medium text-ink"
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--rule)]/15 bg-[var(--panel)] py-0.5 pl-2.5 pr-1 text-xs font-medium text-[var(--ink)]"
           >
             {tag}
             <button
               type="button"
               onClick={() => onChange(value.filter((t) => t !== tag))}
               aria-label={`Remove ${tag}`}
-              className="rounded-full p-0.5 text-slate-400 transition hover:bg-ink/10 hover:text-ink"
+              className="rounded-full p-0.5 text-[var(--muted)] transition hover:bg-[var(--violet)]/10 hover:text-[var(--ink)]"
             >
               <X size={11} aria-hidden="true" />
             </button>
@@ -120,7 +120,7 @@ export function TagInput({
           placeholder={atCapacity ? undefined : (placeholder ?? "Type a skill and press Enter")}
           aria-invalid={Boolean(error)}
           aria-describedby={hint || error ? `${id}-hint` : undefined}
-          className="min-w-[10rem] flex-1 bg-transparent px-1 py-1 text-sm text-slate-900 placeholder-slate-400 outline-none disabled:cursor-not-allowed"
+          className="min-w-[10rem] flex-1 bg-transparent px-1 py-1 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none disabled:cursor-not-allowed"
         />
       </div>
 
@@ -128,7 +128,7 @@ export function TagInput({
         <p
           id={`${id}-hint`}
           role={error ? "alert" : undefined}
-          className={cn("text-xs", error ? "text-flagged" : "text-slate-500")}
+          className={cn("text-xs", error ? "text-[var(--flagged)]" : "text-[var(--slate)]")}
         >
           {error ?? hint}
         </p>

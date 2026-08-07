@@ -46,7 +46,7 @@ interface CaptchaWidgetProps {
  * development — the backend independently gates its own bypass on
  * APP_ENV=development, so this never weakens production.
  */
-export function CaptchaWidget({ onChange, error, tone = "light" }: CaptchaWidgetProps) {
+export function CaptchaWidget({ onChange, error, tone = "app" }: CaptchaWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<number | null>(null);
   const id = useId();
@@ -79,12 +79,12 @@ export function CaptchaWidget({ onChange, error, tone = "light" }: CaptchaWidget
     return (
       <div
         className={
-          tone === "dark"
+          tone === "hero"
             ? "rounded-lg border border-dashed border-amber-400/40 bg-amber-400/10 px-4 py-3 text-xs text-amber-200 backdrop-blur-sm"
             : // Was `text-amber-300` on `bg-amber-400/10` over a white card —
-              // roughly 1.6:1, i.e. effectively invisible. The whole notice is
-              // dark-on-dark styling that only ever rendered on a light card.
-              "rounded-xl border border-dashed border-flagged/30 bg-amber-50 px-4 py-3 text-xs text-flagged"
+              // roughly 1.6:1, i.e. effectively invisible. Now `--flagged` on a
+              // tint of itself, which the token file audits in both themes.
+              "rounded-[var(--r-md)] border border-dashed border-[var(--flagged)]/30 bg-[var(--flagged)]/10 px-4 py-3 text-xs text-[var(--flagged)]"
         }
       >
         CAPTCHA isn't configured for this environment — verification is skipped in development.

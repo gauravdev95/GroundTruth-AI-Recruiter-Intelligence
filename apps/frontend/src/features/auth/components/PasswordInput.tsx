@@ -24,10 +24,32 @@ function scorePassword(password: string): number {
 }
 
 const STRENGTH_LABELS = ["Very weak", "Weak", "Fair", "Good", "Strong"];
-const STRENGTH_COLORS = ["bg-red-500", "bg-orange-500", "bg-amber-400", "bg-lime-400", "bg-emerald-400"];
+
+/**
+ * The strength ramp runs red → amber → blue → violet, and deliberately never
+ * reaches green.
+ *
+ * `--verified` means "proven by an artefact" everywhere else in this product,
+ * and a strong password is not evidence of anything — it is a property of a
+ * string the user just typed. Ending this ramp in green would be the first
+ * thing a new user sees the colour do, and it would teach them the wrong
+ * meaning for every verification badge they meet afterwards. It is the same
+ * reasoning that keeps green off the resume-confidence badge and the profile
+ * strength ring.
+ *
+ * Ending on `--violet` also matches the ring: brand colour for "how full",
+ * status colour only for "how proven".
+ */
+const STRENGTH_COLORS = [
+  "bg-[var(--failed)]",
+  "bg-[var(--failed)]",
+  "bg-[var(--flagged)]",
+  "bg-[var(--blue)]",
+  "bg-[var(--violet)]",
+];
 
 export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(function PasswordInput(
-  { label, error, showStrengthMeter = false, tone = "light", className, value, ...props },
+  { label, error, showStrengthMeter = false, tone = "app", className, value, ...props },
   ref,
 ) {
   const [visible, setVisible] = useState(false);
@@ -70,14 +92,16 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(fu
                 className={`h-1 flex-1 rounded-full transition-colors ${
                   i < strength
                     ? STRENGTH_COLORS[strength]
-                    : tone === "dark"
+                    : tone === "hero"
                       ? "bg-white/15"
-                      : "bg-slate-200"
+                      : "bg-[var(--rule)]"
                 }`}
               />
             ))}
           </div>
-          <span className={tone === "dark" ? "text-xs text-white/50" : "text-xs text-slate-400"}>
+          <span
+            className={tone === "hero" ? "text-xs text-white/50" : "text-xs text-[var(--muted)]"}
+          >
             {STRENGTH_LABELS[strength]}
           </span>
         </div>

@@ -54,31 +54,31 @@ export function SectionShell({
   nav,
 }: SectionShellProps) {
   return (
-    <form onSubmit={onSubmit} noValidate className="rounded-2xl border border-rule bg-white p-6">
-      <header className="mb-5 border-b border-rule pb-4">
+    <form onSubmit={onSubmit} noValidate className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6">
+      <header className="mb-5 border-b border-[var(--rule)] pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-lg font-semibold text-ink">
+          <h2 className="font-display text-lg font-semibold text-[var(--ink)]">
             {meta.title}
             {meta.isMandatory ? (
-              <span className="ml-2 align-middle text-xs font-normal text-flagged">Required</span>
+              <span className="ml-2 align-middle text-xs font-normal text-[var(--flagged)]">Required</span>
             ) : (
-              <span className="ml-2 align-middle text-xs font-normal text-slate-400">Optional</span>
+              <span className="ml-2 align-middle text-xs font-normal text-[var(--muted)]">Optional</span>
             )}
           </h2>
           {status ? <SectionBadges section={status} /> : null}
         </div>
-        <p className="mt-1 text-sm text-slate-500">{meta.description}</p>
+        <p className="mt-1 text-sm text-[var(--slate)]">{meta.description}</p>
       </header>
 
       {errorMessage ? (
-        <p role="alert" className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="mb-4 rounded border border-[var(--failed)]/30 bg-[var(--failed)]/10 px-3 py-2 text-sm text-[var(--failed)]">
           {errorMessage}
         </p>
       ) : null}
 
       <div className="space-y-5">{children}</div>
 
-      <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-rule pt-4">
+      <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--rule)] pt-4">
         {nav?.onPrevious ? (
           <Button type="button" variant="secondary" onClick={nav.onPrevious} disabled={isSaving}>
             <ArrowLeft size={16} aria-hidden="true" className="mr-1.5" />

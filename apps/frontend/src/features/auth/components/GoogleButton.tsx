@@ -14,12 +14,12 @@ interface GoogleButtonProps {
  * would be a trademark problem, not a design choice. Only the surface around
  * it changes.
  */
-export function GoogleButton({ role, label = "Continue with Google", tone = "light" }: GoogleButtonProps) {
+export function GoogleButton({ role, label = "Continue with Google", tone = "app" }: GoogleButtonProps) {
   return (
     <a
       href={authApi.googleLoginUrl(role)}
       className={
-        tone === "dark"
+        tone === "hero"
           ? [
               "group flex w-full items-center justify-center gap-3 rounded-lg border border-white/15",
               "bg-white/[0.06] px-4 py-3 text-sm font-medium text-white backdrop-blur-sm",
@@ -27,7 +27,7 @@ export function GoogleButton({ role, label = "Continue with Google", tone = "lig
               "hover:border-white/30 hover:bg-white/[0.11] motion-safe:hover:-translate-y-0.5",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gt-electric/50",
             ].join(" ")
-          : "flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
+          : "flex w-full items-center justify-center gap-3 rounded-[var(--r-md)] border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm font-medium text-[var(--ink)] transition-colors hover:border-[var(--violet)]/50 hover:bg-[var(--panel-raised)]"
       }
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">

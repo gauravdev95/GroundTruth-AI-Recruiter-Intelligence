@@ -87,7 +87,7 @@ export function ExperienceForm({ data, status, nav }: ExperienceFormProps) {
       nav={nav}
     >
       {fields.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-rule bg-panel px-4 py-6 text-center text-sm text-slate-500">
+        <p className="rounded-xl border border-dashed border-[var(--rule)] bg-[var(--panel)] px-4 py-6 text-center text-sm text-[var(--slate)]">
           No experience recorded yet.
         </p>
       ) : null}
@@ -95,9 +95,9 @@ export function ExperienceForm({ data, status, nav }: ExperienceFormProps) {
       {fields.map((field, index) => {
         const existing = data.experiences[index];
         return (
-        <div key={field.id} className="rounded-xl border border-rule bg-panel p-4">
+        <div key={field.id} className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <span className="font-mono text-xs text-slate-500">Entry {index + 1}</span>
+            <span className="font-mono text-xs text-[var(--slate)]">Entry {index + 1}</span>
             <div className="flex items-center gap-2">
               {existing ? <VerificationBadge status={existing.verification_status} /> : null}
               <Button
@@ -148,19 +148,19 @@ export function ExperienceForm({ data, status, nav }: ExperienceFormProps) {
                 {...register(`experiences.${index}.end_date` as const)}
               />
             </div>
-            <p className="-mt-2 text-xs text-slate-500">Leave the end date empty if this is ongoing.</p>
+            <p className="-mt-2 text-xs text-[var(--slate)]">Leave the end date empty if this is ongoing.</p>
 
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor={`experience-description-${index}`}
-                className="text-sm font-medium text-slate-700"
+                className="text-sm font-medium text-[var(--slate)]"
               >
                 What you worked on (optional)
               </label>
               <textarea
                 id={`experience-description-${index}`}
                 rows={3}
-                className="w-full rounded border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
+                className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
                 {...register(`experiences.${index}.description` as const)}
               />
             </div>
@@ -200,7 +200,7 @@ export function ExperienceForm({ data, status, nav }: ExperienceFormProps) {
         <Plus size={14} aria-hidden="true" /> Add experience
       </Button>
 
-      <p className="rounded-xl border border-rule bg-panel px-3 py-2 text-xs text-slate-500">
+      <p className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] px-3 py-2 text-xs text-[var(--slate)]">
         Experience is self-reported — there is no external record to check it against. GroundTruth looks
         for weak internal corroboration (a company already known to the platform, technologies that
         overlap with your verified repositories) and flags entries it finds support for, but this can

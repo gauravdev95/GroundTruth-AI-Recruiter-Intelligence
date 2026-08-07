@@ -36,8 +36,8 @@ export function ProfileStepper({ completeness, activeSection, onSelect }: Profil
                 className={cn(
                   "w-full rounded-xl border px-3 py-2.5 text-left transition",
                   isActive
-                    ? "border-ink bg-white shadow-sm"
-                    : "border-transparent hover:border-rule hover:bg-white/60",
+                    ? "border-[var(--rule)] bg-[var(--panel)] shadow-sm"
+                    : "border-transparent hover:border-[var(--rule)] hover:bg-[var(--panel)]/60",
                 )}
               >
                 <span className="flex items-start gap-2.5">
@@ -45,15 +45,15 @@ export function ProfileStepper({ completeness, activeSection, onSelect }: Profil
                     aria-hidden="true"
                     className={cn(
                       "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[11px]",
-                      isActive ? "bg-ink text-white" : "bg-rule text-slate-600",
+                      isActive ? "bg-[var(--violet)] text-white" : "bg-[var(--rule)] text-[var(--slate)]",
                     )}
                   >
                     {index + 1}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-ink">
+                    <span className="block truncate text-sm font-medium text-[var(--ink)]">
                       {meta.title}
-                      {meta.isMandatory ? <span className="ml-1 text-flagged">*</span> : null}
+                      {meta.isMandatory ? <span className="ml-1 text-[var(--flagged)]">*</span> : null}
                     </span>
                     {section ? <span className="mt-1 block">{<SectionBadges section={section} />}</span> : null}
                   </span>

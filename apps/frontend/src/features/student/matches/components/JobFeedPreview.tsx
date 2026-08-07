@@ -29,9 +29,9 @@ export function JobFeedPreview() {
   // the page is independently useful, so this section just stands down.
   if (feed.isError) {
     return (
-      <p className="rounded-2xl border border-dashed border-rule p-6 text-center text-sm text-slate-500">
+      <p className="rounded-2xl border border-dashed border-[var(--rule)] p-6 text-center text-sm text-[var(--slate)]">
         Could not load your job matches right now.{" "}
-        <Link to="/student/matches" className="font-medium text-ink hover:underline">
+        <Link to="/student/matches" className="font-medium text-[var(--ink)] hover:underline">
           Try the full feed
         </Link>
         .
@@ -41,7 +41,7 @@ export function JobFeedPreview() {
 
   if (feed.data.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-rule p-6 text-center text-sm text-slate-500">
+      <p className="rounded-2xl border border-dashed border-[var(--rule)] p-6 text-center text-sm text-[var(--slate)]">
         No matched jobs yet. Matches appear once your profile is indexed and clears the threshold
         against a published job.
       </p>
@@ -57,11 +57,11 @@ export function JobFeedPreview() {
           <li key={match.job.job_id}>
             <Link
               to="/student/matches"
-              className="flex items-center justify-between gap-4 rounded-2xl border border-rule bg-white p-3.5 transition hover:border-ink"
+              className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-3.5 transition hover:border-[var(--rule)]"
             >
               <span className="min-w-0">
-                <span className="block truncate text-sm font-medium text-ink">{match.job.title}</span>
-                <span className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span className="block truncate text-sm font-medium text-[var(--ink)]">{match.job.title}</span>
+                <span className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-[var(--slate)]">
                   {match.job.company_name}
                   <span className="flex items-center gap-1">
                     <MapPin size={11} aria-hidden="true" />
@@ -70,10 +70,10 @@ export function JobFeedPreview() {
                 </span>
               </span>
               <span className="shrink-0 text-right">
-                <span className="block text-lg font-semibold tabular-nums text-ink">
+                <span className="block text-lg font-semibold tabular-nums text-[var(--ink)]">
                   {match.match_score.toFixed(0)}
                 </span>
-                <span className="block text-[11px] text-slate-400">match</span>
+                <span className="block text-[11px] text-[var(--muted)]">match</span>
               </span>
             </Link>
           </li>
@@ -83,7 +83,7 @@ export function JobFeedPreview() {
       {feed.data.length > preview.length ? (
         <Link
           to="/student/matches"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-ink hover:underline"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--ink)] hover:underline"
         >
           <Briefcase size={14} aria-hidden="true" />
           View all {feed.data.length} matches →

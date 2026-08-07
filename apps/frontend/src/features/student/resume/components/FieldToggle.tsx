@@ -38,16 +38,16 @@ export function FieldToggle({
     <div
       className={cn(
         "rounded-xl border p-3 transition",
-        included ? "border-rule bg-white" : "border-dashed border-rule bg-panel/60",
+        included ? "border-[var(--rule)] bg-[var(--panel)]" : "border-dashed border-[var(--rule)] bg-[var(--panel)]/60",
       )}
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+        <label className="flex items-center gap-2 text-sm font-medium text-[var(--slate)]">
           <input
             type="checkbox"
             checked={included}
             onChange={(event) => onToggle(event.target.checked)}
-            className="size-4 rounded border-slate-300 text-ink focus:ring-verified/25"
+            className="size-4 rounded border-[var(--rule)] text-[var(--ink)] "
           />
           {label}
         </label>
@@ -65,10 +65,10 @@ export function FieldToggle({
       <div className={cn(!included && "pointer-events-none opacity-50")}>{children}</div>
 
       {requiredHint && included ? (
-        <p className="mt-1.5 text-xs text-slate-500">{requiredHint}</p>
+        <p className="mt-1.5 text-xs text-[var(--slate)]">{requiredHint}</p>
       ) : null}
       {error ? (
-        <p role="alert" className="mt-1.5 text-xs text-red-500">
+        <p role="alert" className="mt-1.5 text-xs text-[var(--failed)]">
           {error}
         </p>
       ) : null}

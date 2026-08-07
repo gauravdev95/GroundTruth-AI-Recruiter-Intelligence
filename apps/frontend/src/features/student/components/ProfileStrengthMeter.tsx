@@ -17,17 +17,17 @@ export function ProfileStrengthMeter({ completeness }: { completeness: ProfileCo
   const { profile_strength: strength } = completeness;
 
   return (
-    <div className="rounded-2xl border border-rule bg-panel p-5">
+    <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-sm font-semibold text-ink">Profile strength</h2>
-        <p className="font-mono text-2xl font-semibold tabular-nums text-ink">
+        <h2 className="font-display text-sm font-semibold text-[var(--ink)]">Profile strength</h2>
+        <p className="font-mono text-2xl font-semibold tabular-nums text-[var(--ink)]">
           {strength}
-          <span className="text-base text-slate-400">/100</span>
+          <span className="text-base text-[var(--muted)]">/100</span>
         </p>
       </div>
 
       <div
-        className="mt-3 h-2 w-full overflow-hidden rounded-full bg-rule"
+        className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[var(--rule)]"
         role="progressbar"
         aria-valuenow={strength}
         aria-valuemin={0}
@@ -37,7 +37,7 @@ export function ProfileStrengthMeter({ completeness }: { completeness: ProfileCo
         <div
           className={cn(
             "h-full rounded-full transition-[width] duration-500 ease-out",
-            completeness.is_discoverable ? "bg-verified" : "bg-ink",
+            completeness.is_discoverable ? "bg-[var(--verified)]" : "bg-[var(--violet)]",
           )}
           style={{ width: `${strength}%` }}
         />
@@ -49,11 +49,11 @@ export function ProfileStrengthMeter({ completeness }: { completeness: ProfileCo
           if (!section) return null;
           return (
             <div key={meta.key} className="flex items-center justify-between gap-3 text-xs">
-              <dt className="truncate text-slate-600">
+              <dt className="truncate text-[var(--slate)]">
                 {meta.title}
-                {meta.isMandatory ? <span className="ml-1 text-flagged">*</span> : null}
+                {meta.isMandatory ? <span className="ml-1 text-[var(--flagged)]">*</span> : null}
               </dt>
-              <dd className="shrink-0 font-mono tabular-nums text-slate-500">
+              <dd className="shrink-0 font-mono tabular-nums text-[var(--slate)]">
                 {section.points_earned}/{section.points_possible}
               </dd>
             </div>
@@ -61,8 +61,8 @@ export function ProfileStrengthMeter({ completeness }: { completeness: ProfileCo
         })}
       </dl>
 
-      <p className="mt-3 border-t border-rule pt-3 text-xs text-slate-500">
-        <span className="text-flagged">*</span> Required before recruiters can find you.
+      <p className="mt-3 border-t border-[var(--rule)] pt-3 text-xs text-[var(--slate)]">
+        <span className="text-[var(--flagged)]">*</span> Required before recruiters can find you.
       </p>
     </div>
   );

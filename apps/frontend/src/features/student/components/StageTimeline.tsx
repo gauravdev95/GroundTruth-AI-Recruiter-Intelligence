@@ -27,11 +27,11 @@ const STAGE_LABELS: Record<VerificationStageKind, string> = {
 /** `skipped` is muted rather than red: those stages never ran, and colouring
  * them as failures would attribute a problem to code that never executed. */
 const STATUS_STYLES: Record<VerificationStageStatus, { dot: string; text: string }> = {
-  succeeded: { dot: "bg-verified", text: "text-verified" },
-  running: { dot: "bg-ink animate-pulse", text: "text-ink" },
-  failed: { dot: "bg-red-500", text: "text-red-600" },
-  skipped: { dot: "bg-slate-200", text: "text-slate-400" },
-  pending: { dot: "bg-slate-300", text: "text-slate-400" },
+  succeeded: { dot: "bg-[var(--verified)]", text: "text-[var(--verified)]" },
+  running: { dot: "bg-[var(--violet)] animate-pulse", text: "text-[var(--ink)]" },
+  failed: { dot: "bg-[var(--failed)]", text: "text-[var(--failed)]" },
+  skipped: { dot: "bg-[var(--rule)]", text: "text-[var(--muted)]" },
+  pending: { dot: "bg-[var(--rule)]", text: "text-[var(--muted)]" },
 };
 
 const STATUS_WORDS: Record<VerificationStageStatus, string> = {
@@ -52,7 +52,7 @@ export function StageTimeline({ stages }: { stages: VerificationStage[] }) {
   const blocking = ordered.find((stage) => stage.status === "failed");
 
   return (
-    <div className="mt-3 border-t border-rule pt-3">
+    <div className="mt-3 border-t border-[var(--rule)] pt-3">
       <ol className="flex items-center gap-1" aria-label="Verification pipeline">
         {ordered.map((stage, index) => {
           const styles = STATUS_STYLES[stage.status];
@@ -76,7 +76,7 @@ export function StageTimeline({ stages }: { stages: VerificationStage[] }) {
         })}
       </ol>
 
-      <p className={`mt-1.5 text-[11px] ${blocking ? STATUS_STYLES.failed.text : "text-slate-400"}`}>
+      <p className={`mt-1.5 text-[11px] ${blocking ? STATUS_STYLES.failed.text : "text-[var(--muted)]"}`}>
         {blocking
           ? `${STAGE_LABELS[blocking.stage]}: ${blocking.error ?? "did not pass"}`
           : summarise(ordered)}

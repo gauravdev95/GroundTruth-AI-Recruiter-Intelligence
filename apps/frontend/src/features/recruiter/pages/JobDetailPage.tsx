@@ -41,7 +41,7 @@ export function JobDetailPage() {
   if (!jobId) return null;
 
   const backLink = (
-    <Link to="/recruiter/jobs" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink">
+    <Link to="/recruiter/jobs" className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] hover:text-[var(--ink)]">
       <ArrowLeft size={14} aria-hidden="true" /> Back to jobs
     </Link>
   );
@@ -70,12 +70,12 @@ export function JobDetailPage() {
     <div className="space-y-4">
       {backLink}
       <header className="flex items-center justify-between gap-4">
-        <h1 className="font-display text-2xl font-semibold text-ink">{job.title}</h1>
+        <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">{job.title}</h1>
         <JobStatusBadge status={job.status} />
       </header>
 
       {job.extraction_error ? (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p role="alert" className="rounded-xl border border-[var(--failed)]/30 bg-[var(--failed)]/10 px-4 py-3 text-sm text-[var(--failed)]">
           The last extraction attempt failed: {job.extraction_error}. Edit the description and submit again.
         </p>
       ) : null}
@@ -106,10 +106,10 @@ export function JobDetailPage() {
       ) : null}
 
       {job.status === "extracting" ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-rule bg-white p-10 text-center">
-          <Loader2 size={24} className="animate-spin text-ink" aria-hidden="true" />
-          <p className="text-sm font-medium text-ink">Reading your job description…</p>
-          <p className="text-xs text-slate-500">Mining must-have skills, desirable skills, and seniority.</p>
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-10 text-center">
+          <Loader2 size={24} className="animate-spin text-[var(--ink)]" aria-hidden="true" />
+          <p className="text-sm font-medium text-[var(--ink)]">Reading your job description…</p>
+          <p className="text-xs text-[var(--slate)]">Mining must-have skills, desirable skills, and seniority.</p>
         </div>
       ) : null}
 
@@ -127,13 +127,13 @@ export function JobDetailPage() {
 
       {job.status === "published" ? (
         <div className="space-y-6">
-          <div className="rounded-2xl border border-rule bg-white p-5">
+          <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-lg font-semibold text-ink">Requirements</h2>
+              <h2 className="font-display text-lg font-semibold text-[var(--ink)]">Requirements</h2>
               <div className="flex gap-2">
                 <Link
                   to={`/recruiter/jobs/${jobId}/pipeline`}
-                  className="inline-flex items-center rounded border border-ink px-3 py-1.5 text-xs font-bold text-ink hover:bg-ink/5"
+                  className="inline-flex items-center rounded border border-[var(--rule)] px-3 py-1.5 text-xs font-bold text-[var(--ink)] hover:bg-[var(--panel)]"
                 >
                   View pipeline
                 </Link>
@@ -164,7 +164,7 @@ export function JobDetailPage() {
                 <span
                   key={req.id}
                   className={`rounded-full border px-2.5 py-0.5 text-xs ${
-                    req.is_required ? "border-ink/20 bg-ink/5 text-ink" : "border-rule bg-panel text-slate-500"
+                    req.is_required ? "border-[var(--rule)]/20 bg-[var(--panel)] text-[var(--ink)]" : "border-[var(--rule)] bg-[var(--panel)] text-[var(--slate)]"
                   }`}
                 >
                   {req.skill_name} ({req.min_proficiency}){req.is_required ? "" : " · nice-to-have"}
@@ -174,7 +174,7 @@ export function JobDetailPage() {
           </div>
 
           <div>
-            <h2 className="mb-3 font-display text-lg font-semibold text-ink">Matched candidates</h2>
+            <h2 className="mb-3 font-display text-lg font-semibold text-[var(--ink)]">Matched candidates</h2>
             {matches.isPending ? (
               <Skeleton className="h-40 w-full" />
             ) : matches.isError ? (
@@ -187,8 +187,8 @@ export function JobDetailPage() {
       ) : null}
 
       {job.status === "closed" ? (
-        <div className="rounded-2xl border border-rule bg-white p-6 text-center">
-          <p className="text-sm text-slate-500">This job is closed and no longer matched to candidates.</p>
+        <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6 text-center">
+          <p className="text-sm text-[var(--slate)]">This job is closed and no longer matched to candidates.</p>
           <Button
             type="button"
             className="mt-4"

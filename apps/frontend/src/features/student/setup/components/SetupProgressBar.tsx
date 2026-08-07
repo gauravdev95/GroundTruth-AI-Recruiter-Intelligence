@@ -41,19 +41,19 @@ export function SetupProgressBar({ stage, steps, onSelect }: SetupProgressBarPro
   return (
     <section
       aria-label="Onboarding progress"
-      className="rounded-2xl border border-violet-100 bg-white p-5 shadow-sm shadow-violet-900/5 sm:p-6"
+      className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-sm shadow-[var(--shadow-panel)] sm:p-6"
     >
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="font-display text-sm font-semibold text-slate-900">
+        <h2 className="font-display text-sm font-semibold text-[var(--ink)]">
           Step {index + 1} of {ONBOARDING_STAGES.length} · {stage.label}
         </h2>
-        <span className="shrink-0 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+        <span className="shrink-0 rounded-full bg-[var(--violet)]/10 px-3 py-1 text-xs font-semibold text-[var(--violet)]">
           {stage.percent}% through setup
         </span>
       </div>
 
       <div
-        className="h-1.5 w-full overflow-hidden rounded-full bg-violet-100"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--violet)]/15"
         role="progressbar"
         aria-valuenow={stage.percent}
         aria-valuemin={0}
@@ -63,7 +63,7 @@ export function SetupProgressBar({ stage, steps, onSelect }: SetupProgressBarPro
         aria-label="Progress through onboarding"
       >
         <div
-          className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 transition-[width] duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-[var(--violet)] to-[var(--blue)] transition-[width] duration-500"
           style={{ width: `${stage.percent}%` }}
         />
       </div>
@@ -91,7 +91,7 @@ export function SetupProgressBar({ stage, steps, onSelect }: SetupProgressBarPro
                 className={cn(
                   "flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-lg px-1 py-1",
                   onSelect &&
-                    "transition hover:bg-violet-50/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500",
+                    "transition hover:bg-[var(--violet)]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--violet)]",
                 )}
               >
                 <span
@@ -99,10 +99,10 @@ export function SetupProgressBar({ stage, steps, onSelect }: SetupProgressBarPro
                   className={cn(
                     "flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-semibold transition",
                     isActive
-                      ? "border-violet-600 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-sm shadow-violet-500/30"
+                      ? "border-[var(--violet)] bg-gradient-to-br from-[var(--violet)] to-[var(--blue)] text-white shadow-sm shadow-[var(--shadow-panel)]"
                       : isFilled
-                        ? "border-violet-200 bg-violet-50 text-violet-700"
-                        : "border-slate-200 bg-white text-slate-400",
+                        ? "border-[var(--violet)]/30 bg-[var(--violet)]/10 text-[var(--violet)]"
+                        : "border-[var(--rule)] bg-[var(--panel)] text-[var(--muted)]",
                   )}
                 >
                   {isFilled && !isActive ? <Check size={13} strokeWidth={3} /> : itemIndex + 1}
@@ -110,7 +110,7 @@ export function SetupProgressBar({ stage, steps, onSelect }: SetupProgressBarPro
                 <span
                   className={cn(
                     "block truncate text-[11px] font-medium leading-tight",
-                    isActive ? "text-slate-900" : isFilled ? "text-slate-600" : "text-slate-400",
+                    isActive ? "text-[var(--ink)]" : isFilled ? "text-[var(--slate)]" : "text-[var(--muted)]",
                   )}
                 >
                   {item.label}

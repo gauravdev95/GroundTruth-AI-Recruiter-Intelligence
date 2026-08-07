@@ -23,7 +23,7 @@ const GOOD = 70;
 function bandClass(score: number): string {
   if (score >= STRONG) return "text-gt-electric font-semibold";
   if (score >= GOOD) return "text-gt-electric font-medium";
-  return "text-slate-500 font-medium";
+  return "text-[var(--slate)] font-medium";
 }
 
 export interface MatchScoreProps {
@@ -44,7 +44,7 @@ export function MatchScore({ score, size = "sm", withLabel = true, className }: 
     // score is unknown, which is a different claim from a low score — and the
     // card is still on the board because an application protects it.
     return (
-      <span className={cn("tabular text-slate-400", size === "lg" ? "text-base" : "text-xs", className)}>
+      <span className={cn("tabular text-[var(--muted)]", size === "lg" ? "text-base" : "text-xs", className)}>
         no live score
       </span>
     );

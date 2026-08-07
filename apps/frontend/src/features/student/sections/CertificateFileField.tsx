@@ -48,12 +48,12 @@ export function CertificateFileField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium text-slate-700">Certificate file (optional)</span>
+      <span className="text-sm font-medium text-[var(--slate)]">Certificate file (optional)</span>
 
       {attachedName ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-rule bg-white px-3 py-2">
-          <FileText size={15} aria-hidden="true" className="text-slate-500" />
-          <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{attachedName}</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--rule)] bg-[var(--panel)] px-3 py-2">
+          <FileText size={15} aria-hidden="true" className="text-[var(--slate)]" />
+          <span className="min-w-0 flex-1 truncate text-sm text-[var(--slate)]">{attachedName}</span>
           <Button
             type="button"
             variant="ghost"
@@ -95,7 +95,7 @@ export function CertificateFileField({
             <Paperclip size={14} aria-hidden="true" className="mr-1.5" />
             Upload certificate
           </Button>
-          <p className="mt-1 text-xs text-slate-500">PDF, PNG or JPEG, up to 5 MB.</p>
+          <p className="mt-1 text-xs text-[var(--slate)]">PDF, PNG or JPEG, up to 5 MB.</p>
         </div>
       )}
     </div>

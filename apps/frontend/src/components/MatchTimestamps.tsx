@@ -55,7 +55,7 @@ export function MatchTimestamps({
     new Date(updatedAt).getTime() - new Date(computedAt).getTime() > RESCORE_TOLERANCE_MS;
 
   return (
-    <span className={`text-xs text-slate-400 ${className}`}>
+    <span className={`text-xs text-[var(--muted)] ${className}`}>
       Matched {relativeTime(computedAt)}
       {rescored ? <> · Score updated {relativeTime(updatedAt)}</> : null}
     </span>

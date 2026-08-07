@@ -124,19 +124,19 @@ export function BasicInfoForm({ data, status, nav }: BasicInfoFormProps) {
       />
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="basic-about" className="text-sm font-medium text-slate-700">
+        <label htmlFor="basic-about" className="text-sm font-medium text-[var(--slate)]">
           About (optional)
         </label>
         <textarea
           id="basic-about"
           rows={4}
           placeholder="What you build, what you're good at, and what you're looking for."
-          className="w-full rounded border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
+          className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
           {...register("about")}
         />
         {/* Says why it is worth filling despite being optional and scoring
             nothing — otherwise "optional" reads as "ignored". */}
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-[var(--slate)]">
           Doesn&apos;t affect your profile strength, but it is read when matching you to roles.
         </p>
         {errors.about?.message ? (

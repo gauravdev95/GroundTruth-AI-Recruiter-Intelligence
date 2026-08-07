@@ -82,24 +82,24 @@ export const ResumeDropZone = forwardRef<ResumeDropZoneHandle, ResumeDropZonePro
         aria-label={`Upload your resume. ${RESUME_HINT}. Drag and drop a file here, or activate to browse.`}
         className={cn(
           "flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 text-center transition",
-          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--violet)]",
           disabled && "cursor-not-allowed opacity-60",
           isDragging
-            ? "border-violet-500 bg-violet-50"
-            : "border-violet-200 bg-violet-50/40 hover:border-violet-400 hover:bg-violet-50",
+            ? "border-[var(--violet)] bg-[var(--violet)]/10"
+            : "border-[var(--violet)]/30 bg-[var(--violet)]/10 hover:border-[var(--violet)]/60 hover:bg-[var(--violet)]/10",
         )}
       >
         <UploadCloud
           size={30}
           strokeWidth={1.5}
-          className={cn("transition", isDragging ? "text-violet-600" : "text-violet-400")}
+          className={cn("transition", isDragging ? "text-[var(--violet)]" : "text-[var(--violet)]")}
           aria-hidden="true"
         />
-        <span className="mt-3 block text-sm font-semibold text-slate-800">
+        <span className="mt-3 block text-sm font-semibold text-[var(--ink)]">
           Drag &amp; drop your resume here
         </span>
-        <span className="mt-0.5 block text-xs text-slate-500">or click to browse</span>
-        <span className="mt-3 block text-[11px] font-medium text-slate-400">{RESUME_HINT}</span>
+        <span className="mt-0.5 block text-xs text-[var(--slate)]">or click to browse</span>
+        <span className="mt-3 block text-[11px] font-medium text-[var(--muted)]">{RESUME_HINT}</span>
       </button>
 
       <input

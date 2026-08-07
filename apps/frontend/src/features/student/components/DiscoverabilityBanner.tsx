@@ -20,11 +20,11 @@ import type { ProfileCompleteness } from "../api/profileApi";
 export function DiscoverabilityBanner({ completeness }: { completeness: ProfileCompleteness }) {
   if (!completeness.is_discoverable && completeness.meets_section_requirements) {
     return (
-      <div className="flex items-start gap-3 rounded-2xl border border-rule bg-white p-4" role="status">
-        <Loader2 size={18} className="mt-0.5 shrink-0 animate-spin text-slate-400" aria-hidden="true" />
+      <div className="flex items-start gap-3 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-4" role="status">
+        <Loader2 size={18} className="mt-0.5 shrink-0 animate-spin text-[var(--muted)]" aria-hidden="true" />
         <div className="text-sm">
-          <p className="font-medium text-ink">Indexing your profile…</p>
-          <p className="mt-0.5 text-slate-600">
+          <p className="font-medium text-[var(--ink)]">Indexing your profile…</p>
+          <p className="mt-0.5 text-[var(--slate)]">
             Both required sections are complete. We're building your profile's search index now — you'll
             appear in recruiter results and start seeing job matches as soon as it finishes. Nothing else
             is needed from you.
@@ -37,13 +37,13 @@ export function DiscoverabilityBanner({ completeness }: { completeness: ProfileC
   if (completeness.is_discoverable) {
     return (
       <div
-        className="flex items-start gap-3 rounded-2xl border border-verified/30 bg-verified/5 p-4"
+        className="flex items-start gap-3 rounded-2xl border border-[var(--verified)]/30 bg-[var(--verified)]/10 p-4"
         role="status"
       >
-        <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-verified" aria-hidden="true" />
+        <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-[var(--verified)]" aria-hidden="true" />
         <div className="text-sm">
-          <p className="font-medium text-ink">Your profile is discoverable.</p>
-          <p className="mt-0.5 text-slate-600">
+          <p className="font-medium text-[var(--ink)]">Your profile is discoverable.</p>
+          <p className="mt-0.5 text-[var(--slate)]">
             Recruiters can find you in search. Adding projects, certificates and experience raises your
             profile strength — your listed accounts are checked separately, and verification badges appear
             as those checks complete.
@@ -55,17 +55,17 @@ export function DiscoverabilityBanner({ completeness }: { completeness: ProfileC
 
   return (
     <div
-      className="flex items-start gap-3 rounded-2xl border border-flagged/30 bg-flagged/5 p-4"
+      className="flex items-start gap-3 rounded-2xl border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 p-4"
       role="status"
     >
-      <Info size={18} className="mt-0.5 shrink-0 text-flagged" aria-hidden="true" />
+      <Info size={18} className="mt-0.5 shrink-0 text-[var(--flagged)]" aria-hidden="true" />
       <div className="text-sm">
-        <p className="font-medium text-ink">Your profile is not discoverable yet.</p>
-        <p className="mt-0.5 text-slate-600">
+        <p className="font-medium text-[var(--ink)]">Your profile is not discoverable yet.</p>
+        <p className="mt-0.5 text-[var(--slate)]">
           Recruiters cannot find you until Basic Information and Technical Verification are both complete.
           Still needed:
         </p>
-        <ul className="mt-2 list-inside list-disc space-y-0.5 text-slate-700">
+        <ul className="mt-2 list-inside list-disc space-y-0.5 text-[var(--slate)]">
           {completeness.blocking.map((item) => (
             <li key={item}>{item}</li>
           ))}

@@ -56,7 +56,7 @@ export function GithubRepoPicker({ open, onClose }: GithubRepoPickerProps) {
     <Modal open={open} onClose={handleClose} title="Import from GitHub" className="max-w-lg">
       {needsConnect ? (
         <div className="space-y-4 text-center">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-[var(--slate)]">
             Connect your GitHub account to pick repositories directly, instead of pasting URLs one at a
             time.
           </p>
@@ -69,7 +69,7 @@ export function GithubRepoPicker({ open, onClose }: GithubRepoPickerProps) {
             <Github size={16} aria-hidden="true" /> Connect GitHub
           </Button>
           {connect.isError ? (
-            <p role="alert" className="text-xs text-red-500">
+            <p role="alert" className="text-xs text-[var(--failed)]">
               {getProfileErrorMessage(connect.error, "Could not start the GitHub connection.")}
             </p>
           ) : null}
@@ -81,12 +81,12 @@ export function GithubRepoPicker({ open, onClose }: GithubRepoPickerProps) {
           <Skeleton className="h-14 w-full" />
         </div>
       ) : repos.isError ? (
-        <p role="alert" className="text-sm text-red-500">
+        <p role="alert" className="text-sm text-[var(--failed)]">
           {getProfileErrorMessage(repos.error, "Could not load your repositories.")}
         </p>
       ) : (
         <div className="space-y-4">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[var(--slate)]">
             Select up to {MAX_REPOS}. This replaces your currently linked repository projects.
           </p>
           <ul className="max-h-80 space-y-2 overflow-y-auto">
@@ -97,7 +97,7 @@ export function GithubRepoPicker({ open, onClose }: GithubRepoPickerProps) {
                 <li key={repo.full_name}>
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
-                      checked ? "border-ink bg-ink/5" : "border-rule bg-panel"
+                      checked ? "border-[var(--rule)] bg-[var(--panel)]" : "border-[var(--rule)] bg-[var(--panel)]"
                     } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
                   >
                     <input
@@ -108,14 +108,14 @@ export function GithubRepoPicker({ open, onClose }: GithubRepoPickerProps) {
                       onChange={() => toggle(repo.full_name)}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink">
+                      <p className="flex items-center gap-1.5 truncate text-sm font-medium text-[var(--ink)]">
                         {repo.full_name}
-                        {repo.fork ? <GitFork size={12} className="shrink-0 text-slate-400" aria-hidden="true" /> : null}
+                        {repo.fork ? <GitFork size={12} className="shrink-0 text-[var(--muted)]" aria-hidden="true" /> : null}
                       </p>
                       {repo.description ? (
-                        <p className="mt-0.5 truncate text-xs text-slate-500">{repo.description}</p>
+                        <p className="mt-0.5 truncate text-xs text-[var(--slate)]">{repo.description}</p>
                       ) : null}
-                      <p className="mt-1 flex items-center gap-3 text-xs text-slate-400">
+                      <p className="mt-1 flex items-center gap-3 text-xs text-[var(--muted)]">
                         {repo.language ? <span>{repo.language}</span> : null}
                         <span className="flex items-center gap-1">
                           <Star size={11} aria-hidden="true" /> {repo.stargazers_count}
@@ -127,12 +127,12 @@ export function GithubRepoPicker({ open, onClose }: GithubRepoPickerProps) {
               );
             })}
             {repos.data?.length === 0 ? (
-              <p className="py-6 text-center text-sm text-slate-500">No repositories found.</p>
+              <p className="py-6 text-center text-sm text-[var(--slate)]">No repositories found.</p>
             ) : null}
           </ul>
 
           {select.isError ? (
-            <p role="alert" className="text-xs text-red-500">
+            <p role="alert" className="text-xs text-[var(--failed)]">
               {getProfileErrorMessage(select.error, "Could not import the selected repositories.")}
             </p>
           ) : null}

@@ -86,12 +86,12 @@ export function RequirementsConfirmForm({ detail, isSaving, onSubmit }: Requirem
 
   return (
     <form
-      className="space-y-5 rounded-2xl border border-rule bg-white p-6"
+      className="space-y-5 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6"
       onSubmit={handleSubmit((values) => onSubmit(values))}
     >
       <div>
-        <h2 className="font-display text-lg font-semibold text-ink">Confirm requirements</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <h2 className="font-display text-lg font-semibold text-[var(--ink)]">Confirm requirements</h2>
+        <p className="mt-1 text-sm text-[var(--slate)]">
           GroundTruth read these skills from your description. Review and edit before publishing — this
           job stays a draft candidates can't see until you confirm.
         </p>
@@ -101,7 +101,7 @@ export function RequirementsConfirmForm({ detail, isSaving, onSubmit }: Requirem
 
       <div className="space-y-2">
         {fields.map((field, index) => (
-          <div key={field.id} className="flex flex-wrap items-end gap-2 rounded-xl border border-rule bg-panel p-3">
+          <div key={field.id} className="flex flex-wrap items-end gap-2 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-3">
             <div className="min-w-[10rem] flex-1">
               <Input
                 label="Skill"
@@ -116,10 +116,10 @@ export function RequirementsConfirmForm({ detail, isSaving, onSubmit }: Requirem
                 {...register(`skills.${index}.min_proficiency` as const)}
               />
             </div>
-            <label className="mb-1 flex items-center gap-1.5 text-xs text-slate-600">
+            <label className="mb-1 flex items-center gap-1.5 text-xs text-[var(--slate)]">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 accent-verified"
+                className="h-4 w-4 rounded border-[var(--rule)] accent-[var(--violet)]"
                 {...register(`skills.${index}.is_required` as const)}
               />
               Must-have
@@ -146,7 +146,7 @@ export function RequirementsConfirmForm({ detail, isSaving, onSubmit }: Requirem
         <Plus size={14} aria-hidden="true" /> Add skill
       </Button>
 
-      <div className="flex justify-end border-t border-rule pt-4">
+      <div className="flex justify-end border-t border-[var(--rule)] pt-4">
         <Button type="submit" isLoading={isSaving} disabled={isSaving || fields.length === 0}>
           Confirm and publish
         </Button>

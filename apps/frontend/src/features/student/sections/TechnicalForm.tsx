@@ -236,7 +236,7 @@ export function TechnicalForm({ data, status, nav }: TechnicalFormProps) {
       errorMessage={save.isError ? getProfileErrorMessage(save.error) : null}
       nav={nav}
     >
-      <div className="rounded-xl border border-rule bg-panel p-4">
+      <div className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[220px] flex-1">
             <Input
@@ -260,7 +260,7 @@ export function TechnicalForm({ data, status, nav }: TechnicalFormProps) {
         <VerifyStatus state={githubState} />
 
         {data.github_account ? (
-          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--slate)]">
             <span className="font-mono">{data.github_account.profile_url}</span>
             <VerificationBadge status={data.github_account.verification_status} />
           </p>
@@ -271,7 +271,7 @@ export function TechnicalForm({ data, status, nav }: TechnicalFormProps) {
             student owns it, which is why it stays on screen rather than
             disappearing once the cheaper check passes. */}
         {data.github_account?.verification_source !== "github_oauth" ? (
-          <div className="mt-3 border-t border-rule pt-3">
+          <div className="mt-3 border-t border-[var(--rule)] pt-3">
             <Button
               type="button"
               variant="secondary"
@@ -282,7 +282,7 @@ export function TechnicalForm({ data, status, nav }: TechnicalFormProps) {
               <Github size={14} aria-hidden="true" className="mr-1.5" />
               Connect with GitHub
             </Button>
-            <p className="mt-1.5 text-xs text-slate-500">
+            <p className="mt-1.5 text-xs text-[var(--slate)]">
               Optional, but it is the only way to prove the account is yours — and it unlocks the
               repository picker on the next step.
             </p>
@@ -291,8 +291,8 @@ export function TechnicalForm({ data, status, nav }: TechnicalFormProps) {
       </div>
 
       <fieldset>
-        <legend className="text-sm font-medium text-slate-700">Coding profiles</legend>
-        <p className="mt-0.5 text-xs text-slate-500">
+        <legend className="text-sm font-medium text-[var(--slate)]">Coding profiles</legend>
+        <p className="mt-0.5 text-xs text-[var(--slate)]">
           At least one is required. Each has to be verified before you can continue.
         </p>
 
@@ -304,7 +304,7 @@ export function TechnicalForm({ data, status, nav }: TechnicalFormProps) {
             const canReachVerified = platform ? API_BACKED_PLATFORMS.includes(platform) : false;
 
             return (
-              <div key={field.id} className="rounded-xl border border-rule bg-panel p-3">
+              <div key={field.id} className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-3">
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="w-44 shrink-0">
                     <Select
@@ -364,13 +364,13 @@ export function TechnicalForm({ data, status, nav }: TechnicalFormProps) {
                 <VerifyStatus state={profileStates[field.id] ?? { phase: "idle" }} />
 
                 {!canReachVerified && platform ? (
-                  <p className="mt-1.5 text-xs text-slate-500">
+                  <p className="mt-1.5 text-xs text-[var(--slate)]">
                     This platform has no public API, so we can only confirm the page exists.
                   </p>
                 ) : null}
 
                 {existing ? (
-                  <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--slate)]">
                     <span className="font-mono">{existing.profile_url}</span>
                     <VerificationBadge status={existing.verification_status} />
                   </p>
@@ -381,12 +381,12 @@ export function TechnicalForm({ data, status, nav }: TechnicalFormProps) {
         </div>
 
         {errors.coding_profiles?.root?.message ? (
-          <p role="alert" className="mt-2 text-xs text-red-500">
+          <p role="alert" className="mt-2 text-xs text-[var(--failed)]">
             {errors.coding_profiles.root.message}
           </p>
         ) : null}
         {errors.coding_profiles?.message ? (
-          <p role="alert" className="mt-2 text-xs text-red-500">
+          <p role="alert" className="mt-2 text-xs text-[var(--failed)]">
             {errors.coding_profiles.message}
           </p>
         ) : null}
@@ -404,10 +404,10 @@ export function TechnicalForm({ data, status, nav }: TechnicalFormProps) {
         ) : null}
       </fieldset>
 
-      <p className="rounded-xl border border-rule bg-panel px-3 py-2 text-xs text-slate-500">
+      <p className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] px-3 py-2 text-xs text-[var(--slate)]">
         Verifying here only checks the account exists. The full analysis — contributions, ratings,
         solved counts — runs in the background after you submit, and these stay marked{" "}
-        <span className="font-medium text-flagged">pending</span> until it finishes.
+        <span className="font-medium text-[var(--flagged)]">pending</span> until it finishes.
       </p>
     </SectionShell>
   );

@@ -9,15 +9,15 @@ import { ArrowLeftRight, ShieldCheck } from "lucide-react";
  */
 export function SetupFooterStrip() {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-violet-100/80 bg-white/70 px-5 py-4">
-      <ArrowLeftRight size={18} className="mt-0.5 shrink-0 text-violet-500" aria-hidden="true" />
+    <div className="flex items-start gap-3 rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)]/70 px-5 py-4">
+      <ArrowLeftRight size={18} className="mt-0.5 shrink-0 text-[var(--violet)]" aria-hidden="true" />
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-700">
+        <p className="text-xs font-medium text-[var(--slate)]">
           You can switch between Resume Upload and Manual Entry at any time.
         </p>
-        <p className="mt-0.5 text-xs text-slate-500">All your progress will be saved automatically.</p>
+        <p className="mt-0.5 text-xs text-[var(--slate)]">All your progress will be saved automatically.</p>
       </div>
-      <ShieldCheck size={18} className="mt-0.5 shrink-0 text-violet-400" aria-hidden="true" />
+      <ShieldCheck size={18} className="mt-0.5 shrink-0 text-[var(--violet)]" aria-hidden="true" />
     </div>
   );
 }

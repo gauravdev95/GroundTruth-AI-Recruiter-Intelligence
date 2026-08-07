@@ -24,7 +24,7 @@ function inline(text: string, keyPrefix: string) {
   while ((match = BOLD.exec(text)) !== null) {
     if (match.index > cursor) parts.push(text.slice(cursor, match.index));
     parts.push(
-      <strong key={`${keyPrefix}-b${match.index}`} className="font-semibold text-ink">
+      <strong key={`${keyPrefix}-b${match.index}`} className="font-semibold text-[var(--ink)]">
         {match[1]}
       </strong>,
     );

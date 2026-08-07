@@ -72,6 +72,12 @@
   /* Hairline at half strength, for dividers *inside* a panel where a full
      --rule would carve the card into visible boxes. */
   --rule-soft: rgb(31 42 69 / 0.55);
+  /* The wash behind a modal or a mobile nav sheet. Darker and bluer than
+     --bg rather than neutral black: a grey scrim over this palette reads as
+     a dimmed screenshot, where a scrim that shares the background's hue
+     reads as the page receding. Alpha is baked in because a scrim is never
+     used at any other strength. */
+  --scrim: rgb(4 6 15 / 0.72);
 
   /* ---- brand ---------------------------------------------------- */
   --violet: #7c5cff;
@@ -161,6 +167,9 @@
   --muted: #6b7899;
   --rule: #dde3ec;
   --rule-soft: rgb(221 227 236 / 0.7);
+  /* Lighter on light, and thinner: a modal on a white page needs the page
+     pushed back, not blacked out. */
+  --scrim: rgb(10 22 40 / 0.4);
 
   --violet: #6344e8;
   --blue: #1f6fd8;
@@ -195,6 +204,7 @@
     --muted: #6b7899;
     --rule: #dde3ec;
     --rule-soft: rgb(221 227 236 / 0.7);
+    --scrim: rgb(10 22 40 / 0.4);
     --violet: #6344e8;
     --blue: #1f6fd8;
     --teal: #10868a;

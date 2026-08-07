@@ -1,9 +1,6 @@
 import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 
-/** The one accent this product's authenticated surfaces use — `gt-electric`,
- * #2563EB. Recharts needs a literal, so this is the single place the hex is
- * written outside the Tailwind config. */
-const ELECTRIC = "#2563EB";
+import { CHART, CHART_TOOLTIP } from "./chartTheme";
 
 export interface SparkPoint {
   date: string;
@@ -55,14 +52,8 @@ export function Sparkline({
         <LineChart data={points} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
           <YAxis hide domain={[0, max === 0 ? 1 : "dataMax"]} />
           <Tooltip
-            cursor={{ stroke: "#CBD5E1", strokeWidth: 1 }}
-            contentStyle={{
-              borderRadius: 8,
-              border: "1px solid #D3DAE3",
-              fontSize: 11,
-              padding: "4px 8px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-            }}
+            cursor={{ stroke: CHART.grid, strokeWidth: 1 }}
+            {...CHART_TOOLTIP}
             // Recharts types both callbacks against its own `ValueType` /
             // `ReactNode` unions, which are wider than what this chart can
             // actually receive (a date string and a count). Narrowing at the
@@ -78,12 +69,16 @@ export function Sparkline({
           <Line
             type="monotone"
             dataKey="value"
-            stroke={ELECTRIC}
+            stroke={CHART.series}
             strokeWidth={2}
             dot={false}
             // 8px hit target, per the interaction spec — bigger than the 2px
             // mark so the tooltip is reachable without pixel-hunting.
-            activeDot={{ r: 4, strokeWidth: 2, stroke: "#FFFFFF" }}
+            //
+            // The ring is the surface colour, not white: its job is to hold a
+            // 2px gap between the dot and the line it sits on, and a white pip
+            // on a dark panel is a mark in its own right rather than a gap.
+            activeDot={{ r: 4, strokeWidth: 2, stroke: CHART.markRing }}
             isAnimationActive={false}
           />
         </LineChart>

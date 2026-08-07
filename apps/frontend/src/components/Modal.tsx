@@ -61,18 +61,25 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
 
   return (
     <div
-      className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-[var(--scrim)] px-4 backdrop-blur-sm"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
+      {/*
+        `--panel-raised` and opaque, matching `Surface`'s `floating` elevation.
+        A modal can land over arbitrary scrolled content, and the translucency
+        that makes a `--panel` card feel light makes a dialog unreadable — the
+        text competes with whatever happens to be beneath it. The scrim already
+        supplies the depth.
+      */}
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? "modal-title" : undefined}
         className={cn(
-          "relative w-full max-w-md animate-scale-in rounded-3xl border border-slate-200 bg-white p-7 shadow-2xl shadow-slate-900/20",
+          "relative w-full max-w-md animate-scale-in rounded-[var(--r-xl)] border border-[var(--rule)] bg-[var(--panel-raised)] p-7 shadow-[var(--shadow-raised)]",
           className,
         )}
       >
@@ -80,13 +87,16 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-5 top-5 text-slate-400 transition hover:text-slate-700"
+          className="absolute right-5 top-5 rounded-[var(--r-sm)] text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
         >
           <X size={18} />
         </button>
 
         {title ? (
-          <h2 id="modal-title" className="pr-8 text-lg font-semibold tracking-tight text-slate-900">
+          <h2
+            id="modal-title"
+            className="pr-8 font-display text-lg font-semibold tracking-tight text-[var(--ink)]"
+          >
             {title}
           </h2>
         ) : null}

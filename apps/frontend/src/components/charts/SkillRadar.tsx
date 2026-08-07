@@ -8,10 +8,7 @@ import {
   Tooltip,
 } from "recharts";
 
-const ELECTRIC = "#2563EB";
-/** The benchmark stroke. See the component docstring for why this is a
- * near-neutral rather than a second accent hue. */
-const BENCHMARK = "#334155";
+import { CHART, CHART_TOOLTIP } from "./chartTheme";
 
 export interface RadarAxis {
   /** Skill name — the axis label. */
@@ -43,11 +40,17 @@ export interface RadarAxis {
  *   would be a lie about a claim.
  *
  * So the requirement is drawn as what it actually is: a **benchmark**, not a
- * competing series. Near-neutral `#334155`, no fill, dashed stroke. It
- * separates cleanly (ΔE 24.8 normal, 24.7 deuteranopia) and the dash pattern
- * carries the identity independently of colour, so the two are still
- * distinguishable in greyscale, in forced-colours mode, and on a printout.
- * The legend is always rendered because there are two series.
+ * competing series. Near-neutral, no fill, dashed stroke. It separates cleanly
+ * and the dash pattern carries the identity independently of colour, so the
+ * two are still distinguishable in greyscale, in forced-colours mode, and on a
+ * printout. The legend is always rendered because there are two series.
+ *
+ * The two hexes this used to hold — #2563EB and #334155 — are now `--blue` and
+ * `--slate` from `chartTheme.ts`, re-measured against each theme's surface.
+ * The reasoning above is unchanged; only the values move with the theme now,
+ * which the fixed hexes could not. #334155 in particular was chosen against a
+ * white page and is 1.6:1 on `--surface` — very close to invisible on the
+ * dark theme this component now renders in.
  */
 export function SkillRadar({ axes, className }: { axes: RadarAxis[]; className?: string }) {
   // Three axes is the floor for a polygon; below that a radar degenerates to
@@ -59,10 +62,10 @@ export function SkillRadar({ axes, className }: { axes: RadarAxis[]; className?:
     <div className={className}>
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={axes} outerRadius="72%">
-          <PolarGrid stroke="#E2E8F0" />
+          <PolarGrid stroke={CHART.grid} />
           <PolarAngleAxis
             dataKey="skill"
-            tick={{ fontSize: 10, fill: "#64748B" }}
+            tick={{ fontSize: 10, fill: CHART.tick }}
             tickLine={false}
           />
           {/* Fixed 0-100 domain, not `dataMax`. An auto domain would rescale
@@ -73,7 +76,7 @@ export function SkillRadar({ axes, className }: { axes: RadarAxis[]; className?:
           <Radar
             name="Job requires"
             dataKey="required"
-            stroke={BENCHMARK}
+            stroke={CHART.benchmark}
             strokeWidth={1.5}
             strokeDasharray="4 3"
             fill="none"
@@ -82,19 +85,14 @@ export function SkillRadar({ axes, className }: { axes: RadarAxis[]; className?:
           <Radar
             name="Candidate evidence"
             dataKey="candidate"
-            stroke={ELECTRIC}
+            stroke={CHART.series}
             strokeWidth={2}
-            fill={ELECTRIC}
+            fill={CHART.series}
             fillOpacity={0.2}
             isAnimationActive={false}
           />
           <Tooltip
-            contentStyle={{
-              borderRadius: 8,
-              border: "1px solid #D3DAE3",
-              fontSize: 11,
-              padding: "4px 8px",
-            }}
+            {...CHART_TOOLTIP}
             formatter={(value, name) => [`${Math.round(Number(value ?? 0))}%`, String(name ?? "")]}
           />
         </RadarChart>
@@ -103,15 +101,15 @@ export function SkillRadar({ axes, className }: { axes: RadarAxis[]; className?:
       {/* A real legend rather than Recharts' — this one sits under the chart
           at a fixed size and reproduces each series' actual stroke treatment,
           including the dash, so identity is never colour-alone. */}
-      <ul className="mt-1 flex items-center justify-center gap-4 text-[10px] text-slate-500">
+      <ul className="mt-1 flex items-center justify-center gap-4 text-[10px] text-[var(--muted)]">
         <li className="flex items-center gap-1.5">
-          <span className="inline-block h-0 w-4 border-t-2" style={{ borderColor: ELECTRIC }} />
+          <span className="inline-block h-0 w-4 border-t-2" style={{ borderColor: CHART.series }} />
           Candidate evidence
         </li>
         <li className="flex items-center gap-1.5">
           <span
             className="inline-block h-0 w-4 border-t-2 border-dashed"
-            style={{ borderColor: BENCHMARK }}
+            style={{ borderColor: CHART.benchmark }}
           />
           Job requires
         </li>

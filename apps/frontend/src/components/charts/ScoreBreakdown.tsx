@@ -38,19 +38,23 @@ export function ScoreBreakdown({ dimensions }: { dimensions: ScoreDimension[] })
         return (
           <li key={dimension.label} className="space-y-1">
             <div className="flex items-baseline justify-between gap-3">
-              <span className="truncate text-[13px] text-ink">{dimension.label}</span>
-              <span className="tabular shrink-0 text-xs text-slate-500">
+              <span className="truncate text-[13px] text-[var(--ink)]">{dimension.label}</span>
+              <span className="tabular shrink-0 text-xs text-[var(--muted)]">
                 {Math.round(dimension.earned)}/{Math.round(dimension.possible)}
               </span>
             </div>
-            <div className="h-1.5 w-full rounded-full bg-slate-100">
-              {/* `gt-electric`, not `verified`. An interview score is a
+            <div className="h-1.5 w-full rounded-full bg-[var(--rule-soft)]">
+              {/* `--blue`, not `--verified`. An interview score is a
                   measurement of performance, not a verification outcome —
                   green here would claim the dimension had been proven by an
                   artefact, which is what green means everywhere else in this
-                  product. */}
+                  product.
+
+                  It was `gt-electric`, a landing-page token with no light-mode
+                  step; `--blue` is the same role in the app's own palette and
+                  re-steps per theme. See `chartTheme.ts`. */}
               <div
-                className="h-1.5 rounded-full bg-gt-electric"
+                className="h-1.5 rounded-full bg-[var(--blue)]"
                 style={{ width: `${percent}%` }}
               />
             </div>

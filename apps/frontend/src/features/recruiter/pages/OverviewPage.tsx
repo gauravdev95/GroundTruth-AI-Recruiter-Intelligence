@@ -35,16 +35,16 @@ function StatTile({
   const display = Math.round(useCountUp(value));
 
   return (
-    <div className="rounded-xl border border-rule bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(0,0,0,0.10)]">
+    <div className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(0,0,0,0.10)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+          <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">
             <Icon size={12} aria-hidden="true" />
             {label}
           </p>
-          <p className="tabular mt-1.5 font-display text-2xl font-semibold text-ink">
+          <p className="tabular mt-1.5 font-display text-2xl font-semibold text-[var(--ink)]">
             {display}
-            {suffix ? <span className="ml-0.5 text-base text-slate-400">{suffix}</span> : null}
+            {suffix ? <span className="ml-0.5 text-base text-[var(--muted)]">{suffix}</span> : null}
           </p>
         </div>
         {points && points.length > 0 ? (
@@ -57,7 +57,7 @@ function StatTile({
       </div>
       {/* Every tile says where its number came from. The product rule is that
           a number a recruiter cannot trace is a number they cannot act on. */}
-      <p className="mt-2 text-[11px] leading-snug text-slate-400">{caption}</p>
+      <p className="mt-2 text-[11px] leading-snug text-[var(--muted)]">{caption}</p>
     </div>
   );
 }
@@ -128,8 +128,8 @@ export function OverviewPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">Dashboard</h1>
+          <p className="mt-1 text-sm text-[var(--slate)]">
             {publishedJobs.length === 0
               ? "No published roles yet — post one to start matching."
               : `${publishedJobs.length} active role${publishedJobs.length === 1 ? "" : "s"}, matching against every verified candidate.`}
@@ -174,7 +174,7 @@ export function OverviewPage() {
 
       <section>
         <div className="mb-3 flex items-center justify-between gap-4">
-          <h2 className="font-display text-lg font-semibold text-ink">Active roles</h2>
+          <h2 className="font-display text-lg font-semibold text-[var(--ink)]">Active roles</h2>
           <Link
             to="/recruiter/jobs"
             className="inline-flex items-center gap-1 text-xs font-medium text-gt-electric hover:underline"
@@ -185,9 +185,9 @@ export function OverviewPage() {
         </div>
 
         {jobs.data.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-rule p-8 text-center text-sm text-slate-500">
+          <p className="rounded-xl border border-dashed border-[var(--rule)] p-8 text-center text-sm text-[var(--slate)]">
             No roles yet.{" "}
-            <Link to="/recruiter/jobs/new" className="font-medium text-ink hover:underline">
+            <Link to="/recruiter/jobs/new" className="font-medium text-[var(--ink)] hover:underline">
               Post your first job
             </Link>{" "}
             — matching runs automatically once you confirm the requirements.
@@ -200,20 +200,20 @@ export function OverviewPage() {
                 <li key={job.id}>
                   <Link
                     to={job.status === "published" ? `/recruiter/jobs/${job.id}/pipeline` : `/recruiter/jobs/${job.id}`}
-                    className="block h-full rounded-xl border border-rule bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:-translate-y-px hover:border-gt-electric/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.10)]"
+                    className="block h-full rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition hover:-translate-y-px hover:border-gt-electric/30 hover:shadow-[0_4px_12px_rgba(0,0,0,0.10)]"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="min-w-0 truncate font-medium text-ink">{job.title}</p>
+                      <p className="min-w-0 truncate font-medium text-[var(--ink)]">{job.title}</p>
                       <JobStatusBadge status={job.status} />
                     </div>
-                    <p className="mt-1 truncate text-xs text-slate-500">
+                    <p className="mt-1 truncate text-xs text-[var(--slate)]">
                       {job.is_remote ? "Remote" : (job.location ?? "Location not specified")} ·{" "}
                       {job.job_type.replace(/_/g, " ")}
                     </p>
                     {remaining ? (
-                      <p className="mt-2 text-[11px] text-slate-400">{remaining}</p>
+                      <p className="mt-2 text-[11px] text-[var(--muted)]">{remaining}</p>
                     ) : (
-                      <p className="mt-2 text-[11px] text-slate-400">No deadline set</p>
+                      <p className="mt-2 text-[11px] text-[var(--muted)]">No deadline set</p>
                     )}
                   </Link>
                 </li>

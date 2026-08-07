@@ -16,6 +16,22 @@ import "@fontsource/inter/latin-600.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 
+/*
+ * The application design system. This has to be imported for the product to
+ * have a palette at all: `design/Surface.tsx`, `design/primitives.tsx` and
+ * every migrated screen are written against `var(--panel)`, `var(--ink)`,
+ * `var(--r-lg)` and friends, and an undefined custom property does not fall
+ * back to anything — it makes the whole declaration invalid, so a card whose
+ * tokens are missing renders transparent, square and bordered in its own text
+ * colour rather than visibly broken.
+ *
+ * Imported before `App` so the tokens are defined ahead of any feature
+ * stylesheet the route graph pulls in. That ordering is a convenience, not a
+ * correctness requirement — `landing.css` scopes itself with `:has()` so it
+ * outranks this file on the landing route regardless of which lands first.
+ */
+import "./design/tokens.css";
+
 import App from "./app/App";
 import "./styles/index.css";
 

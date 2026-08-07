@@ -101,7 +101,7 @@ export function CertificatesForm({ data, status, nav }: CertificatesFormProps) {
       nav={nav}
     >
       {fields.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-rule bg-panel px-4 py-6 text-center text-sm text-slate-500">
+        <p className="rounded-xl border border-dashed border-[var(--rule)] bg-[var(--panel)] px-4 py-6 text-center text-sm text-[var(--slate)]">
           No certificates yet.
         </p>
       ) : null}
@@ -110,9 +110,9 @@ export function CertificatesForm({ data, status, nav }: CertificatesFormProps) {
         const existing = data.certificates[index];
 
         return (
-          <div key={field.id} className="rounded-xl border border-rule bg-panel p-4">
+          <div key={field.id} className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <span className="font-mono text-xs text-slate-500">Certificate {index + 1}</span>
+              <span className="font-mono text-xs text-[var(--slate)]">Certificate {index + 1}</span>
               <div className="flex items-center gap-2">
                 {existing ? <VerificationBadge status={existing.verification_status} /> : null}
                 <Button
@@ -209,7 +209,7 @@ export function CertificatesForm({ data, status, nav }: CertificatesFormProps) {
         <Plus size={14} aria-hidden="true" /> Add certificate
       </Button>
 
-      <p className="rounded-xl border border-rule bg-panel px-3 py-2 text-xs text-slate-500">
+      <p className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] px-3 py-2 text-xs text-[var(--slate)]">
         Certificates with a credential URL are queued for checking. Without a URL there is nothing to
         check, so the entry is recorded as your own claim.
       </p>

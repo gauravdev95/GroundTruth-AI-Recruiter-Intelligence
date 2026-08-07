@@ -45,9 +45,9 @@ export function TargetRolesField({ value, onChange, error }: TargetRolesFieldPro
 
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="mb-1.5 text-sm font-medium text-slate-700">
+      <legend className="mb-1.5 text-sm font-medium text-[var(--slate)]">
         Target roles{" "}
-        <span className="font-normal text-slate-400">
+        <span className="font-normal text-[var(--muted)]">
           — pick 1 to {MAX_ROLES}
         </span>
       </legend>
@@ -69,15 +69,15 @@ export function TargetRolesField({ value, onChange, error }: TargetRolesFieldPro
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition",
                 selected
-                  ? "border-ink bg-ink text-white"
-                  : "border-slate-300 bg-white text-slate-600 hover:border-slate-400",
-                disabled && "cursor-not-allowed opacity-40 hover:border-slate-300",
+                  ? "border-[var(--rule)] bg-[var(--violet)] text-white"
+                  : "border-[var(--rule)] bg-[var(--panel)] text-[var(--slate)] hover:border-[var(--slate)]",
+                disabled && "cursor-not-allowed opacity-40 hover:border-[var(--rule)]",
               )}
             >
               {selected ? <Check size={13} strokeWidth={3} aria-hidden="true" /> : null}
               {option.label}
               {index === 0 ? (
-                <span className="ml-0.5 rounded-full bg-white/20 px-1.5 text-[10px] font-semibold uppercase tracking-wide">
+                <span className="ml-0.5 rounded-full bg-[var(--panel)]/20 px-1.5 text-[10px] font-semibold uppercase tracking-wide">
                   Primary
                 </span>
               ) : null}
@@ -86,7 +86,7 @@ export function TargetRolesField({ value, onChange, error }: TargetRolesFieldPro
         })}
       </div>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-[var(--slate)]">
         {value.length === 0
           ? "Your first pick becomes your primary role — it's the one recruiters see first."
           : `${value.length} of ${MAX_ROLES} selected. Primary: ${

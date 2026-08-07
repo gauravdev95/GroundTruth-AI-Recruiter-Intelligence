@@ -230,15 +230,15 @@ export function DraftReview({ detail, onDone }: DraftReviewProps) {
   }
 
   const sectionShell = (title: string, description: string, key: string, body: React.ReactNode) => (
-    <section className="rounded-2xl border border-rule bg-white p-5">
+    <section className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
       <header className="mb-4">
-        <h3 className="font-display text-base font-semibold text-ink">{title}</h3>
-        <p className="mt-0.5 text-sm text-slate-500">{description}</p>
+        <h3 className="font-display text-base font-semibold text-[var(--ink)]">{title}</h3>
+        <p className="mt-0.5 text-sm text-[var(--slate)]">{description}</p>
       </header>
       {sectionErrors[key] ? (
         <p
           role="alert"
-          className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          className="mb-3 rounded border border-[var(--failed)]/30 bg-[var(--failed)]/10 px-3 py-2 text-sm text-[var(--failed)]"
         >
           {sectionErrors[key]}
         </p>
@@ -249,15 +249,15 @@ export function DraftReview({ detail, onDone }: DraftReviewProps) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-flagged/30 bg-flagged/5 p-4 text-sm">
-        <p className="font-medium text-ink">Nothing here is saved yet.</p>
-        <p className="mt-0.5 text-slate-600">
+      <div className="rounded-2xl border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 p-4 text-sm">
+        <p className="font-medium text-[var(--ink)]">Nothing here is saved yet.</p>
+        <p className="mt-0.5 text-[var(--slate)]">
           This was read from your resume by {draft.provider} ({draft.model}). Check each field —
           untick anything that&apos;s wrong, and correct what you keep. Only what you confirm is
           written to your profile.
         </p>
         {suggestions.unmapped.length > 0 ? (
-          <ul className="mt-2 list-inside list-disc space-y-0.5 text-slate-700">
+          <ul className="mt-2 list-inside list-disc space-y-0.5 text-[var(--slate)]">
             {suggestions.unmapped.map((note) => (
               <li key={note}>{note}</li>
             ))}
@@ -268,13 +268,13 @@ export function DraftReview({ detail, onDone }: DraftReviewProps) {
       {confirm.isError ? (
         <p
           role="alert"
-          className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          className="rounded border border-[var(--failed)]/30 bg-[var(--failed)]/10 px-3 py-2 text-sm text-[var(--failed)]"
         >
           {getProfileErrorMessage(confirm.error)}
         </p>
       ) : null}
       {sectionErrors.form ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-[var(--failed)]">
           {sectionErrors.form}
         </p>
       ) : null}
@@ -383,8 +383,8 @@ export function DraftReview({ detail, onDone }: DraftReviewProps) {
         />,
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rule bg-panel p-4">
-        <p className="text-sm text-slate-600">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-4">
+        <p className="text-sm text-[var(--slate)]">
           {includedCount === 0
             ? "Nothing selected yet."
             : `${includedCount} section${includedCount === 1 ? "" : "s"} will be imported.`}

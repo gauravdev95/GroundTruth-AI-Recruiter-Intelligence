@@ -43,7 +43,7 @@ export function MessageThread({
   const messages = conversation.data?.messages ?? [];
 
   return (
-    <div className="flex flex-col rounded-2xl border border-rule bg-white">
+    <div className="flex flex-col rounded-2xl border border-[var(--rule)] bg-[var(--panel)]">
       <div className="max-h-96 min-h-[10rem] flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 ? (
           <EmptyState title="No messages yet" description="Start the conversation below." />
@@ -55,11 +55,11 @@ export function MessageThread({
                 <div
                   className={cn(
                     "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm",
-                    isMine ? "bg-ink text-white" : "border border-rule bg-panel text-ink",
+                    isMine ? "bg-[var(--violet)] text-white" : "border border-[var(--rule)] bg-[var(--panel)] text-[var(--ink)]",
                   )}
                 >
                   <p className="whitespace-pre-wrap">{message.body}</p>
-                  <p className={cn("mt-1 text-[10px]", isMine ? "text-white/60" : "text-slate-400")}>
+                  <p className={cn("mt-1 text-[10px]", isMine ? "text-white/60" : "text-[var(--muted)]")}>
                     {new Date(message.created_at).toLocaleString()}
                   </p>
                 </div>
@@ -70,7 +70,7 @@ export function MessageThread({
       </div>
 
       <form
-        className="flex items-end gap-2 border-t border-rule p-3"
+        className="flex items-end gap-2 border-t border-[var(--rule)] p-3"
         onSubmit={(e) => {
           e.preventDefault();
           submit();
@@ -88,7 +88,7 @@ export function MessageThread({
           placeholder="Write a message…"
           rows={2}
           maxLength={4000}
-          className="flex-1 resize-none rounded-xl border border-rule bg-panel px-3 py-2 text-sm text-ink placeholder:text-slate-400 focus:border-ink focus:outline-none"
+          className="flex-1 resize-none rounded-xl border border-[var(--rule)] bg-[var(--panel)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:border-[var(--rule)] focus:outline-none"
         />
         <Button type="submit" size="sm" isLoading={sendMessage.isPending} disabled={!draft.trim()}>
           <Send size={14} aria-hidden="true" />

@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/apiClient";
 
-import type { EvidenceReport } from "@/features/student/interview/api/interviewApi";
+import type { DimensionScore, InterviewTurn } from "@/features/student/interview/api/interviewApi";
 import type { VerificationStatus } from "@/features/student/api/profileApi";
 
 /** Mirrors `apps/backend/src/domains/pipeline/evidence.py::build_evidence_record`
@@ -59,7 +59,20 @@ export interface EvidenceRecord {
     project_title: string | null;
     total_score: number | null;
     completed_at: string | null;
-    evidence_report: EvidenceReport | null;
+    /** The narrative half of the report — what cannot be expressed as a
+     * number. The scores and the conversation come as their own arrays below,
+     * exactly as they are stored: the candidate's report and this record read
+     * the same rows, so the two can never disagree. */
+    evidence_report: {
+      verified_claims: string[];
+      contradicted_claims: string[];
+      unsupported_claims: string[];
+      strengths: string[];
+      concerns: string[];
+      summary: string;
+    } | null;
+    dimension_scores: DimensionScore[];
+    transcript: Pick<InterviewTurn, "sequence" | "role" | "text" | "question_index">[];
   }[];
   match: {
     match_score: number;

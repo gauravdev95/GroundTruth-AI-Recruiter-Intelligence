@@ -42,7 +42,7 @@ export function ApplicationDetailPage() {
   if (!applicationId) return null;
 
   const backLink = (
-    <Link to="/recruiter/jobs" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink">
+    <Link to="/recruiter/jobs" className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] hover:text-[var(--ink)]">
       <ArrowLeft size={14} aria-hidden="true" /> Back to jobs
     </Link>
   );
@@ -83,8 +83,8 @@ export function ApplicationDetailPage() {
 
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-semibold text-ink">{candidate_headline ?? "Candidate"}</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">{candidate_headline ?? "Candidate"}</h1>
+          <p className="text-sm text-[var(--slate)]">
             {job_title} · {company_name}
           </p>
           {/* Both scores, on the surface where the shortlisting decision is
@@ -99,7 +99,7 @@ export function ApplicationDetailPage() {
               isMeaningful={drift.is_meaningful}
               size="lg"
             />
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="mt-0.5 text-xs text-[var(--muted)]">
               Score at time of applying{drift.direction === "unknown" ? "" : ", and drift since"}
             </p>
           </div>
@@ -150,9 +150,9 @@ export function ApplicationDetailPage() {
       </header>
 
       {application.cover_note ? (
-        <div className="rounded-2xl border border-rule bg-white p-5">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">Cover note</p>
-          <p className="whitespace-pre-wrap text-sm text-ink">{application.cover_note}</p>
+        <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Cover note</p>
+          <p className="whitespace-pre-wrap text-sm text-[var(--ink)]">{application.cover_note}</p>
         </div>
       ) : null}
 
@@ -162,7 +162,7 @@ export function ApplicationDetailPage() {
         <div className="space-y-6">
           <NotesPanel applicationId={applicationId} />
           <div>
-            <p className="mb-2 text-sm font-semibold text-ink">Messages</p>
+            <p className="mb-2 text-sm font-semibold text-[var(--ink)]">Messages</p>
             <MessageThread rolePrefix="recruiter" applicationId={applicationId} />
           </div>
         </div>

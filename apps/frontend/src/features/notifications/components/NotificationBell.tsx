@@ -60,25 +60,25 @@ export function NotificationBell({ applicationHref }: { applicationHref: (applic
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
-        className="relative rounded p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+        className="relative rounded p-2 text-[var(--muted)] transition hover:bg-[var(--panel-raised)] hover:text-[var(--slate)]"
       >
         <Bell size={18} />
         {unreadCount > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--failed)] px-1 text-[10px] font-semibold text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         ) : null}
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-30 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+        <div className="absolute right-0 z-30 mt-2 w-80 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-2 shadow-xl">
           <div className="flex items-center justify-between px-2 py-1.5">
-            <p className="text-sm font-semibold text-ink">Notifications</p>
+            <p className="text-sm font-semibold text-[var(--ink)]">Notifications</p>
             <button
               type="button"
               onClick={() => notifications.refetch()}
               aria-label="Refresh notifications"
-              className="text-slate-400 hover:text-ink"
+              className="text-[var(--muted)] hover:text-[var(--ink)]"
             >
               <RefreshCcw size={14} />
             </button>
@@ -86,7 +86,7 @@ export function NotificationBell({ applicationHref }: { applicationHref: (applic
 
           <div className="max-h-96 overflow-y-auto">
             {notifications.isPending ? (
-              <p className="px-2 py-4 text-center text-xs text-slate-400">Loading…</p>
+              <p className="px-2 py-4 text-center text-xs text-[var(--muted)]">Loading…</p>
             ) : notifications.data && notifications.data.notifications.length > 0 ? (
               <ul className="space-y-1">
                 {notifications.data.notifications.map((n) => {
@@ -102,25 +102,25 @@ export function NotificationBell({ applicationHref }: { applicationHref: (applic
                           if (applicationId) navigate(applicationHref(applicationId));
                         }}
                         className={cn(
-                          "flex w-full items-start gap-2 rounded-xl px-2 py-2 text-left text-sm transition hover:bg-slate-50",
-                          unread && "bg-ink/[0.03]",
+                          "flex w-full items-start gap-2 rounded-xl px-2 py-2 text-left text-sm transition hover:bg-[var(--panel-raised)]",
+                          unread && "bg-[var(--violet)]/[0.03]",
                         )}
                       >
-                        <MessageSquare size={14} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />
+                        <MessageSquare size={14} className="mt-0.5 shrink-0 text-[var(--muted)]" aria-hidden="true" />
                         <span className="flex-1">
-                          <span className={cn("block", unread ? "font-medium text-ink" : "text-slate-600")}>
+                          <span className={cn("block", unread ? "font-medium text-[var(--ink)]" : "text-[var(--slate)]")}>
                             {notificationText(n)}
                           </span>
-                          <span className="text-xs text-slate-400">{timeAgo(n.created_at)}</span>
+                          <span className="text-xs text-[var(--muted)]">{timeAgo(n.created_at)}</span>
                         </span>
-                        {unread ? <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-verified" aria-hidden="true" /> : null}
+                        {unread ? <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--verified)]" aria-hidden="true" /> : null}
                       </button>
                     </li>
                   );
                 })}
               </ul>
             ) : (
-              <p className="px-2 py-4 text-center text-xs text-slate-400">You're all caught up.</p>
+              <p className="px-2 py-4 text-center text-xs text-[var(--muted)]">You're all caught up.</p>
             )}
           </div>
         </div>

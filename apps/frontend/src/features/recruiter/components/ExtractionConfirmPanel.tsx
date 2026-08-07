@@ -119,7 +119,7 @@ export function ExtractionConfirmPanel({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="location-constraint" className="text-sm font-medium text-slate-700">
+          <label htmlFor="location-constraint" className="text-sm font-medium text-[var(--slate)]">
             Location constraint
           </label>
           <input
@@ -127,23 +127,23 @@ export function ExtractionConfirmPanel({
             value={state.locationConstraint}
             onChange={(event) => patch({ locationConstraint: event.target.value })}
             placeholder="Bangalore, India"
-            className="w-full rounded border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
+            className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
           />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[var(--slate)]">
             From your posting. Edit it here and you are editing the job — change the posting itself
             with “Back to edit”.
           </p>
         </div>
 
         {!hasRequirements ? (
-          <p role="alert" className="rounded-lg border border-flagged/30 bg-flagged/10 px-3 py-2.5 text-xs text-flagged">
+          <p role="alert" className="rounded-lg border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 px-3 py-2.5 text-xs text-[var(--flagged)]">
             Add at least one must-have skill. Without one, every candidate is ranked on the
             description’s wording alone.
           </p>
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-rule bg-white/95 px-5 py-4 backdrop-blur">
+      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--rule)] bg-[var(--panel)]/95 px-5 py-4 backdrop-blur">
         <Button type="button" variant="secondary" onClick={onBack} disabled={isSaving}>
           <ArrowLeft size={15} aria-hidden="true" />
           Back to edit
@@ -151,7 +151,7 @@ export function ExtractionConfirmPanel({
 
         <div className="flex items-center gap-3">
           {!dwellElapsed ? (
-            <span className="text-xs text-slate-400" aria-live="polite">
+            <span className="text-xs text-[var(--muted)]" aria-live="polite">
               Reviewing…
             </span>
           ) : null}

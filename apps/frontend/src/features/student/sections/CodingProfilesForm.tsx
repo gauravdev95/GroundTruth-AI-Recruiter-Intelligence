@@ -203,7 +203,7 @@ export function CodingProfilesForm({ data, status, stage, nav }: CodingProfilesF
       nav={nav}
     >
       {fields.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-rule bg-panel px-4 py-6 text-center text-sm text-slate-500">
+        <p className="rounded-xl border border-dashed border-[var(--rule)] bg-[var(--panel)] px-4 py-6 text-center text-sm text-[var(--slate)]">
           Nothing here yet. Add a platform below, or skip this stage.
         </p>
       ) : null}
@@ -216,7 +216,7 @@ export function CodingProfilesForm({ data, status, stage, nav }: CodingProfilesF
           const canReachVerified = platform ? API_BACKED_PLATFORMS.includes(platform) : false;
 
           return (
-            <div key={field.id} className="rounded-xl border border-rule bg-panel p-3">
+            <div key={field.id} className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-3">
               <div className="flex flex-wrap items-end gap-3">
                 <div className="w-44 shrink-0">
                   <Select
@@ -275,13 +275,13 @@ export function CodingProfilesForm({ data, status, stage, nav }: CodingProfilesF
               <VerifyStatus state={profileStates[field.id] ?? { phase: "idle" }} />
 
               {!canReachVerified && platform ? (
-                <p className="mt-1.5 text-xs text-slate-500">
+                <p className="mt-1.5 text-xs text-[var(--slate)]">
                   This platform has no public API, so we can only confirm the page exists.
                 </p>
               ) : null}
 
               {existing ? (
-                <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--slate)]">
                   <span className="font-mono">{existing.profile_url}</span>
                   <VerificationBadge status={existing.verification_status} />
                 </p>
@@ -302,7 +302,7 @@ export function CodingProfilesForm({ data, status, stage, nav }: CodingProfilesF
         </Button>
       ) : null}
 
-      <p className="rounded-xl border border-rule bg-panel px-3 py-2 text-xs leading-relaxed text-slate-500">
+      <p className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] px-3 py-2 text-xs leading-relaxed text-[var(--slate)]">
         These appear on your profile under <span className="font-medium">Supporting Signals</span>,
         separate from verified skills. A rating is evidence that you practise, not evidence that you
         built something — so it never merges into your verified-skill percentages.

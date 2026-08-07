@@ -5,37 +5,56 @@ export default {
   theme: {
     extend: {
       /**
-       * The same six tokens the landing page's stylesheet defines, exposed to
-       * Tailwind so auth and dashboard screens share one identity with it.
+       * THE APP'S PALETTE IS NOT HERE. It lives in `src/design/tokens.css` as
+       * CSS custom properties, and screens reach it with `text-[var(--ink)]`,
+       * `bg-[var(--panel)]` and so on.
        *
-       * `verified` and `flagged` keep their landing meaning everywhere: green
-       * is proven by an artefact, amber is claimed but unchecked. Outside that
-       * meaning they are only ever used for focus rings, never for decoration.
+       * Six flat tokens — `ink`, `paper`, `panel`, `rule`, `verified`,
+       * `flagged` — used to sit here and were removed. They were fixed light
+       * hexes (`paper` #EDF0F4, `panel` #FBFCFD), so they could not express a
+       * theme: `verified` #0E7C55 is 4.8:1 on white and 1.9:1 on the app's
+       * `--surface`, which meant the status colour the product cares most
+       * about was failing contrast on the theme it actually shipped in. A
+       * custom property re-steps per theme under one name; a Tailwind colour
+       * cannot.
+       *
+       * They are deleted rather than aliased to the variables on purpose. An
+       * alias would have left two spellings for one colour and no signal about
+       * which to use, and the whole reason this migration was needed is that
+       * the app had been written against these while the design system it was
+       * supposed to be using went unimported.
        */
       colors: {
-        ink: { DEFAULT: "#0A1628", hover: "#12233C" },
-        paper: "#EDF0F4",
-        panel: "#FBFCFD",
-        rule: "#D3DAE3",
-        verified: "#0E7C55",
-        flagged: "#9A5B08",
-
         /**
          * The landing page's palette, namespaced under `gt-` because it is a
          * different visual world from the authenticated product and the two
-         * must not bleed into each other. `ink` above is #0A1628 and belongs to
-         * the app; `gt-void` is #0A0A0A and belongs to the marketing page. A
-         * single shared `ink` would have forced one of them to shift.
+         * must not bleed into each other. The app's `--ink` is a custom
+         * property in `design/tokens.css` and moves with the theme; `gt-void`
+         * is #0A0A0A and belongs to the marketing page, which has no theme.
          *
-         * ONE SANCTIONED CROSSING: `gt-electric` on the recruiter flow
-         * (`features/recruiter/`), where it is the primary CTA fill and the
-         * match-score band above 70%. That flow's brief named #2563EB as its
-         * accent, and #2563EB is this token — minting a second identical hex
-         * under an app-scoped name would have produced two tokens that must
-         * never disagree, which is a worse arrangement than one token used in
-         * two places. It stays *surfaces and scores* there; status still
-         * belongs to `verified`/`flagged`, and no other authenticated screen
-         * reaches for it.
+         * TWO SANCTIONED CROSSINGS, both of them surfaces a visitor meets
+         * before they are a user:
+         *
+         *  1. `gt-electric` on the recruiter flow (`features/recruiter/`),
+         *     where it is the primary CTA fill and the match-score band above
+         *     70%. That flow's brief named #2563EB as its accent, and #2563EB
+         *     is this token — minting a second identical hex under an
+         *     app-scoped name would have produced two tokens that must never
+         *     disagree. It stays *surfaces and scores* there; status belongs
+         *     to `--verified`/`--flagged`.
+         *
+         *  2. The auth hero (`AuthHero`, `AuthAurora`, and `FIELD_TONE.hero`).
+         *     `/login` and `/signup` are the landing page continued through
+         *     the door — a dark glass surface in both themes — so the controls
+         *     on them are painted in landing tokens rather than app ones. This
+         *     crossing was previously undocumented; the code was already doing
+         *     it, and the choice is right, so the rule moved rather than the
+         *     code.
+         *
+         * The student flow used to reach for `gt-electric` too, in three
+         * files. That one was a genuine leak, not a crossing, and is now
+         * `--blue` — which is the same role in the app's palette and, unlike a
+         * fixed hex, has a light-theme step.
          *
          * ONE ACCENT, WITH ONE SCOPED EXCEPTION. `gt-electric` is the only
          * accent on the page. `gt-ember` exists solely inside the hero, where

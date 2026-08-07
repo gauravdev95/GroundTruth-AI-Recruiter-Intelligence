@@ -48,23 +48,23 @@ function EvidenceBar({ reason }: { reason: EvidenceSkillReason }) {
   return (
     <li className="space-y-1">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="truncate text-[13px] font-medium text-ink">{reason.skill_name}</span>
-        <span className="tabular shrink-0 text-xs text-slate-500">{percent}%</span>
+        <span className="truncate text-[13px] font-medium text-[var(--ink)]">{reason.skill_name}</span>
+        <span className="tabular shrink-0 text-xs text-[var(--slate)]">{percent}%</span>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-slate-100">
+      <div className="h-1.5 w-full rounded-full bg-[var(--panel-raised)]">
         <div
-          className="h-1.5 rounded-full bg-verified"
+          className="h-1.5 rounded-full bg-[var(--verified)]"
           style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
         />
       </div>
       {source ? (
-        <p className="truncate text-[11px] text-slate-400">
+        <p className="truncate text-[11px] text-[var(--muted)]">
           {source.repo_url ? (
             <a
               href={source.repo_url}
               target="_blank"
               rel="noreferrer noopener"
-              className="inline-flex items-center gap-1 hover:text-ink hover:underline"
+              className="inline-flex items-center gap-1 hover:text-[var(--ink)] hover:underline"
             >
               {source.title ?? source.repo_url}
               <ExternalLink size={9} aria-hidden="true" />
@@ -79,7 +79,7 @@ function EvidenceBar({ reason }: { reason: EvidenceSkillReason }) {
       ) : (
         // The weight exists, the trail does not. Saying so beats a bar that
         // implies a source it cannot name.
-        <p className="text-[11px] text-slate-400">No linked repository</p>
+        <p className="text-[11px] text-[var(--muted)]">No linked repository</p>
       )}
     </li>
   );
@@ -103,13 +103,13 @@ function EvidenceBar({ reason }: { reason: EvidenceSkillReason }) {
 function SupportingSignal({ label, detail, status }: { label: string; detail: string; status: string }) {
   return (
     <li className="flex items-baseline justify-between gap-3 py-1.5">
-      <span className="min-w-0 truncate text-xs text-slate-600">
-        {label} <span className="text-slate-400">· {detail}</span>
+      <span className="min-w-0 truncate text-xs text-[var(--slate)]">
+        {label} <span className="text-[var(--muted)]">· {detail}</span>
       </span>
       <span
         className={cn(
           "shrink-0 text-[10px] uppercase tracking-wide",
-          status === "verified" ? "text-verified" : status === "flagged" ? "text-flagged" : "text-slate-400",
+          status === "verified" ? "text-[var(--verified)]" : status === "flagged" ? "text-[var(--flagged)]" : "text-[var(--muted)]",
         )}
       >
         {status}
@@ -184,35 +184,38 @@ const EXCERPT_CHARS = 180;
 
 interface Highlight {
   interviewId: string;
-  prompt: string;
-  excerpt: string;
-  score: number;
+  project: string | null;
+  text: string;
 }
 
 /**
- * The strongest few answers across every completed interview.
+ * The strengths the Scorer named, across every completed interview.
  *
- * Ranked by `weighted_score` and truncated to a sentence, because this is a
- * teaser for the full transcript, not a substitute for it — the link below
- * the list is the real artefact. Truncation cuts on the last sentence
- * boundary inside the budget so an excerpt never ends mid-clause and
- * accidentally reverses what the candidate said.
+ * These are the Scorer's own findings, in the order it produced them, rather
+ * than answers this component ranked. The live interview scores the
+ * conversation as a whole, so there is no per-answer number left to sort by —
+ * and inventing one here (longest answer, most recent, most keywords) would
+ * dress a guess up as a ranking. The Scorer was asked for two or three
+ * specific, evidenced strengths; those are exactly what belongs in a teaser.
+ *
+ * Truncated to a sentence boundary for the same reason as before: this is a
+ * teaser for the full transcript, not a substitute for it, and an excerpt that
+ * ends mid-clause can reverse what it reports.
  */
 function collectHighlights(record: EvidenceRecord): Highlight[] {
   const all: Highlight[] = [];
   for (const interview of record.interviews) {
-    for (const question of interview.evidence_report?.questions ?? []) {
-      const transcript = (question.transcript ?? "").trim();
-      if (!transcript) continue;
+    for (const strength of interview.evidence_report?.strengths ?? []) {
+      const trimmed = strength.trim();
+      if (!trimmed) continue;
       all.push({
         interviewId: interview.interview_id,
-        prompt: question.prompt,
-        excerpt: excerpt(transcript),
-        score: question.weighted_score,
+        project: interview.project_title,
+        text: excerpt(trimmed),
       });
     }
   }
-  return all.sort((a, b) => b.score - a.score).slice(0, MAX_HIGHLIGHTS);
+  return all.slice(0, MAX_HIGHLIGHTS);
 }
 
 function excerpt(text: string): string {
@@ -309,10 +312,10 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
 
   return (
     <>
-      {/* Deliberately not `bg-slate-900/40` like `Modal`: the board behind
+      {/* Deliberately not `bg-[var(--scrim)]` like `Modal`: the board behind
           this stays legible on purpose, because half of reviewing a candidate
           is comparing them to the column they are in. */}
-      <div className="fixed inset-0 z-40 bg-slate-900/10" onClick={onClose} aria-hidden="true" />
+      <div className="fixed inset-0 z-40 bg-[var(--scrim)]" onClick={onClose} aria-hidden="true" />
 
       <aside
         ref={panelRef}
@@ -320,23 +323,23 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
         role="dialog"
         aria-modal="true"
         aria-label={`Evidence report — ${candidate.headline ?? "candidate"}`}
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] animate-slide-up flex-col border-l border-rule bg-white shadow-raised outline-none"
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] animate-slide-up flex-col border-l border-[var(--rule)] bg-[var(--panel)] shadow-raised outline-none"
       >
         {/* ---- header ---- */}
-        <header className="shrink-0 border-b border-rule px-5 py-4">
+        <header className="shrink-0 border-b border-[var(--rule)] px-5 py-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="truncate font-display text-lg font-semibold tracking-tight text-ink">
+              <h2 className="truncate font-display text-lg font-semibold tracking-tight text-[var(--ink)]">
                 {candidate.headline ?? "Candidate"}
               </h2>
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--slate)]">
                 <MatchScore score={candidate.score} size="sm" />
                 {candidate.appliedAt ? <span>· Applied {relativeDays(candidate.appliedAt)}</span> : null}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {record?.profile.is_discoverable ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-verified/30 bg-verified/5 px-2 py-0.5 text-[11px] font-medium text-verified">
+                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--verified)]/30 bg-[var(--verified)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--verified)]">
                   <BadgeCheck size={11} aria-hidden="true" />
                   Verified
                 </span>
@@ -345,7 +348,7 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
                 type="button"
                 onClick={onClose}
                 aria-label="Close evidence report"
-                className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="rounded p-1 text-[var(--muted)] transition hover:bg-[var(--panel-raised)] hover:text-[var(--slate)]"
               >
                 <X size={17} aria-hidden="true" />
               </button>
@@ -354,7 +357,7 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
         </header>
 
         {/* ---- tabs ---- */}
-        <div className="shrink-0 border-b border-rule px-5" role="tablist" aria-label="Candidate report sections">
+        <div className="shrink-0 border-b border-[var(--rule)] px-5" role="tablist" aria-label="Candidate report sections">
           <div className="flex gap-4">
             {TABS.map((name) => (
               <button
@@ -366,8 +369,8 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
                 className={cn(
                   "-mb-px border-b-2 py-2.5 text-xs font-medium transition",
                   tab === name
-                    ? "border-gt-electric text-ink"
-                    : "border-transparent text-slate-400 hover:text-slate-600",
+                    ? "border-gt-electric text-[var(--ink)]"
+                    : "border-transparent text-[var(--muted)] hover:text-[var(--slate)]",
                 )}
               >
                 {name}
@@ -396,17 +399,17 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
               {/* 1 — match reasoning */}
               {candidate.reasoning ? (
                 <section className="border-l-2 border-gt-electric bg-gt-electric/5 py-2.5 pl-3.5 pr-3">
-                  <p className="text-[13px] leading-relaxed text-slate-700">{candidate.reasoning}</p>
+                  <p className="text-[13px] leading-relaxed text-[var(--slate)]">{candidate.reasoning}</p>
                 </section>
               ) : null}
 
               {/* 2 — verified skills, the primary section */}
               <section>
-                <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--slate)]">
                   Verified skills
                 </h3>
                 {verifiedSkills.length === 0 ? (
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[var(--muted)]">
                     No skill on this job’s requirement list has verified evidence behind it yet.
                   </p>
                 ) : (
@@ -425,7 +428,7 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
                   only one should read the one with the repository links. */}
               {radarAxes.length >= 3 ? (
                 <section>
-                  <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--slate)]">
                     Coverage of this role
                   </h3>
                   <SkillRadar axes={radarAxes} className="h-52 w-full" />
@@ -434,12 +437,12 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
 
               {/* 3 — supporting signals */}
               {record.coding_platform_accounts.length > 0 || record.certificates.length > 0 ? (
-                <section className="border-t border-rule pt-4">
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <section className="border-t border-[var(--rule)] pt-4">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--slate)]">
                     Supporting signals
                   </h3>
-                  <p className="mb-1.5 text-[11px] text-slate-400">Not independently verified.</p>
-                  <ul className="divide-y divide-rule/60">
+                  <p className="mb-1.5 text-[11px] text-[var(--muted)]">Not independently verified.</p>
+                  <ul className="divide-y divide-[var(--rule)]/60">
                     {record.coding_platform_accounts.map((account) => (
                       <SupportingSignal
                         key={`${account.platform}-${account.handle}`}
@@ -465,16 +468,22 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
                   this stays here because "did they explain their own code"
                   is part of deciding whether to keep reading at all. */}
               {highlights.length > 0 ? (
-                <section className="border-t border-rule pt-4">
-                  <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <section className="border-t border-[var(--rule)] pt-4">
+                  <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--slate)]">
                     Interview highlights
                   </h3>
                   <ul className="space-y-2">
                     {highlights.map((highlight, index) => (
-                      <li key={`${highlight.interviewId}-${index}`} className="rounded-lg bg-panel p-3">
-                        <p className="text-[11px] font-medium text-slate-600">{highlight.prompt}</p>
-                        <p className="mt-1.5 border-l-2 border-rule pl-2.5 text-xs italic leading-relaxed text-slate-500">
-                          “{highlight.excerpt}”
+                      <li key={`${highlight.interviewId}-${index}`} className="rounded-lg bg-[var(--panel)] p-3">
+                        {highlight.project ? (
+                          <p className="text-[11px] font-medium text-[var(--slate)]">{highlight.project}</p>
+                        ) : null}
+                        {/* Not quoted, and not italicised as speech: this is
+                            the Scorer's finding about the conversation, not a
+                            line the candidate said. Styling it as a quote
+                            would attribute it to them. */}
+                        <p className="mt-1.5 border-l-2 border-[var(--rule)] pl-2.5 text-xs leading-relaxed text-[var(--slate)]">
+                          {highlight.text}
                         </p>
                       </li>
                     ))}
@@ -492,14 +501,14 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
 
               {/* 5 — risk flags, only when there are any */}
               {riskFlags.length > 0 ? (
-                <section className="rounded-lg bg-[#FEF3C7] px-3.5 py-3">
-                  <h3 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+                <section className="rounded-lg bg-[var(--flagged)]/10 px-3.5 py-3">
+                  <h3 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--flagged)]">
                     <AlertTriangle size={12} aria-hidden="true" />
                     Risk flags
                   </h3>
                   <ul className="space-y-2">
                     {riskFlags.map((flag) => (
-                      <li key={flag.label} className="text-xs leading-relaxed text-amber-800">
+                      <li key={flag.label} className="text-xs leading-relaxed text-[var(--flagged)]">
                         <span className="font-medium">{flag.label}</span> — {flag.detail}
                       </li>
                     ))}
@@ -517,11 +526,11 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
         </div>
 
         {/* ---- sticky actions ---- */}
-        <footer className="relative flex shrink-0 items-center gap-2 border-t border-rule bg-white px-5 py-3.5">
+        <footer className="relative flex shrink-0 items-center gap-2 border-t border-[var(--rule)] bg-[var(--panel)] px-5 py-3.5">
           {candidate.applicationId ? (
             <Link
               to={`/recruiter/applications/${candidate.applicationId}`}
-              className="inline-flex items-center gap-1.5 rounded border border-ink px-3.5 py-2 text-xs font-bold text-ink transition hover:bg-ink/5"
+              className="inline-flex items-center gap-1.5 rounded border border-[var(--rule)] px-3.5 py-2 text-xs font-bold text-[var(--ink)] transition hover:bg-[var(--panel)]"
             >
               <MessageSquare size={13} aria-hidden="true" />
               Message
@@ -531,7 +540,7 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
             // `conversations.application_id` FK *is* that rule, so there is
             // nothing to open for a candidate who has not applied.
             <span
-              className="inline-flex cursor-not-allowed items-center gap-1.5 rounded border border-rule px-3.5 py-2 text-xs font-bold text-slate-300"
+              className="inline-flex cursor-not-allowed items-center gap-1.5 rounded border border-[var(--rule)] px-3.5 py-2 text-xs font-bold text-[var(--muted)]"
               title="Messaging opens once the candidate applies"
             >
               <MessageSquare size={13} aria-hidden="true" />
@@ -558,15 +567,15 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
               onClick={() => setMenuOpen((open) => !open)}
               aria-label="More actions"
               aria-expanded={menuOpen}
-              className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              className="rounded p-1.5 text-[var(--muted)] transition hover:bg-[var(--panel-raised)] hover:text-[var(--slate)]"
             >
               <MoreHorizontal size={17} aria-hidden="true" />
             </button>
             {menuOpen ? (
-              <div className="absolute bottom-14 right-5 w-48 overflow-hidden rounded-lg border border-rule bg-white py-1 shadow-raised">
+              <div className="absolute bottom-14 right-5 w-48 overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--panel)] py-1 shadow-raised">
                 <Link
                   to={`/recruiter/candidates/${candidate.candidateProfileId}/evidence`}
-                  className="block px-3 py-2 text-xs text-slate-600 transition hover:bg-slate-50"
+                  className="block px-3 py-2 text-xs text-[var(--slate)] transition hover:bg-[var(--panel-raised)]"
                 >
                   View full report
                 </Link>
@@ -577,7 +586,7 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
                       setMenuOpen(false);
                       candidate.onDismiss?.();
                     }}
-                    className="block w-full px-3 py-2 text-left text-xs text-red-600 transition hover:bg-red-50"
+                    className="block w-full px-3 py-2 text-left text-xs text-[var(--failed)] transition hover:bg-[var(--failed)]/10"
                   >
                     Dismiss candidate
                   </button>

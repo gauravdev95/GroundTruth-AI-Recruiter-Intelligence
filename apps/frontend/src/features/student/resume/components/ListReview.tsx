@@ -39,7 +39,7 @@ export function ListReview({
 }: ListReviewProps) {
   if (items.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-rule bg-panel px-4 py-6 text-center text-sm text-slate-500">
+      <p className="rounded-xl border border-dashed border-[var(--rule)] bg-[var(--panel)] px-4 py-6 text-center text-sm text-[var(--slate)]">
         {emptyMessage}
       </p>
     );
@@ -56,16 +56,16 @@ export function ListReview({
             key={index}
             className={cn(
               "rounded-xl border p-3 transition",
-              item.included ? "border-rule bg-white" : "border-dashed border-rule bg-panel/60",
+              item.included ? "border-[var(--rule)] bg-[var(--panel)]" : "border-dashed border-[var(--rule)] bg-[var(--panel)]/60",
             )}
           >
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <label className="flex items-center gap-2 text-sm font-medium text-[var(--slate)]">
                 <input
                   type="checkbox"
                   checked={item.included}
                   onChange={(event) => onToggle(index, event.target.checked)}
-                  className="size-4 rounded border-slate-300 text-ink focus:ring-verified/25"
+                  className="size-4 rounded border-[var(--rule)] text-[var(--ink)] "
                 />
                 Import this entry
               </label>
@@ -172,7 +172,7 @@ export function ListReview({
                     />
                   </div>
                   {!value.start_date ? (
-                    <p className="text-xs text-flagged">
+                    <p className="text-xs text-[var(--flagged)]">
                       A start date is required — the resume didn&apos;t give a readable one.
                     </p>
                   ) : null}
@@ -181,7 +181,7 @@ export function ListReview({
             </div>
 
             {error ? (
-              <p role="alert" className="mt-2 text-xs text-red-500">
+              <p role="alert" className="mt-2 text-xs text-[var(--failed)]">
                 {error}
               </p>
             ) : null}

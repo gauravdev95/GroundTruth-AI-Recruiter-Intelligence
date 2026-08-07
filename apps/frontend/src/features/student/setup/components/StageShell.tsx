@@ -30,21 +30,21 @@ export function StageShell({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-rule bg-white p-6">
-      <header className="mb-5 border-b border-rule pb-4">
+    <section className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6">
+      <header className="mb-5 border-b border-[var(--rule)] pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-display text-lg font-semibold text-ink">{title}</h1>
+          <h1 className="font-display text-lg font-semibold text-[var(--ink)]">{title}</h1>
           <span
             className={
               stage.isMandatory
-                ? "text-xs font-medium text-flagged"
-                : "text-xs font-medium text-slate-400"
+                ? "text-xs font-medium text-[var(--flagged)]"
+                : "text-xs font-medium text-[var(--muted)]"
             }
           >
             {stage.isMandatory ? "Required" : "Optional"}
           </span>
         </div>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{description}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-[var(--slate)]">{description}</p>
       </header>
 
       {children}

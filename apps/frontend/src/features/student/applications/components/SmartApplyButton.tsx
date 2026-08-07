@@ -59,7 +59,7 @@ export function SmartApplyButton({
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-2 rounded-xl border border-verified/30 bg-verified/5 px-4 py-2.5 text-sm font-semibold text-verified",
+          "inline-flex items-center gap-2 rounded-xl border border-[var(--verified)]/30 bg-[var(--verified)]/10 px-4 py-2.5 text-sm font-semibold text-[var(--verified)]",
           className,
         )}
       >
@@ -90,9 +90,9 @@ export function SmartApplyButton({
       disabled={smartApply.isPending}
       aria-label={`Smart Apply to ${jobTitle} at ${companyName}`}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-xl bg-gt-electric font-semibold text-white",
-        "transition hover:bg-gt-electric/90 focus-visible:outline focus-visible:outline-2",
-        "focus-visible:outline-offset-2 focus-visible:outline-gt-electric disabled:opacity-70",
+        "inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--blue)] font-semibold text-white",
+        "transition hover:bg-[var(--blue)]/90 focus-visible:outline focus-visible:outline-2",
+        "focus-visible:outline-offset-2 focus-visible:outline-[var(--blue)] disabled:opacity-70",
         emphasis ? "px-5 py-3 text-sm" : "px-4 py-2.5 text-[13px]",
         emphasis && !reduced && "animate-smart-apply-pulse",
         className,

@@ -16,7 +16,7 @@ export type VerifyState = { phase: "idle" } | { phase: "checking" } | { phase: "
 const PRESENTATION = {
   verified: {
     Icon: CheckCircle2,
-    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    className: "border-[var(--verified)]/30 bg-[var(--verified)]/10 text-[var(--verified)]",
     label: "Verified",
   },
   // Amber, not green. The profile page resolved; nobody proved it is theirs.
@@ -24,12 +24,12 @@ const PRESENTATION = {
   // component could do — see `live_checks.py`.
   unconfirmed: {
     Icon: AlertTriangle,
-    className: "border-amber-200 bg-amber-50 text-amber-700",
+    className: "border-[var(--flagged)]/30 bg-[var(--flagged)]/10 text-[var(--flagged)]",
     label: "Found, not confirmed",
   },
   failed: {
     Icon: XCircle,
-    className: "border-red-200 bg-red-50 text-red-700",
+    className: "border-[var(--failed)]/30 bg-[var(--failed)]/10 text-[var(--failed)]",
     label: "Not found",
   },
 } as const;
@@ -41,7 +41,7 @@ export function VerifyStatus({ state }: { state: VerifyState }) {
     return (
       <p
         role="status"
-        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600"
+        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[var(--rule)] bg-[var(--panel-raised)] px-2.5 py-1 text-xs font-medium text-[var(--slate)]"
       >
         <Loader2 size={13} aria-hidden="true" className="animate-spin" />
         Verifying…

@@ -68,7 +68,14 @@
       to be made here too.
     -->
     <div id="root">
-      <div class="bg-gt-void">
+      <!--
+        `data-landing` scopes src/features/landing/styles/landing.css to this
+        route. It is mirrored here as well as in LandingPage.tsx so the page
+        background and focus ring are already correct on this first paint —
+        without it the token file's app background would show for the frame
+        between the stylesheet landing and React mounting.
+      -->
+      <div data-landing class="bg-gt-void">
         <nav
           aria-label="Primary"
           class="fixed inset-x-0 top-0 z-50 h-[72px] border-b border-transparent bg-transparent transition-colors duration-300 ease-out"

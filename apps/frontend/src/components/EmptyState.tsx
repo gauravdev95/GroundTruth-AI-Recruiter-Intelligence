@@ -8,17 +8,26 @@ export interface EmptyStateProps {
   action?: ReactNode;
 }
 
+/**
+ * Nothing here yet — which is a different thing from something went wrong, and
+ * is why this and `ErrorState` do not share an implementation.
+ *
+ * The dashed border is the whole distinction, and it is deliberate: every real
+ * surface in the product is bounded by a solid `--rule` hairline, so a dashed
+ * outline reads as a space where content will go rather than as a card that
+ * happens to be empty.
+ */
 export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-14 text-center">
+    <div className="flex flex-col items-center justify-center gap-3 rounded-[var(--r-lg)] border border-dashed border-[var(--rule)] bg-[var(--panel)]/40 px-6 py-14 text-center">
       {Icon ? (
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-          <Icon size={22} />
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--panel-raised)] text-[var(--muted)]">
+          <Icon size={22} aria-hidden="true" />
         </div>
       ) : null}
       <div>
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
+        <p className="text-sm font-semibold text-[var(--ink)]">{title}</p>
+        {description ? <p className="mt-1 text-sm text-[var(--slate)]">{description}</p> : null}
       </div>
       {action ? <div className="mt-1">{action}</div> : null}
     </div>

@@ -1,10 +1,10 @@
 import { Award, Briefcase, Code2, GitBranch } from "lucide-react";
 
 import { Badge, ErrorState, Skeleton } from "@/components";
-import { EvidenceReportView } from "@/features/student/interview/components/EvidenceReportView";
 import { VerificationBadge } from "@/features/student/components/SectionBadges";
 
 import { useCandidateEvidence } from "../hooks/useEvidence";
+import { InterviewTab } from "./evidenceTabs";
 
 /** The recruiter's candidate evidence card — contribution analysis,
  * interview transcript with per-criterion scores, coding-platform stats,
@@ -27,21 +27,21 @@ export function EvidenceCard({ candidateProfileId }: { candidateProfileId: strin
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-rule bg-white p-5">
+      <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
         <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-medium text-ink">{record.profile.headline ?? "Candidate"}</p>
-            <p className="text-xs text-slate-500">
+            <p className="font-medium text-[var(--ink)]">{record.profile.headline ?? "Candidate"}</p>
+            <p className="text-xs text-[var(--slate)]">
               {[record.profile.college, record.profile.degree, record.profile.location].filter(Boolean).join(" · ")}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-semibold tabular-nums text-ink">{record.profile.profile_strength}</p>
-            <p className="text-xs text-slate-400">profile strength</p>
+            <p className="text-2xl font-semibold tabular-nums text-[var(--ink)]">{record.profile.profile_strength}</p>
+            <p className="text-xs text-[var(--muted)]">profile strength</p>
           </div>
         </div>
         {record.match ? (
-          <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+          <div className="flex flex-wrap gap-3 text-xs text-[var(--slate)]">
             <span>Match {record.match.match_score.toFixed(0)}</span>
             <span>Semantic {(record.match.semantic_score * 100).toFixed(0)}%</span>
             <span>Evidence {(record.match.evidence_score * 100).toFixed(0)}%</span>
@@ -59,22 +59,22 @@ export function EvidenceCard({ candidateProfileId }: { candidateProfileId: strin
       </div>
 
       <section>
-        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink">
+        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-[var(--ink)]">
           <GitBranch size={16} aria-hidden="true" /> Repositories &amp; contribution analysis
         </h2>
         {record.projects.length === 0 ? (
-          <p className="text-sm text-slate-400">No repositories submitted.</p>
+          <p className="text-sm text-[var(--muted)]">No repositories submitted.</p>
         ) : (
           <div className="space-y-2">
             {record.projects.map((project) => {
               const contributionShare = project.verification_payload?.contribution_share as number | undefined;
               return (
-                <div key={project.title} className="rounded-2xl border border-rule bg-white p-4">
+                <div key={project.title} className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium text-ink">{project.title}</p>
+                    <p className="font-medium text-[var(--ink)]">{project.title}</p>
                     <VerificationBadge status={project.verification_status} />
                   </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-[var(--slate)]">
                     {contributionShare !== undefined ? <span>{Math.round(contributionShare * 100)}% contribution</span> : null}
                     {project.verification_score !== null ? <span>Score {project.verification_score.toFixed(0)}</span> : null}
                     {project.technologies.slice(0, 5).map((tech) => (
@@ -92,37 +92,35 @@ export function EvidenceCard({ candidateProfileId }: { candidateProfileId: strin
 
       {record.interviews.length > 0 ? (
         <section>
-          <h2 className="mb-3 font-display text-lg font-semibold text-ink">Code-grounded interviews</h2>
-          <div className="space-y-6">
-            {record.interviews.map((interview) =>
-              interview.evidence_report ? (
-                <div key={interview.interview_id}>
-                  <p className="mb-2 text-sm font-medium text-slate-600">{interview.project_title}</p>
-                  <EvidenceReportView report={interview.evidence_report} />
-                </div>
-              ) : null,
-            )}
-          </div>
+          <h2 className="mb-3 font-display text-lg font-semibold text-[var(--ink)]">Code-grounded interviews</h2>
+          {/* The same component the drawer's Interview tab renders, rather
+              than the candidate's own report view. The two used to share
+              `EvidenceReportView`, which worked only while the report was one
+              self-contained blob; now that the scores and the conversation
+              are rows in their own right, the recruiter-side reader is the one
+              that knows how to assemble them — and one reader means the card
+              and the drawer cannot drift. */}
+          <InterviewTab record={record} />
         </section>
       ) : null}
 
       <section>
-        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink">
+        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-[var(--ink)]">
           <Code2 size={16} aria-hidden="true" /> Coding platforms
         </h2>
         {record.github_account === null && record.coding_platform_accounts.length === 0 ? (
-          <p className="text-sm text-slate-400">No coding accounts connected.</p>
+          <p className="text-sm text-[var(--muted)]">No coding accounts connected.</p>
         ) : (
           <div className="space-y-2">
             {record.github_account ? (
-              <div className="flex items-center justify-between rounded-2xl border border-rule bg-white p-3.5">
-                <span className="text-sm text-ink">GitHub — {record.github_account.username}</span>
+              <div className="flex items-center justify-between rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-3.5">
+                <span className="text-sm text-[var(--ink)]">GitHub — {record.github_account.username}</span>
                 <VerificationBadge status={record.github_account.verification_status} />
               </div>
             ) : null}
             {record.coding_platform_accounts.map((account) => (
-              <div key={`${account.platform}-${account.handle}`} className="flex items-center justify-between rounded-2xl border border-rule bg-white p-3.5">
-                <span className="text-sm capitalize text-ink">
+              <div key={`${account.platform}-${account.handle}`} className="flex items-center justify-between rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-3.5">
+                <span className="text-sm capitalize text-[var(--ink)]">
                   {account.platform} — {account.handle}
                 </span>
                 <VerificationBadge status={account.verification_status} />
@@ -133,17 +131,17 @@ export function EvidenceCard({ candidateProfileId }: { candidateProfileId: strin
       </section>
 
       <section>
-        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink">
+        <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-[var(--ink)]">
           <Award size={16} aria-hidden="true" /> Certificates
         </h2>
         {record.certificates.length === 0 ? (
-          <p className="text-sm text-slate-400">No certificates submitted.</p>
+          <p className="text-sm text-[var(--muted)]">No certificates submitted.</p>
         ) : (
           <div className="space-y-2">
             {record.certificates.map((cert) => (
-              <div key={cert.title} className="flex items-center justify-between rounded-2xl border border-rule bg-white p-3.5">
-                <span className="text-sm text-ink">
-                  {cert.title} <span className="text-slate-400">· {cert.issuer}</span>
+              <div key={cert.title} className="flex items-center justify-between rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-3.5">
+                <span className="text-sm text-[var(--ink)]">
+                  {cert.title} <span className="text-[var(--muted)]">· {cert.issuer}</span>
                 </span>
                 <VerificationBadge status={cert.verification_status} />
               </div>
@@ -154,14 +152,14 @@ export function EvidenceCard({ candidateProfileId }: { candidateProfileId: strin
 
       {record.experiences.length > 0 ? (
         <section>
-          <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink">
+          <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-[var(--ink)]">
             <Briefcase size={16} aria-hidden="true" /> Experience
           </h2>
           <div className="space-y-2">
             {record.experiences.map((exp) => (
-              <div key={`${exp.company_name}-${exp.title}`} className="flex items-center justify-between rounded-2xl border border-rule bg-white p-3.5">
-                <span className="text-sm text-ink">
-                  {exp.title} <span className="text-slate-400">· {exp.company_name}</span>
+              <div key={`${exp.company_name}-${exp.title}`} className="flex items-center justify-between rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-3.5">
+                <span className="text-sm text-[var(--ink)]">
+                  {exp.title} <span className="text-[var(--muted)]">· {exp.company_name}</span>
                 </span>
                 <VerificationBadge status={exp.verification_status} />
               </div>

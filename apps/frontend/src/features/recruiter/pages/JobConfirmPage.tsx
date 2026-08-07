@@ -36,7 +36,7 @@ export function JobConfirmPage() {
   const backLink = (
     <Link
       to={`/recruiter/jobs/${jobId}`}
-      className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition hover:text-ink"
+      className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] transition hover:text-[var(--ink)]"
     >
       <ArrowLeft size={14} aria-hidden="true" /> Job
     </Link>
@@ -70,8 +70,8 @@ export function JobConfirmPage() {
     return (
       <div className="mx-auto max-w-lg space-y-4 py-16 text-center">
         <Loader2 size={22} className="mx-auto animate-spin text-gt-electric" aria-hidden="true" />
-        <p className="text-sm font-medium text-ink">Reading your job description…</p>
-        <p className="text-xs text-slate-500">
+        <p className="text-sm font-medium text-[var(--ink)]">Reading your job description…</p>
+        <p className="text-xs text-[var(--slate)]">
           Mining must-have skills, nice-to-haves and seniority. This usually takes a few seconds.
         </p>
       </div>
@@ -95,8 +95,8 @@ export function JobConfirmPage() {
   if (job.status === "published") {
     return (
       <div className="mx-auto max-w-lg space-y-4 py-16 text-center">
-        <p className="text-sm font-medium text-ink">This job is already published.</p>
-        <p className="text-xs text-slate-500">
+        <p className="text-sm font-medium text-[var(--ink)]">This job is already published.</p>
+        <p className="text-xs text-[var(--slate)]">
           Reopening the requirements unpublishes it until you confirm again, so candidates never see
           a half-edited posting.
         </p>
@@ -127,13 +127,13 @@ export function JobConfirmPage() {
       {backLink}
 
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">{job.title}</h1>
-        <p className="text-sm text-slate-500">Review extracted requirements</p>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">{job.title}</h1>
+        <p className="text-sm text-[var(--slate)]">Review extracted requirements</p>
       </header>
 
       <div
         role="alert"
-        className="flex items-start gap-2.5 rounded-lg bg-[#FEF3C7] px-4 py-3 text-sm leading-relaxed text-amber-800"
+        className="flex items-start gap-2.5 rounded-lg bg-[var(--flagged)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--flagged)]"
       >
         <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
         <p>
@@ -147,23 +147,23 @@ export function JobConfirmPage() {
           one — so the breakpoint is where two columns are genuinely usable,
           not where they first fit. */}
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-rule bg-panel">
-          <div className="border-b border-rule px-5 py-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <section className="rounded-xl border border-[var(--rule)] bg-[var(--panel)]">
+          <div className="border-b border-[var(--rule)] px-5 py-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--slate)]">
               Your description
             </h2>
           </div>
           {/* Capped and scrolled rather than allowed to run the page long:
               the right column must stay reachable without scrolling past a
               2,000-word posting. */}
-          <div className="max-h-[36rem] overflow-y-auto px-5 py-4 text-sm leading-relaxed text-slate-600">
+          <div className="max-h-[36rem] overflow-y-auto px-5 py-4 text-sm leading-relaxed text-[var(--slate)]">
             <MarkdownLite text={job.description} />
           </div>
         </section>
 
-        <section className="rounded-xl border border-rule bg-white">
-          <div className="border-b border-rule px-5 py-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <section className="rounded-xl border border-[var(--rule)] bg-[var(--panel)]">
+          <div className="border-b border-[var(--rule)] px-5 py-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--slate)]">
               Extracted requirements
             </h2>
           </div>

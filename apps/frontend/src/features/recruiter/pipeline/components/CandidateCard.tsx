@@ -55,8 +55,8 @@ export function CandidateCard({
     <div
       ref={isOverlay ? undefined : setNodeRef}
       className={cn(
-        "group relative rounded-xl border bg-white p-2.5 transition",
-        selected ? "border-gt-electric ring-1 ring-gt-electric/30" : "border-rule hover:border-ink/30",
+        "group relative rounded-xl border bg-[var(--panel)] p-2.5 transition",
+        selected ? "border-gt-electric ring-1 ring-gt-electric/30" : "border-[var(--rule)] hover:border-[var(--violet)]/40",
         // The original stays in place at low opacity rather than being
         // removed: a column that reflows the instant you pick a card up moves
         // the drop target out from under the cursor.
@@ -72,7 +72,7 @@ export function CandidateCard({
             {...attributes}
             {...listeners}
             aria-label={`Move ${card.headline ?? "candidate"}`}
-            className="-ml-1 mt-0.5 shrink-0 cursor-grab touch-none rounded p-0.5 text-slate-300 opacity-0 transition hover:text-slate-500 focus-visible:opacity-100 group-hover:opacity-100"
+            className="-ml-1 mt-0.5 shrink-0 cursor-grab touch-none rounded p-0.5 text-[var(--muted)] opacity-0 transition hover:text-[var(--slate)] focus-visible:opacity-100 group-hover:opacity-100"
           >
             <GripVertical size={13} aria-hidden="true" />
           </button>
@@ -83,14 +83,14 @@ export function CandidateCard({
           <div className="flex items-center gap-1.5">
             <span
               aria-hidden="true"
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink/5 text-[10px] font-semibold text-slate-600"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--panel)] text-[10px] font-semibold text-[var(--slate)]"
             >
               {initialsFrom(card.headline)}
             </span>
             {card.isVerified ? (
               <BadgeCheck
                 size={13}
-                className="shrink-0 text-verified"
+                className="shrink-0 text-[var(--verified)]"
                 aria-label="Verified — evidence and a completed interview"
               />
             ) : null}
@@ -104,7 +104,7 @@ export function CandidateCard({
           <button
             type="button"
             onClick={() => onOpen(card)}
-            className="mt-1.5 block w-full truncate text-left text-[13px] font-medium text-ink hover:underline"
+            className="mt-1.5 block w-full truncate text-left text-[13px] font-medium text-[var(--ink)] hover:underline"
             title={card.headline ?? undefined}
           >
             {card.headline ?? "Candidate"}
@@ -112,14 +112,14 @@ export function CandidateCard({
 
           {/* Row 3 — top matched skills. */}
           {card.matchedSkills.length > 0 ? (
-            <p className="mt-1 truncate text-[11px] text-slate-500" title={card.matchedSkills.join(" · ")}>
+            <p className="mt-1 truncate text-[11px] text-[var(--slate)]" title={card.matchedSkills.join(" · ")}>
               {card.matchedSkills.join(" · ")}
             </p>
           ) : null}
 
           {/* Row 4 — the reasoning string, verbatim from the server. */}
           {card.reasoning ? (
-            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-400">{card.reasoning}</p>
+            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--muted)]">{card.reasoning}</p>
           ) : null}
         </div>
       </div>
@@ -131,7 +131,7 @@ export function CandidateCard({
           onChange={() => onToggleSelected(card.dragId)}
           aria-label={`Select ${card.headline ?? "candidate"}`}
           className={cn(
-            "absolute right-2 top-2 h-3.5 w-3.5 rounded border-slate-300 accent-gt-electric transition",
+            "absolute right-2 top-2 h-3.5 w-3.5 rounded border-[var(--rule)] accent-gt-electric transition",
             // Hidden until it is useful, so a scanning recruiter sees data
             // rather than a column of empty checkboxes — but always present
             // once anything is selected, because a selection you cannot see

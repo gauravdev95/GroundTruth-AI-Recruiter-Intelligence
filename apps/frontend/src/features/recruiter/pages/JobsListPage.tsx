@@ -37,8 +37,8 @@ export function JobsListPage() {
     <div className="space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-semibold text-ink">Job postings</h1>
-          <p className="mt-1 text-sm text-slate-500">Create a role, confirm what GroundTruth extracts, publish.</p>
+          <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">Job postings</h1>
+          <p className="mt-1 text-sm text-[var(--slate)]">Create a role, confirm what GroundTruth extracts, publish.</p>
         </div>
         {/* Its own route rather than an inline form: creation now ends in a
             confirmation step at another URL, and a flow that begins inside a
@@ -67,11 +67,11 @@ export function JobsListPage() {
           <li key={job.id}>
             <Link
               to={`/recruiter/jobs/${job.id}`}
-              className="flex items-center justify-between gap-4 rounded-2xl border border-rule bg-white p-5 transition hover:border-ink"
+              className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5 transition hover:border-[var(--rule)]"
             >
               <div>
-                <p className="font-medium text-ink">{job.title}</p>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="font-medium text-[var(--ink)]">{job.title}</p>
+                <p className="mt-0.5 text-xs text-[var(--slate)]">
                   {job.job_type.replace("_", " ")} · {job.experience_level}
                   {job.location ? ` · ${job.location}` : job.is_remote ? " · Remote" : ""}
                 </p>

@@ -54,7 +54,7 @@ export function JobForm({ initial, isSaving, submitLabel, onSubmit }: JobFormPro
 
   return (
     <form
-      className="space-y-4 rounded-2xl border border-rule bg-white p-6"
+      className="space-y-4 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6"
       onSubmit={handleSubmit((values) =>
         onSubmit({
           ...values,
@@ -71,18 +71,18 @@ export function JobForm({ initial, isSaving, submitLabel, onSubmit }: JobFormPro
       />
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="job-description" className="text-sm font-medium text-slate-700">
+        <label htmlFor="job-description" className="text-sm font-medium text-[var(--slate)]">
           Description
         </label>
         <textarea
           id="job-description"
           rows={8}
           placeholder="Describe the role, responsibilities, and what you're looking for. GroundTruth will mine required skills from this text."
-          className="w-full rounded border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-ink focus:ring-2 focus:ring-verified/25"
+          className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
           {...register("description", { required: "Description is required", minLength: 20 })}
         />
         {errors.description?.message ? (
-          <p role="alert" className="text-xs text-red-500">
+          <p role="alert" className="text-xs text-[var(--failed)]">
             {errors.description.message}
           </p>
         ) : null}
@@ -93,10 +93,10 @@ export function JobForm({ initial, isSaving, submitLabel, onSubmit }: JobFormPro
         <Select label="Experience level" options={EXPERIENCE_LEVEL_OPTIONS} {...register("experience_level")} />
       </div>
 
-      <label className="flex cursor-pointer items-center gap-2.5 text-sm text-slate-600">
+      <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[var(--slate)]">
         <input
           type="checkbox"
-          className="h-4 w-4 rounded border-slate-300 accent-verified"
+          className="h-4 w-4 rounded border-[var(--rule)] accent-[var(--violet)]"
           {...register("is_remote")}
         />
         This role is fully remote

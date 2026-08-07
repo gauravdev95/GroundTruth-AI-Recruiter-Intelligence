@@ -50,11 +50,11 @@ export function SetupStepper({
   return (
     <section
       aria-label="Profile setup progress"
-      className="rounded-2xl border border-violet-100 bg-white p-5 shadow-sm shadow-violet-900/5 sm:p-6"
+      className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-sm shadow-[var(--shadow-panel)] sm:p-6"
     >
       <div className="mb-5 flex items-start justify-between gap-3">
-        <h2 className="font-display text-sm font-semibold text-slate-900">Your progress</h2>
-        <span className="shrink-0 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+        <h2 className="font-display text-sm font-semibold text-[var(--ink)]">Your progress</h2>
+        <span className="shrink-0 rounded-full bg-[var(--violet)]/10 px-3 py-1 text-xs font-semibold text-[var(--violet)]">
           {completionPercentage}% profile strength
         </span>
       </div>
@@ -63,13 +63,13 @@ export function SetupStepper({
           truncating every label to uselessness, so it collapses to the one
           fact that matters — which step you are on and what it is called. */}
       <div className="md:hidden">
-        <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--violet)]">
           Step {currentStepIndex + 1} of {steps.length}
         </p>
-        <p className="mt-1 text-sm font-semibold text-slate-900">{current?.title}</p>
-        <p className="mt-0.5 text-xs text-slate-500">{current?.subtitle}</p>
+        <p className="mt-1 text-sm font-semibold text-[var(--ink)]">{current?.title}</p>
+        <p className="mt-0.5 text-xs text-[var(--slate)]">{current?.subtitle}</p>
         <div
-          className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-violet-100"
+          className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[var(--violet)]/15"
           role="progressbar"
           aria-valuenow={completionPercentage}
           aria-valuemin={0}
@@ -77,7 +77,7 @@ export function SetupStepper({
           aria-label="Profile strength"
         >
           <div
-            className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 transition-[width] duration-500"
+            className="h-full rounded-full bg-gradient-to-r from-[var(--violet)] to-[var(--blue)] transition-[width] duration-500"
             style={{ width: `${completionPercentage}%` }}
           />
         </div>
@@ -104,7 +104,7 @@ export function SetupStepper({
                   className={cn(
                     "flex flex-col items-center rounded-xl px-2 py-1 text-center",
                     onSelect &&
-                      "transition hover:bg-violet-50/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500",
+                      "transition hover:bg-[var(--violet)]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--violet)]",
                   )}
                 >
                   <span
@@ -112,10 +112,10 @@ export function SetupStepper({
                     className={cn(
                       "flex size-10 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition",
                       isActive
-                        ? "border-violet-600 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md shadow-violet-500/30"
+                        ? "border-[var(--violet)] bg-gradient-to-br from-[var(--violet)] to-[var(--blue)] text-white shadow-md shadow-[var(--shadow-panel)]"
                         : isComplete
-                          ? "border-violet-200 bg-violet-50 text-violet-700"
-                          : "border-slate-200 bg-white text-slate-400",
+                          ? "border-[var(--violet)]/30 bg-[var(--violet)]/10 text-[var(--violet)]"
+                          : "border-[var(--rule)] bg-[var(--panel)] text-[var(--muted)]",
                     )}
                   >
                     {isComplete && !isActive ? <Check size={18} strokeWidth={3} /> : index + 1}
@@ -124,12 +124,12 @@ export function SetupStepper({
                   <span
                     className={cn(
                       "mt-2.5 block text-xs font-semibold leading-snug",
-                      isActive ? "text-slate-900" : isComplete ? "text-slate-700" : "text-slate-400",
+                      isActive ? "text-[var(--ink)]" : isComplete ? "text-[var(--slate)]" : "text-[var(--muted)]",
                     )}
                   >
                     {step.title}
                   </span>
-                  <span className="mt-0.5 block text-[11px] leading-snug text-slate-400">
+                  <span className="mt-0.5 block text-[11px] leading-snug text-[var(--muted)]">
                     {step.subtitle}
                   </span>
 
@@ -148,7 +148,7 @@ export function SetupStepper({
                 </Wrapper>
 
                 {isActive ? (
-                  <span className="mt-2 rounded-full bg-violet-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+                  <span className="mt-2 rounded-full bg-[var(--violet)]/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--violet)]">
                     Current Step
                   </span>
                 ) : null}
@@ -159,7 +159,7 @@ export function SetupStepper({
                   aria-hidden="true"
                   className={cn(
                     "mt-5 h-0 flex-1 shrink-0 border-t-2 border-dotted",
-                    isComplete ? "border-violet-300" : "border-slate-200",
+                    isComplete ? "border-[var(--violet)]/40" : "border-[var(--rule)]",
                   )}
                 />
               ) : null}
@@ -178,7 +178,7 @@ export function SetupStepperSkeleton() {
   return (
     <section
       aria-hidden="true"
-      className="rounded-2xl border border-violet-100 bg-white p-5 shadow-sm shadow-violet-900/5 sm:p-6"
+      className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-sm shadow-[var(--shadow-panel)] sm:p-6"
     >
       <div className="mb-5 flex items-center justify-between">
         <Skeleton className="h-4 w-28" />
