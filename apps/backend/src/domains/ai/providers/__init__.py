@@ -9,7 +9,7 @@ made in one file.
 |-------------------------|---------------------------------------------------|
 | `gemini_client.py`      | shared client, schema dialect, error translation  |
 | `gemini_extractor.py`   | `ResumeExtractor`                                 |
-| `gemini_interview.py`   | `InterviewQuestionGenerator` + `InterviewAnswerEvaluator` |
+| `gemini_interview.py`   | `InterviewQuestionGenerator`, `LiveInterviewer`, `ClaimVerifier`, `InterviewScorer` |
 | `gemini_job_extractor.py` | `JobRequirementExtractor`                       |
 | `local_embedder.py`     | `Embedder` — in-process, no API call              |
 

@@ -32,6 +32,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.config.config import get_interview_settings
 from src.domains.ai.embedding_constants import EMBEDDING_DIMENSIONS
 from src.domains.ai.job_extraction_schema import ExtractedSkill, JobRequirementExtraction
 from src.domains.auth import service as auth_service
@@ -39,8 +40,13 @@ from src.domains.auth.models import CandidateProfile, RecruiterProfile
 from src.domains.auth.schemas import CandidateRegisterRequest, RecruiterRegisterRequest
 from src.domains.interview.models import (
     Interview,
+    InterviewDimensionScore,
     InterviewGrounding,
+    InterviewQuestion,
+    InterviewStage,
     InterviewStatus,
+    InterviewTurn,
+    TurnRole,
     get_current_rubric_version,
     get_rubric_weights,
 )
@@ -389,101 +395,110 @@ def add_completed_interview(
     highlights: list[dict] | None = None,
     dimension_scores: dict[str, float] | None = None,
 ) -> Interview:
-    """A completed, code-grounded interview with a full evidence report.
+    """A completed, code-grounded interview: the conversation, the flags it
+    raised, the per-dimension scores, and the narrative report.
 
     Seeded under the **current** rubric, read from config rather than
     hardcoded — a hardcoded weight table is how a seed silently drifts from
     the scorer and produces demo reports whose dimensions the UI has no label
     for.
 
-    `highlights` supplies real per-question prompts and answers; without it
-    the questions are generated from the project title, which is enough for a
-    cohort whose interviews are never opened. `dimension_scores` lets a
-    persona score unevenly across the rubric (strong on accuracy, weaker on
-    communication) instead of flat-lining every dimension at `total_score`,
-    which is what makes the drawer's breakdown chart worth rendering.
+    `highlights` supplies real prompts and answers; without it the exchange is
+    generated from the project title, which is enough for a cohort whose
+    interviews are never opened. `dimension_scores` lets a persona score
+    unevenly across the rubric (strong on accuracy, weaker on communication)
+    instead of flat-lining every dimension at `total_score`, which is what
+    makes the drawer's breakdown chart worth rendering.
+
+    The seeded conversation is deliberately plain question-and-answer with no
+    follow-ups. A seeded follow-up would have to invent the thing that
+    *provokes* one — a thin answer, a contradicted claim — and a demo cohort
+    full of manufactured contradictions would misrepresent what the Verifier
+    actually finds.
     """
     rubric = get_rubric_weights()
-    default_rationales = {
-        "technical_accuracy": "Accurate and specific.",
-        "code_understanding": "Matches the stored analysis.",
-        "problem_solving": "Reasoned about tradeoffs, not just mechanics.",
-        "repository_knowledge": "Grounded in the real repo.",
-        "communication": "Clear and well-structured.",
-    }
 
     def score_for(dimension: str) -> float:
         return (dimension_scores or {}).get(dimension, total_score)
 
     if highlights:
-        questions = [
-            {
-                "sequence": index,
-                "prompt": item["prompt"],
-                "grounded_in": {"description": item.get("grounded_in", f"{project.title} source")},
-                "transcript": item["transcript"],
-                "time_taken_seconds": item.get("time_taken_seconds", 95),
-                "exceeded_time_limit": False,
-                "scores": [
-                    {
-                        "dimension": dimension,
-                        "weight": weight,
-                        "score": score_for(dimension),
-                        "rationale": item.get("rationale") or default_rationales.get(dimension, "Scored against the rubric."),
-                    }
-                    for dimension, weight in rubric.items()
-                ],
-                "weighted_score": round(
-                    sum(score_for(dimension) * weight for dimension, weight in rubric.items()), 2
-                ),
-            }
-            for index, item in enumerate(highlights, start=1)
+        exchanges = [
+            (item["prompt"], item["transcript"], item.get("grounded_in", f"{project.title} source"))
+            for item in highlights
         ]
     else:
-        questions = [
-            {
-                "sequence": i,
-                "prompt": f"Walk through how {project.title.lower()} handles request {i}.",
-                "grounded_in": {"description": f"file_{i}.py"},
-                "transcript": "It validates input, calls the service layer, and returns a typed response.",
-                "time_taken_seconds": 90,
-                "exceeded_time_limit": False,
-                "scores": [
-                    {
-                        "dimension": dimension,
-                        "weight": weight,
-                        "score": score_for(dimension),
-                        "rationale": default_rationales.get(dimension, "Scored against the rubric."),
-                    }
-                    for dimension, weight in rubric.items()
-                ],
-                "weighted_score": round(
-                    sum(score_for(dimension) * weight for dimension, weight in rubric.items()), 2
-                ),
-            }
+        exchanges = [
+            (
+                f"Walk through how {project.title.lower()} handles request {i}.",
+                "It validates input, calls the service layer, and returns a typed response.",
+                f"file_{i}.py",
+            )
             for i in range(1, 4)
         ]
 
+    started = utcnow() - timedelta(minutes=20)
     interview = Interview(
         candidate_profile_id=profile.id,
         project_id=project.id,
         grounding=InterviewGrounding.REPOSITORY,
         rubric_version=get_current_rubric_version(),
         status=InterviewStatus.COMPLETED,
-        question_count=len(questions),
+        stage=InterviewStage.DONE,
+        question_count=len(exchanges),
+        current_question_index=len(exchanges) - 1,
+        time_limit_seconds=get_interview_settings().interview_time_limit_seconds,
         total_score=total_score,
-        started_at=utcnow() - timedelta(minutes=20),
+        started_at=started,
         completed_at=utcnow(),
         evidence_report={
-            "interview_id": str(uuid.uuid4()),
-            "project_id": str(project.id),
-            "total_score": total_score,
-            "rubric_weights": dict(rubric),
-            "questions": questions,
-            "completed_at": utcnow().isoformat(),
+            "verified_claims": [f"Built and can explain {project.title}."],
+            "contradicted_claims": [],
+            "unsupported_claims": [],
+            "strengths": ["Explained the request path end to end without prompting."],
+            "concerns": ["Lighter on failure modes than on the happy path."],
+            "summary": f"Knows {project.title} well and explains it clearly; less certain about edge cases.",
         },
     )
     db.add(interview)
+    db.flush()
+
+    sequence = 0
+    for index, (prompt, transcript, grounded_in) in enumerate(exchanges):
+        db.add(
+            InterviewQuestion(
+                interview_id=interview.id,
+                sequence=index + 1,
+                prompt=prompt,
+                grounded_in={"description": grounded_in},
+                expected_signals=["names the component", "explains why, not just what"],
+            )
+        )
+        for role, text in ((TurnRole.INTERVIEWER, prompt), (TurnRole.CANDIDATE, transcript)):
+            sequence += 1
+            db.add(
+                InterviewTurn(
+                    interview_id=interview.id,
+                    sequence=sequence,
+                    role=role,
+                    text=text,
+                    action="ASK_QUESTION" if role is TurnRole.INTERVIEWER else None,
+                    question_index=index,
+                    spoken_at=started + timedelta(seconds=sequence * 45),
+                )
+            )
+
+    for dimension, weight in rubric.items():
+        db.add(
+            InterviewDimensionScore(
+                interview_id=interview.id,
+                dimension=dimension,
+                weight=weight,
+                score=score_for(dimension),
+                evidence=f"Judged across the whole conversation about {project.title}.",
+                confidence=90.0,
+            )
+        )
+
     db.flush()
     return interview
 

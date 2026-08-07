@@ -27,9 +27,11 @@ from src.domains.ai.llm import (
     _interview_provider,
     _job_requirement_extractor,
     _resume_extractor,
-    get_interview_answer_evaluator,
+    get_claim_verifier,
     get_interview_question_generator,
+    get_interview_scorer,
     get_job_requirement_extractor,
+    get_live_interviewer,
     get_resume_extractor,
     require_llm_configured,
 )
@@ -40,7 +42,9 @@ from src.domains.ai.llm import (
 CAPABILITIES = [
     ("resume extraction", get_resume_extractor, "GeminiResumeExtractor"),
     ("question generation", get_interview_question_generator, "GeminiInterviewProvider"),
-    ("answer evaluation", get_interview_answer_evaluator, "GeminiInterviewProvider"),
+    ("live interviewer", get_live_interviewer, "GeminiInterviewProvider"),
+    ("claim verification", get_claim_verifier, "GeminiInterviewProvider"),
+    ("interview scoring", get_interview_scorer, "GeminiInterviewProvider"),
     ("job extraction", get_job_requirement_extractor, "GeminiJobRequirementExtractor"),
 ]
 
@@ -149,15 +153,18 @@ def test_every_capability_is_backed_by_gemini(llm_settings, capability, factory,
     assert type(factory()).__name__ == expected
 
 
-def test_both_interview_capabilities_share_one_instance(llm_settings):
-    """One pooled client for the pair, not two.
+def test_every_interview_capability_shares_one_instance(llm_settings):
+    """One pooled client for all four, not four.
 
-    They are halves of one interview — the evaluator judges answers against the
-    same stored evidence the generator wrote the questions from — so a second
-    client would be pure overhead.
+    They are stages of one interview — the Verifier judges answers against the
+    same stored evidence the generator wrote the questions from, and the Scorer
+    weighs both — so a second client would be pure overhead.
     """
     llm_settings(google_api_key="g")
-    assert get_interview_question_generator() is get_interview_answer_evaluator()
+    provider = get_interview_question_generator()
+    assert get_live_interviewer() is provider
+    assert get_claim_verifier() is provider
+    assert get_interview_scorer() is provider
 
 
 # ==========================================================================

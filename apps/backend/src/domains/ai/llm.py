@@ -34,7 +34,12 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from src.config.config import get_llm_settings
 from src.domains.ai.exceptions import LLMNotConfigured
 from src.domains.ai.extraction_schema import ResumeExtraction
-from src.domains.ai.interview_schema import AnswerEvaluation, GeneratedQuestionSet
+from src.domains.ai.interview_schema import (
+    GeneratedQuestionSet,
+    InterviewerTurn,
+    Scorecard,
+    VerificationReport,
+)
 from src.domains.ai.job_extraction_schema import JobRequirementExtraction
 
 if TYPE_CHECKING:  # pragma: no cover - the adapter is imported lazily at runtime
@@ -79,17 +84,78 @@ class InterviewQuestionGenerator(Protocol):
 
 
 @runtime_checkable
-class InterviewAnswerEvaluator(Protocol):
-    """Scores one answer against the rubric, checking it against the same
-    stored evidence the question was grounded in.
+class LiveInterviewer(Protocol):
+    """Produces the interviewer's next utterance in a live interview.
+
+    Called once per interviewer turn, from inside the request handling one
+    candidate message — so this is the only LLM capability in the codebase on a
+    latency budget a human is sitting through. Everything it needs is passed in
+    per call rather than held between them: the session's authoritative state
+    lives in Postgres, and an adapter holding conversation state would make a
+    reconnect resume a conversation the server had forgotten.
+
+    `directive`, when set, is a fixed instruction for this turn (open the
+    interview, close it) that overrides the ordinary ask/probe/bridge decision.
+    """
+
+    def next_turn(
+        self,
+        *,
+        repository_context: dict,
+        transcript: list[dict],
+        current_question: dict | None,
+        verification: dict | None,
+        time_remaining_seconds: int,
+        candidate_name: str | None = None,
+        directive: str | None = None,
+    ) -> InterviewerTurn:  # pragma: no cover - protocol
+        ...
+
+
+@runtime_checkable
+class ClaimVerifier(Protocol):
+    """Checks the claims in one candidate answer against the stored analysis.
+
+    Runs after every candidate turn and never speaks to the candidate. Its
+    output steers the Interviewer's next turn and accumulates as the evidence
+    the Scorer weighs at the end.
+    """
+
+    def verify_claims(
+        self,
+        *,
+        candidate_answer: str,
+        question: str | None,
+        repository_context: dict,
+        previous_flags: list[dict],
+    ) -> VerificationReport:  # pragma: no cover - protocol
+        ...
+
+
+@runtime_checkable
+class InterviewScorer(Protocol):
+    """Scores a finished interview from its whole transcript.
+
+    Replaces the per-answer evaluator the typed interview used: in a live
+    conversation an answer is not a self-contained unit — a candidate may
+    correct themselves three turns later, or answer question two while
+    answering question one — so scoring per answer would systematically
+    misread exactly the conversations this design exists to allow.
 
     The dimension *names* are fixed (`domains/ai/interview_schema.py`'s
     `RUBRIC_DIMENSIONS`, baked into the provider's structured-output schema);
-    their *weights* are configurable (`InterviewSettings.rubric_weights`)."""
+    their *weights* are configurable (`InterviewSettings.rubric_weights`) and
+    are applied by the caller, not by the model.
+    """
 
-    def evaluate_answer(
-        self, *, question: str, answer_transcript: str, repository_context: dict
-    ) -> AnswerEvaluation:  # pragma: no cover - protocol
+    def score_interview(
+        self,
+        *,
+        transcript: list[dict],
+        verification_flags: list[dict],
+        repository_context: dict,
+        questions: list[dict],
+    ) -> Scorecard:  # pragma: no cover - protocol
         ...
 
 
@@ -189,13 +255,27 @@ def get_interview_question_generator() -> InterviewQuestionGenerator:
     return _interview_provider()
 
 
-def get_interview_answer_evaluator() -> InterviewAnswerEvaluator:
-    """The same cached instance `get_interview_question_generator` returns.
+def get_live_interviewer() -> LiveInterviewer:
+    """The agent that speaks. Called once per interviewer turn."""
+    require_llm_configured()
+    return _interview_provider()
 
-    `GeminiInterviewProvider` implements both interview protocols, so both
-    capabilities share one pooled HTTP client. Two accessors rather than one
-    because the callers are unrelated — questions are generated once when an
-    interview starts, answers are evaluated once per submission.
+
+def get_claim_verifier() -> ClaimVerifier:
+    """The silent agent. Called once per candidate turn."""
+    require_llm_configured()
+    return _interview_provider()
+
+
+def get_interview_scorer() -> InterviewScorer:
+    """The agent that scores. Called once, after the interview ends.
+
+    All four interview accessors return the same cached instance:
+    `GeminiInterviewProvider` implements every interview protocol, so one
+    pooled HTTP client serves the whole interview. Four accessors rather than
+    one because the callers are unrelated — questions are generated when the
+    session is created, the Interviewer and Verifier run inside the live
+    socket, and the Scorer runs in a Celery worker afterwards.
     """
     require_llm_configured()
     return _interview_provider()

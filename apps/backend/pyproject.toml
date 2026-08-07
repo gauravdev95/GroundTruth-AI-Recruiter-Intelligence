@@ -32,6 +32,7 @@ dependencies = [
     # src/domains/ai/providers/; see src/domains/ai/llm.py for why there is
     # exactly one provider.
     "google-genai>=1.0.0",
+    "langgraph>=0.2.0",
 ]
 
 [project.optional-dependencies]

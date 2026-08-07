@@ -316,7 +316,7 @@ def get_matching_settings() -> MatchingSettings:
 
 
 class InterviewSettings(BaseSettings):
-    """The AI interview's scoring rubric.
+    """The live AI interview's scoring rubric and session limits.
 
     Weights are operator-editable and validated the same way as the match
     weights. Changing them does **not** rescore past interviews: every
@@ -328,27 +328,38 @@ class InterviewSettings(BaseSettings):
     """
 
     #: Bumped by hand when the *set* of dimensions changes, not when a weight
-    #: moves. v1 was the original four-dimension rubric; v2 adds
-    #: `communication` and renames the other four to the product vocabulary.
-    interview_rubric_version: int = 2
+    #: moves. v1 was the original four-dimension rubric; v2 added
+    #: `communication` and renamed the rest to the product vocabulary; v3 is
+    #: the live interview's, which drops `repository_knowledge` as a separate
+    #: axis — see `RUBRIC_V2_TO_V3` in `domains/interview/models.py`.
+    interview_rubric_version: int = 3
 
-    #: Is the answer correct? Still the largest term, reduced from v1's 0.40
-    #: to make room for `communication` without gutting the code-grounded pair.
-    interview_weight_technical_accuracy: float = 0.30
-    #: Does the answer show the candidate understands what their code does?
-    #: (v1 `repository_consistency`.)
+    #: Is what the candidate said correct? The largest term, and back to v1's
+    #: 0.40 now that it absorbs the claim-level checking the Verifier does
+    #: continuously through the conversation.
+    interview_weight_technical_accuracy: float = 0.40
+    #: Do they understand their own code's logic, flow and design decisions?
+    #: Carries what v2 split across `code_understanding` and
+    #: `repository_knowledge`, which is why it rises from 0.25 without the
+    #: code-grounded half of the rubric getting lighter: 0.25 here is measured
+    #: against a whole conversation rather than one answer.
     interview_weight_code_understanding: float = 0.25
-    #: Reasoning depth and approach. (v1 `depth_of_reasoning`.)
+    #: Reasoning about trade-offs, alternatives and edge cases.
     interview_weight_problem_solving: float = 0.20
-    #: Does the answer reference specifics of *this* repository?
-    #: (v1 `codebase_specificity`.) Together with code understanding this is
-    #: 0.45 — slightly above v1's equivalent 0.35, so the grounding claim gets
-    #: stronger under v2, not weaker.
-    interview_weight_repository_knowledge: float = 0.15
     #: Clarity of explanation. Smallest weight on purpose: it is the most
     #: subjective dimension for a model to judge and the least predictive of
-    #: engineering ability.
-    interview_weight_communication: float = 0.10
+    #: engineering ability. In a live interview it is also the dimension most
+    #: at risk of scoring nerves rather than ability, which the Scorer's prompt
+    #: forbids explicitly.
+    interview_weight_communication: float = 0.15
+
+    #: The session clock, in seconds. Copied onto each `interviews` row at
+    #: creation so a change here cannot shorten an interview already underway.
+    interview_time_limit_seconds: int = 600
+    #: How much time must remain for the graph to start another question rather
+    #: than heading for the close. Below this, wrapping up gracefully is worth
+    #: more than one rushed answer.
+    interview_wrapup_threshold_seconds: int = 90
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -359,19 +370,25 @@ class InterviewSettings(BaseSettings):
     @property
     def rubric_weights(self) -> dict[str, float]:
         """Dimension name -> weight. Keys are the values stored in
-        `interview_scores.dimension`, so a score row naming anything outside
-        this mapping is a bug rather than a new dimension."""
+        `interview_dimension_scores.dimension`, so a score row naming anything
+        outside this mapping is a bug rather than a new dimension."""
         return {
             "technical_accuracy": self.interview_weight_technical_accuracy,
             "code_understanding": self.interview_weight_code_understanding,
             "problem_solving": self.interview_weight_problem_solving,
-            "repository_knowledge": self.interview_weight_repository_knowledge,
             "communication": self.interview_weight_communication,
         }
 
     @model_validator(mode="after")
     def _check_weights(self) -> "InterviewSettings":
         _validate_weight_set(self.rubric_weights, label="Interview rubric", env_prefix="INTERVIEW_WEIGHT_")
+        if self.interview_time_limit_seconds <= self.interview_wrapup_threshold_seconds:
+            raise ValueError(
+                "INTERVIEW_TIME_LIMIT_SECONDS must exceed INTERVIEW_WRAPUP_THRESHOLD_SECONDS, "
+                f"got {self.interview_time_limit_seconds} <= {self.interview_wrapup_threshold_seconds}. "
+                "Otherwise every interview would open already out of time and wrap up "
+                "without asking anything."
+            )
         return self
 
 

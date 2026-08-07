@@ -14,8 +14,11 @@ from src.config.config import InterviewSettings, MatchingSettings
 from src.domains.ai.interview_schema import RUBRIC_DIMENSIONS
 from src.domains.interview.models import (
     RUBRIC_V1_TO_V2,
+    RUBRIC_V2_TO_V3,
     RUBRIC_VERSION_V1,
+    RUBRIC_VERSION_V2,
     RUBRIC_WEIGHTS_V1,
+    RUBRIC_WEIGHTS_V2,
     get_rubric_weights,
 )
 from src.domains.matching.scoring import compute_match_score
@@ -100,16 +103,29 @@ def test_tolerance_absorbs_float_representation_but_not_typos() -> None:
 # --- the rubric version boundary --------------------------------------------
 
 
-def test_v1_rubric_is_preserved_verbatim() -> None:
-    """Interviews scored under v1 must keep rendering v1 dimensions — an
-    evidence report is written once and never edited."""
+def test_superseded_rubrics_are_preserved_verbatim() -> None:
+    """Interviews scored under an older rubric must keep rendering that
+    rubric's dimensions — a report is written once and never edited, so a
+    candidate is never retroactively re-judged against a rubric they never
+    sat."""
     assert get_rubric_weights(RUBRIC_VERSION_V1) == RUBRIC_WEIGHTS_V1
     assert sum(RUBRIC_WEIGHTS_V1.values()) == pytest.approx(1.0)
+    assert get_rubric_weights(RUBRIC_VERSION_V2) == RUBRIC_WEIGHTS_V2
+    assert sum(RUBRIC_WEIGHTS_V2.values()) == pytest.approx(1.0)
 
 
 def test_v1_mapping_covers_every_v1_dimension_and_targets_v2() -> None:
     assert set(RUBRIC_V1_TO_V2) == set(RUBRIC_WEIGHTS_V1)
-    assert set(RUBRIC_V1_TO_V2.values()) <= set(RUBRIC_DIMENSIONS)
+    assert set(RUBRIC_V1_TO_V2.values()) <= set(RUBRIC_WEIGHTS_V2)
+
+
+def test_v2_mapping_covers_every_v2_dimension_and_targets_v3() -> None:
+    """Every v2 dimension has somewhere to land in the current vocabulary —
+    including `repository_knowledge`, which v3 folds into `code_understanding`
+    rather than dropping. A v2 dimension with no target would silently vanish
+    from a report that was really scored on it."""
+    assert set(RUBRIC_V2_TO_V3) == set(RUBRIC_WEIGHTS_V2)
+    assert set(RUBRIC_V2_TO_V3.values()) <= set(RUBRIC_DIMENSIONS)
 
 
 def test_configured_dimensions_match_the_provider_output_schema() -> None:
