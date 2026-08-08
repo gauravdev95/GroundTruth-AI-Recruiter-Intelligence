@@ -171,10 +171,37 @@ def build_evidence_record(db: Session, profile: CandidateProfile, *, job_posting
                 "project_title": project_titles.get(interview.project_id),
                 "total_score": float(interview.total_score) if interview.total_score is not None else None,
                 "completed_at": interview.completed_at.isoformat() if interview.completed_at else None,
-                # Full per-question transcript + rubric scores — "interview
-                # transcript and scores" per the candidate-card constraint —
-                # already exactly this shape from `evaluate_interview_task`.
+                # The narrative half of the report — claims, strengths,
+                # concerns, summary — exactly as `score_interview_task` wrote
+                # it.
                 "evidence_report": interview.evidence_report,
+                # ...and the two halves it deliberately does not duplicate: the
+                # per-dimension scores and the conversation itself, both stored
+                # as rows. Assembled here rather than denormalised into the
+                # report so the recruiter's evidence and the candidate's own
+                # report are literally the same records, not two copies that
+                # can disagree. `internal_notes` is not included — the
+                # Interviewer's private read on an answer is scoring input, not
+                # a finding to show a recruiter as if it were one.
+                "dimension_scores": [
+                    {
+                        "dimension": score.dimension,
+                        "weight": float(score.weight),
+                        "score": float(score.score),
+                        "evidence": score.evidence,
+                        "confidence": float(score.confidence),
+                    }
+                    for score in interview.dimension_scores
+                ],
+                "transcript": [
+                    {
+                        "sequence": turn.sequence,
+                        "role": turn.role.value,
+                        "text": turn.text,
+                        "question_index": turn.question_index,
+                    }
+                    for turn in interview.turns
+                ],
             }
             for interview in interviews
         ],

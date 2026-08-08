@@ -85,7 +85,7 @@ Both are set application-side at the ORM layer (`_utcnow()` default / `onupdate`
 `TimestampMixin`), not DB defaults — chosen in Phase 2 so behavior is identical whether a row
 is inserted via the ORM in tests (SQLite-free, real Postgres in a rolled-back transaction) or
 in production. `created_at` is immutable after insert (no code path re-sets it).
-Append-only tables (`audit_log`, `application_events`, `interview_answers`) have `created_at`
+Append-only tables (`audit_log`, `application_events`, `interview_turns`) have `created_at`
 only — no `updated_at`, since a row that can change isn't a valid event record.
 
 ### 0.5 Evidence traceability
@@ -375,7 +375,16 @@ The traceability hub — see §0.5.
 
 ## 4. Interview
 
-### `interviews` *(new — future phase)*
+> **The shipped schema differs from this section.** This design predates the live
+> conversational interview. What was actually built scopes an interview to a `projects` row
+> rather than to an `applications` row (which does not exist yet), and stores the conversation
+> as append-only `interview_turns` — both speakers, one sequence — instead of
+> `interview_answers` hanging off questions. Verification flags and per-interview dimension
+> scores are their own tables. See `src/domains/interview/models.py`, whose module docstring
+> explains each departure; the tables below are kept as the original design, not as current
+> state.
+
+### `interviews` *(superseded — see the note above)*
 
 | Column | Type | Null | Notes |
 |---|---|---|---|

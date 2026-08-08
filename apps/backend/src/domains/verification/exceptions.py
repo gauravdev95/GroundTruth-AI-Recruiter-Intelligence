@@ -36,6 +36,22 @@ class VerificationRateLimited(VerificationServiceUnavailable):
     code = "VERIFICATION_RATE_LIMITED"
 
 
+class VerificationStatPending(VerificationServiceUnavailable):
+    """GitHub answered 202: it is computing a statistic asynchronously.
+
+    Transient like its parent — the retry ladder gives GitHub time to finish,
+    which is usually enough. But *unlike* its parent it can also be permanent:
+    GitHub never populates `/stats/commit_activity` for some repositories (low
+    commit counts appear to be the trigger) and answers 202 indefinitely, so a
+    caller that treats every 202 as "retry until it works" waits forever and
+    then fails. Typed separately so a stage can retry it like any other
+    transient fault and still degrade gracefully once retries are exhausted,
+    rather than discarding a run over an optional signal.
+    """
+
+    code = "VERIFICATION_STAT_PENDING"
+
+
 class ClaimNotFound(VerificationError):
     """The third-party identity/URL the student claimed does not exist.
 

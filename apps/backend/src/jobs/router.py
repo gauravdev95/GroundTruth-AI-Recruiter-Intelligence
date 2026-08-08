@@ -92,7 +92,7 @@ def _task_and_queue_for(job_type: str):
     this module doesn't import every task module at process start just to
     support the rare retry path."""
     from src.jobs.celery_app import QUEUE_EXTRACTION, QUEUE_MATCHING, QUEUE_VERIFICATION
-    from src.jobs.tasks.interview import evaluate_interview_task, generate_interview_questions_task
+    from src.jobs.tasks.interview import generate_interview_questions_task, score_interview_task
     from src.jobs.tasks.job_extraction import extract_job_requirements_task
     from src.jobs.tasks.matching import embed_and_match_candidate_task, embed_and_match_job_task
     from src.jobs.tasks.resume import extract_resume_task
@@ -107,7 +107,7 @@ def _task_and_queue_for(job_type: str):
     registry = {
         "extract_resume": (extract_resume_task, QUEUE_EXTRACTION),
         "generate_interview_questions": (generate_interview_questions_task, QUEUE_EXTRACTION),
-        "evaluate_interview": (evaluate_interview_task, QUEUE_EXTRACTION),
+        "score_interview": (score_interview_task, QUEUE_EXTRACTION),
         "extract_job_requirements": (extract_job_requirements_task, QUEUE_EXTRACTION),
         "verify_github_account": (verify_github_account_task, QUEUE_VERIFICATION),
         "verify_coding_platform_account": (verify_coding_platform_account_task, QUEUE_VERIFICATION),

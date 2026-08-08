@@ -71,9 +71,24 @@ All Bearer, candidate-only, resolved via `get_own_profile` — no route takes a 
 |---|---|---|
 | POST | `/projects/{project_id}/start` | Starts an interview on a `VERIFIED` repository — **409** if not verified or one already exists |
 | GET | `/projects/{project_id}/latest` | The latest attempt for a project |
-| GET | `/{interview_id}` | Current state + next unanswered question (resumable) |
-| POST | `/{interview_id}/questions/{question_id}/answer` | Submit an answer |
-| GET | `/{interview_id}/report` | The evidence report — **409** until evaluation completes |
+| GET | `/{interview_id}` | The whole session: summary, full transcript, time remaining, whose turn it is |
+| POST | `/{interview_id}/turns` | Say one thing; returns the state after the interviewer replies |
+| WS | `/{interview_id}/live` | The live conversation. Same turn engine as `/turns` — see below |
+| GET | `/{interview_id}/report` | The evidence report — **409** until scoring completes |
+
+The interview is a **live conversation**, not a questionnaire: 5-7 questions are generated up
+front from the repository's stored analysis, and an Interviewer agent then rephrases them,
+follows up (at most twice per question), bridges between them, and closes — while a Verifier
+checks each answer's claims against the same analysis. One Scorer pass over the whole
+transcript produces the report.
+
+The socket carries `{"type": "authenticate", "token": …}` as its first frame (identical
+handshake to `/realtime/ws`, and for the same reason — a `?token=` query parameter would put a
+live credential into every access log), then `{"type": "candidate_message", "text": …}` per
+turn. It emits `connected`, `thinking`, `state`, and `error` frames. **`POST /turns` is a
+complete substitute**: it runs the same `service.advance` call, so a candidate whose network
+blocks WebSockets can still sit the entire interview. Nothing lives in the socket — the
+transcript is in Postgres, so a reconnect resumes exactly where it left off.
 
 Interviews come in two groundings, distinguished by `interviews.grounding`:
 

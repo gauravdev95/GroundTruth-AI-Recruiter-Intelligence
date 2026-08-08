@@ -81,9 +81,10 @@ responses) contains their message text when a check fails.
 |---|---|---|
 | `REPOSITORY_NOT_VERIFIED` | 409 | Starting an interview on a project whose GitHub verification isn't `VERIFIED` yet |
 | `INTERVIEW_ALREADY_EXISTS` | 409 | An interview for this `(candidate, project)` pair is already in progress or completed |
-| `INTERVIEW_NOT_READY` | 409 | Question generation hasn't finished yet (`status=PENDING`) |
-| `QUESTION_ALREADY_ANSWERED` | 409 | Resubmitting an answer to a question that already has one — answers are immutable |
-| `INTERVIEW_NOT_COMPLETE` | 409 | Requesting the evidence report before evaluation has finished |
+| `INTERVIEW_NOT_READY` | 409 | Question generation hasn't finished yet (`status=PENDING`) — the conversation cannot open until the questions exist |
+| `INTERVIEW_FINISHED` | 409 | Speaking into a conversation that has already wrapped up, or asking to re-open one that has already been opened |
+| `INTERVIEW_TURN_IN_PROGRESS` | 409 | A second connection tried to speak while the interviewer was mid-response. The session row is locked for the length of a turn, so this is a refusal rather than a queue |
+| `INTERVIEW_NOT_COMPLETE` | 409 | Requesting the evidence report before scoring has finished |
 
 ## Note on rate limiting
 

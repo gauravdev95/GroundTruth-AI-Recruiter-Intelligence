@@ -52,16 +52,38 @@ MIN_FILES_FOR_NONTRIVIAL_SIZE = 5
 MIN_ACTIVE_WEEKS_FOR_CADENCE = 2
 
 
-def compute_quality_score(*, has_tests: bool, file_count: int, weekly_commit_counts: list[int]) -> float:
+def compute_quality_score(
+    *,
+    has_tests: bool,
+    file_count: int,
+    weekly_commit_counts: list[int],
+    cadence_available: bool = True,
+) -> float:
+    """Scores the quality signals that could actually be measured.
+
+    `cadence_available=False` means GitHub never produced the commit-activity
+    statistic, not that the repository has no cadence. The distinction matters:
+    simply withholding the cadence weight would cap the score at 0.7 and quietly
+    charge the candidate for a GitHub limitation they cannot act on. Instead the
+    measurable signals are renormalised over their own weights, so the score
+    answers "how good is this on the evidence available" — the same question,
+    asked of a smaller evidence base.
+    """
     score = 0.0
+    available_weight = _QUALITY_WEIGHT_TESTS + _QUALITY_WEIGHT_SIZE
+
     if has_tests:
         score += _QUALITY_WEIGHT_TESTS
     if file_count >= MIN_FILES_FOR_NONTRIVIAL_SIZE:
         score += _QUALITY_WEIGHT_SIZE
-    active_weeks = sum(1 for count in weekly_commit_counts if count > 0)
-    if active_weeks >= MIN_ACTIVE_WEEKS_FOR_CADENCE:
-        score += _QUALITY_WEIGHT_CADENCE
-    return round(score, 4)
+
+    if cadence_available:
+        available_weight += _QUALITY_WEIGHT_CADENCE
+        active_weeks = sum(1 for count in weekly_commit_counts if count > 0)
+        if active_weeks >= MIN_ACTIVE_WEEKS_FOR_CADENCE:
+            score += _QUALITY_WEIGHT_CADENCE
+
+    return round(score / available_weight, 4)
 
 
 # --- Authenticity -------------------------------------------------------------

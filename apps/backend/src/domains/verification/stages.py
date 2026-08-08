@@ -55,7 +55,7 @@ from src.domains.student.models import (
 )
 from src.domains.verification import manifests, scoring
 from src.domains.verification.clients import github as github_client
-from src.domains.verification.exceptions import ClaimNotFound
+from src.domains.verification.exceptions import ClaimNotFound, VerificationStatPending
 
 logger = structlog.get_logger(__name__)
 
@@ -103,6 +103,14 @@ class RepositoryContext:
     contributor_stats: list[dict] = field(default_factory=list)
     contribution_share: float = 0.0
     weekly_commit_counts: list[int] = field(default_factory=list)
+    # False once contribution analysis has given up on GitHub's commit-activity
+    # statistic. Distinguishes "no commit cadence" from "cadence unknown", which
+    # the quality score must not conflate — see `scoring.compute_quality_score`.
+    cadence_available: bool = True
+
+    # Set by `run_analysis_pipeline`, read by stages that can degrade rather
+    # than fail once the retry ladder is spent.
+    is_final_attempt: bool = False
 
     file_paths: list[str] = field(default_factory=list)
     has_tests: bool = False
@@ -296,8 +304,30 @@ def _stage_fork_authorship_check(ctx: RepositoryContext) -> dict[str, Any]:
 def _stage_contribution_analysis(ctx: RepositoryContext) -> dict[str, Any]:
     """Quantifies the contribution the previous stage established exists —
     commit cadence over time, and the per-contributor breakdown behind the
-    share. Reuses `ctx.contributor_stats` rather than refetching."""
-    commit_activity = github_client.get_commit_activity(ctx.owner, ctx.repo, token=ctx.token)
+    share. Reuses `ctx.contributor_stats` rather than refetching.
+
+    Commit cadence is the only part of this stage that needs a second GitHub
+    call, and it is the weakest of the signals produced here: share, total
+    commits and the contributor breakdown all come from `contributor_stats`,
+    which stage 2 already fetched. So a repository whose commit-activity
+    statistic GitHub will not produce (see `VerificationStatPending`) still has
+    everything the verdict is mostly made of. Retrying is right while retries
+    remain; discarding the whole run on the last one is not, so cadence is
+    dropped instead and `ctx.cadence_available` records that it is unknown.
+    """
+    try:
+        commit_activity = github_client.get_commit_activity(ctx.owner, ctx.repo, token=ctx.token)
+    except VerificationStatPending:
+        if not ctx.is_final_attempt:
+            raise
+        ctx.cadence_available = False
+        commit_activity = []
+        logger.info(
+            "verification_cadence_unavailable",
+            project_id=str(ctx.project_id),
+            repo=f"{ctx.owner}/{ctx.repo}",
+        )
+
     ctx.weekly_commit_counts = [int(week.get("total", 0) or 0) for week in commit_activity]
 
     active_weeks = sum(1 for count in ctx.weekly_commit_counts if count > 0)
@@ -316,8 +346,9 @@ def _stage_contribution_analysis(ctx: RepositoryContext) -> dict[str, Any]:
     return {
         "contribution_share": ctx.contribution_share,
         "total_commits": sum(int(e.get("total", 0) or 0) for e in ctx.contributor_stats),
-        "active_weeks": active_weeks,
+        "active_weeks": active_weeks if ctx.cadence_available else None,
         "weekly_commit_counts": ctx.weekly_commit_counts,
+        "cadence_available": ctx.cadence_available,
         "top_contributors": top_contributors,
     }
 
@@ -333,6 +364,7 @@ def _stage_architecture_code_quality(ctx: RepositoryContext) -> dict[str, Any]:
         has_tests=ctx.has_tests,
         file_count=len(ctx.file_paths),
         weekly_commit_counts=ctx.weekly_commit_counts,
+        cadence_available=ctx.cadence_available,
     )
 
     return {
@@ -400,6 +432,7 @@ def run_analysis_pipeline(
       `FAILED`; before that it goes back to `PENDING`, because the retry
       re-runs from stage 1 and a `FAILED` predecessor would block the gate.
     """
+    ctx.is_final_attempt = is_final_attempt
     rows = ensure_stage_rows(db, ctx.project_id)
     db.commit()
 

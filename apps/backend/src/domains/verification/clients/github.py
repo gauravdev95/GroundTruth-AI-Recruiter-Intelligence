@@ -25,6 +25,7 @@ from src.domains.verification.exceptions import (
     ClaimNotFound,
     VerificationRateLimited,
     VerificationServiceUnavailable,
+    VerificationStatPending,
 )
 
 logger = structlog.get_logger(__name__)
@@ -83,9 +84,12 @@ def _get(path: str, *, token: str | None = None, params: dict | None = None, use
     if response.status_code == 202:
         # GitHub returns 202 while it computes stats asynchronously (the
         # contributor-stats and commit-activity endpoints do this on a cache
-        # miss). Treated as transient: the Celery task's own retry/backoff
-        # gives GitHub time to finish computing before the next attempt.
-        raise VerificationServiceUnavailable("GitHub is still computing this statistic")
+        # miss). Transient in the usual case — the Celery task's retry/backoff
+        # gives GitHub time to finish before the next attempt — but not always:
+        # some repositories 202 forever and never produce the statistic, so
+        # this raises the narrower `VerificationStatPending` to let callers
+        # distinguish "not ready yet" from "GitHub is down". See that class.
+        raise VerificationStatPending("GitHub is still computing this statistic")
     if response.status_code >= 500:
         raise VerificationServiceUnavailable(f"GitHub returned {response.status_code}")
     if response.status_code >= 400:

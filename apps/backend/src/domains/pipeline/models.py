@@ -177,7 +177,7 @@ class Conversation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class Message(UUIDPrimaryKeyMixin, Base):
     """Immutable once sent — no `updated_at`, matching every other
-    append-only table in this codebase (`InterviewAnswer`, `AuditLog`)."""
+    append-only table in this codebase (`InterviewTurn`, `AuditLog`)."""
 
     __tablename__ = "messages"
 

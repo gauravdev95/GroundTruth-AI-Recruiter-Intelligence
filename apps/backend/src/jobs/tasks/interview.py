@@ -1,6 +1,13 @@
-"""Interview question generation and answer evaluation — the two Celery
-tasks behind the AI interview, both on the `extraction` queue
+"""Interview question generation and final scoring — the two Celery tasks
+that bracket the live interview, both on the `extraction` queue
 (`jobs/celery_app.py` — same kind of work as resume extraction).
+
+The conversation itself does *not* run here. It runs inside the request/socket
+handling each turn (`domains/interview/router.py`), because a candidate is
+sitting there waiting: a queue hop per utterance would add latency to the one
+code path that cannot afford any. What is left for the worker is the work
+nobody is waiting on — generating the questions before the session opens, and
+scoring the transcript after it closes.
 
 Same deterministic/transient split as `jobs/tasks/resume.py`: malformed LLM
 output, a refusal, or missing configuration cannot be fixed by retrying, so
@@ -16,6 +23,7 @@ import uuid
 from datetime import datetime, timezone
 
 import structlog
+from sqlalchemy import select
 
 from src.db.database import SessionLocal
 from src.domains.ai.exceptions import (
@@ -24,16 +32,17 @@ from src.domains.ai.exceptions import (
     LLMOutputTruncated,
     LLMRefused,
 )
-from src.domains.ai.llm import get_interview_answer_evaluator, get_interview_question_generator
+from src.domains.ai.llm import get_interview_question_generator, get_interview_scorer
 from src.domains.interview import service as interview_service
 from src.domains.interview.models import (
     Interview,
+    InterviewDimensionScore,
     InterviewQuestion,
-    InterviewScore,
+    InterviewStage,
     InterviewStatus,
+    InterviewVerificationFlag,
     get_rubric_weights,
 )
-from src.domains.student.models import Project
 from src.domains.student.service import recompute_and_persist_strength
 from src.domains.verification import stages as verification_stages
 from src.jobs.celery_app import DatabaseTask, NonRetryableJobError, celery_app
@@ -74,7 +83,8 @@ def _fail_interview(interview_id: uuid.UUID, message: str) -> None:
         # sixth, and the evidence report it would have produced is the
         # seventh, so a failed interview skips rather than fails the report —
         # that stage never ran.
-        verification_stages.mark_interview_failed(session, interview.project_id, error=message)
+        if interview.project_id is not None:
+            verification_stages.mark_interview_failed(session, interview.project_id, error=message)
         session.commit()
         candidate_profile_id = interview.candidate_profile_id
     recompute_and_persist_strength_in_own_session(candidate_profile_id)
@@ -125,11 +135,15 @@ def generate_interview_questions_task(self: DatabaseTask, async_job_id: str) -> 
                     sequence=sequence,
                     prompt=question.prompt,
                     grounded_in={"description": question.grounded_in},
+                    expected_signals=list(question.expected_signals),
                 )
             )
         interview.question_count = len(question_set.questions)
+        # IN_PROGRESS the moment the questions exist: the candidate can now
+        # connect, and the conversation opens itself when they do. `stage`
+        # stays WARMUP until the Interviewer has actually said hello.
         interview.status = InterviewStatus.IN_PROGRESS
-        interview.started_at = _utcnow()
+        interview.stage = InterviewStage.WARMUP
         # Only a repository interview advances a repository's stage pipeline.
         # A profile interview is scoped to the candidate and has no project
         # whose CODE_GROUNDED_INTERVIEW stage it could legitimately move.
@@ -143,130 +157,115 @@ def generate_interview_questions_task(self: DatabaseTask, async_job_id: str) -> 
     return {"status": "in_progress", "question_count": str(len(question_set.questions))}
 
 
-@celery_app.task(base=DatabaseTask, bind=True, name="src.jobs.tasks.interview.evaluate_interview_task")
-def evaluate_interview_task(self: DatabaseTask, async_job_id: str) -> dict[str, str]:
+@celery_app.task(base=DatabaseTask, bind=True, name="src.jobs.tasks.interview.score_interview_task")
+def score_interview_task(self: DatabaseTask, async_job_id: str) -> dict[str, str]:
+    """Score the finished conversation.
+
+    One model call over the whole transcript, not one per answer — see
+    `domains/ai/llm.py::InterviewScorer` for why per-answer scoring misreads a
+    conversation. The weighted total is computed here rather than asked for:
+    the weights are operator-configurable, so the model cannot know them, and a
+    headline number a model did the arithmetic for is a number nobody can
+    check.
+    """
     interview_id = _load_interview_id(async_job_id)
 
     with SessionLocal() as session:
         interview = session.get(Interview, interview_id)
         if interview is None:
             raise NonRetryableJobError(f"Interview {interview_id} no longer exists")
-        # Read inside the session — the row is not available after it closes,
-        # and evaluation below must use the rubric this attempt was generated
-        # under rather than whatever is configured now.
+        # Read inside the session — these are not available after it closes,
+        # and scoring must use the rubric this attempt was generated under
+        # rather than whatever is configured now.
         rubric_version = interview.rubric_version
         repository_context = interview_service.build_interview_context(session, interview)
-        questions = sorted(interview.questions, key=lambda q: q.sequence)
-        # Snapshot everything needed for evaluation before the session
-        # closes — evaluation itself makes N sequential LLM calls and must
-        # not hold a DB session open across all of them.
-        snapshot = [
+        turns = interview_service.load_transcript(session, interview.id)
+        questions = interview_service.load_question_payload(session, interview.id)
+        flags = [
             {
-                "question_id": q.id,
-                "sequence": q.sequence,
-                "prompt": q.prompt,
-                "grounded_in": q.grounded_in,
-                "transcript": q.answer.transcript if q.answer else "",
-                "time_taken_seconds": q.answer.time_taken_seconds if q.answer else None,
-                "exceeded_time_limit": q.answer.exceeded_time_limit if q.answer else False,
-                "answer_id": q.answer.id if q.answer else None,
+                "claim": flag.claim,
+                "evidence": flag.evidence,
+                "status": flag.status,
+                "severity": flag.severity,
             }
-            for q in questions
+            for flag in session.execute(
+                select(InterviewVerificationFlag).where(
+                    InterviewVerificationFlag.interview_id == interview.id
+                )
+            ).scalars()
         ]
 
-    evaluator = get_interview_answer_evaluator()
-    # Resolved once for the whole evaluation, from the version stored on the
-    # interview row rather than the currently-configured rubric: an interview
-    # that was generated under one rubric must be scored under that same one
-    # even if the operator changed the weights while the candidate was sitting
-    # it. Every answer in one attempt is therefore weighted identically.
+    # Resolved from the version stored on the interview row rather than the
+    # currently-configured rubric: an interview generated under one rubric must
+    # be scored under that same one even if the operator changed the weights
+    # while the candidate was sitting it.
     rubric = get_rubric_weights(rubric_version)
 
-    graded: list[dict] = []
     try:
-        for item in snapshot:
-            evaluation = evaluator.evaluate_answer(
-                question=item["prompt"],
-                answer_transcript=item["transcript"],
-                repository_context=repository_context,
-            )
-            scores_by_dimension = {s.dimension: s for s in evaluation.scores}
-            missing = set(rubric) - set(scores_by_dimension)
-            if missing:
-                # A provider that returns a partial rubric would otherwise
-                # KeyError mid-loop after burning the whole evaluation's
-                # tokens; naming the gap makes it a diagnosable, non-retryable
-                # failure rather than an opaque crash.
-                raise NonRetryableJobError(
-                    f"Evaluator omitted rubric dimension(s): {', '.join(sorted(missing))}"
-                )
-            weighted_score = sum(
-                float(scores_by_dimension[dim].score) * weight for dim, weight in rubric.items()
-            )
-            graded.append(
-                {
-                    **item,
-                    "scores": [
-                        {
-                            "dimension": dim,
-                            "weight": weight,
-                            "score": float(scores_by_dimension[dim].score),
-                            "rationale": scores_by_dimension[dim].rationale,
-                        }
-                        for dim, weight in rubric.items()
-                    ],
-                    "weighted_score": round(weighted_score, 2),
-                }
-            )
+        scorecard = get_interview_scorer().score_interview(
+            transcript=turns,
+            verification_flags=flags,
+            repository_context=repository_context,
+            questions=questions,
+        )
     except _DETERMINISTIC_ERRORS as exc:
         message = getattr(exc, "message", str(exc))
         _fail_interview(interview_id, message)
-        logger.warning("interview_evaluation_failed", interview_id=str(interview_id), error=message)
+        logger.warning("interview_scoring_failed", interview_id=str(interview_id), error=message)
         raise NonRetryableJobError(message) from exc
     except Exception as exc:
         if _exhausted(self):
             _fail_interview(interview_id, f"{type(exc).__name__}: {exc}")
-        logger.warning("interview_evaluation_retrying", interview_id=str(interview_id), error=str(exc))
+        logger.warning("interview_scoring_retrying", interview_id=str(interview_id), error=str(exc))
         raise
 
-    total_score = round(sum(q["weighted_score"] for q in graded) / len(graded), 2) if graded else 0.0
+    scores_by_dimension = {score.dimension: score for score in scorecard.dimensions}
+    missing = set(rubric) - set(scores_by_dimension)
+    if missing:
+        # A provider that returned a partial rubric would otherwise KeyError
+        # below after burning the whole scoring call; naming the gap makes it a
+        # diagnosable, non-retryable failure rather than an opaque crash.
+        message = f"Scorer omitted rubric dimension(s): {', '.join(sorted(missing))}"
+        _fail_interview(interview_id, message)
+        raise NonRetryableJobError(message)
+
+    total_score = round(
+        sum(float(scores_by_dimension[dim].score) * weight for dim, weight in rubric.items()), 2
+    )
 
     with SessionLocal() as session:
         interview = session.get(Interview, interview_id)
         if interview is None:
             return {"status": "missing"}
 
-        for item in graded:
-            if item["answer_id"] is None:
-                continue
-            for score in item["scores"]:
-                session.add(
-                    InterviewScore(
-                        interview_answer_id=item["answer_id"],
-                        dimension=score["dimension"],
-                        weight=score["weight"],
-                        score=score["score"],
-                        rationale=score["rationale"],
-                    )
+        for dimension, weight in rubric.items():
+            scored = scores_by_dimension[dimension]
+            session.add(
+                InterviewDimensionScore(
+                    interview_id=interview.id,
+                    dimension=dimension,
+                    weight=weight,
+                    score=float(scored.score),
+                    evidence=scored.evidence,
+                    confidence=float(scored.confidence),
                 )
+            )
 
         interview.total_score = total_score
+        # The narrative half of the report. The per-dimension numbers live in
+        # their own rows; this holds what cannot be expressed as a number, and
+        # the transcript is joined onto it at read time rather than copied in
+        # — it is already stored, immutably, one table over.
         interview.evidence_report = {
-            "questions": [
-                {
-                    "sequence": q["sequence"],
-                    "prompt": q["prompt"],
-                    "grounded_in": q["grounded_in"],
-                    "transcript": q["transcript"],
-                    "time_taken_seconds": q["time_taken_seconds"],
-                    "exceeded_time_limit": q["exceeded_time_limit"],
-                    "scores": q["scores"],
-                    "weighted_score": q["weighted_score"],
-                }
-                for q in graded
-            ]
+            "verified_claims": list(scorecard.verified_claims),
+            "contradicted_claims": list(scorecard.contradicted_claims),
+            "unsupported_claims": list(scorecard.unsupported_claims),
+            "strengths": list(scorecard.strengths),
+            "concerns": list(scorecard.concerns),
+            "summary": scorecard.summary,
         }
         interview.status = InterviewStatus.COMPLETED
+        interview.stage = InterviewStage.DONE
         interview.completed_at = _utcnow()
         # Closes stages 6 and 7 together: this same pass both scores the
         # interview and produces the evidence report, so there is no window in
@@ -286,5 +285,5 @@ def evaluate_interview_task(self: DatabaseTask, async_job_id: str) -> dict[str, 
 
     recompute_and_persist_strength_in_own_session(candidate_profile_id)
 
-    logger.info("interview_evaluated", interview_id=str(interview_id), total_score=total_score)
+    logger.info("interview_scored", interview_id=str(interview_id), total_score=total_score)
     return {"status": "completed", "total_score": str(total_score)}
