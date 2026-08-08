@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GroundTruth — microphone &amp; speech check</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0; padding: 24px; background: #04060f; color: #eef2fb;
+        font: 15px/1.55 ui-sans-serif, system-ui, sans-serif;
+      }
+      main { max-width: 720px; margin: 0 auto; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      p.sub { color: #9aa8c8; margin: 0 0 24px; font-size: 14px; }
+      section {
+        border: 1px solid rgba(120,145,200,.22); border-radius: 12px;
+        padding: 16px; margin-bottom: 14px; background: #0e1424;
+      }
+      h2 { font-size: 14px; margin: 0 0 10px; color: #9aa8c8; font-weight: 600; }
+      button {
+        background: #4a9eff; color: #04060f; border: 0; border-radius: 8px;
+        padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+      }
+      button.secondary { background: #151d31; color: #eef2fb; }
+      button:disabled { opacity: .4; cursor: not-allowed; }
+      .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      .verdict { font-weight: 600; }
+      .ok { color: #35d98a; } .bad { color: #ff6b6b; } .warn { color: #ffb454; }
+      #meter { height: 10px; background: #151d31; border-radius: 999px; overflow: hidden; flex: 1; min-width: 180px; }
+      #meterFill { height: 100%; width: 0%; background: #4a9eff; transition: width .06s linear; }
+      #log {
+        font: 12px/1.5 ui-monospace, monospace; background: #04060f; color: #9aa8c8;
+        border: 1px solid rgba(120,145,200,.18); border-radius: 8px; padding: 10px;
+        height: 200px; overflow: auto; white-space: pre-wrap; margin-top: 10px;
+      }
+      #heard { min-height: 44px; font-size: 16px; margin-top: 10px; }
+      #heard .interim { color: #6b7899; font-style: italic; }
+      dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; }
+      dt { color: #6b7899; } dd { margin: 0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Microphone &amp; speech check</h1>
+      <p class="sub">
+        This page does not touch the interview. It tests the three browser
+        features the interview room depends on, one at a time, so we can tell a
+        browser problem apart from a bug in the room.
+      </p>
+
+      <section>
+        <h2>1 — What this browser supports</h2>
+        <dl id="support"></dl>
+      </section>
+
+      <section>
+        <h2>2 — Microphone level (is any audio arriving?)</h2>
+        <div class="row">
+          <button id="micBtn">Start microphone</button>
+          <div id="meter"><div id="meterFill"></div></div>
+        </div>
+        <p class="sub" style="margin:10px 0 0">
+          Speak. The bar must move. If it stays flat, no audio is reaching the
+          page at all — that is an OS or browser permission problem, not the room.
+        </p>
+        <div id="micVerdict" class="verdict" style="margin-top:8px"></div>
+      </section>
+
+      <section>
+        <h2>3 — Speech recognition (are words coming back?)</h2>
+        <div class="row">
+          <button id="recBtn">Start listening</button>
+          <button id="recStop" class="secondary" disabled>Stop</button>
+        </div>
+        <div id="heard"></div>
+        <div id="recVerdict" class="verdict" style="margin-top:8px"></div>
+      </section>
+
+      <section>
+        <h2>4 — Speech output (can you hear the interviewer?)</h2>
+        <div class="row">
+          <button id="ttsBtn">Speak a test sentence</button>
+        </div>
+        <div id="ttsVerdict" class="verdict" style="margin-top:8px"></div>
+      </section>
+
+      <section>
+        <h2>Event log — copy this back</h2>
+        <div id="log"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="secondary" id="copyBtn">Copy log</button>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const logEl = document.getElementById("log");
+      const lines = [];
+      function log(msg) {
+        const line = new Date().toISOString().slice(11, 23) + "  " + msg;
+        lines.push(line);
+        logEl.textContent = lines.join("\n");
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      // -- 1. capability report ------------------------------------------
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const caps = {
+        "Browser": navigator.userAgent.slice(0, 90),
+        "Secure context": String(window.isSecureContext),
+        "getUserMedia": String(!!navigator.mediaDevices?.getUserMedia),
+        "SpeechRecognition": SR ? "yes" : "NO — typed fallback only",
+        "speechSynthesis": "speechSynthesis" in window ? "yes" : "NO",
+        "AudioContext": (window.AudioContext || window.webkitAudioContext) ? "yes" : "NO",
+      };
+      const dl = document.getElementById("support");
+      for (const [k, v] of Object.entries(caps)) {
+        const dt = document.createElement("dt"); dt.textContent = k;
+        const dd = document.createElement("dd"); dd.textContent = v;
+        dl.append(dt, dd);
+      }
+      log("capabilities: " + JSON.stringify(caps));
+
+      // -- 2. microphone level -------------------------------------------
+      let stream = null, ctx = null, peak = 0;
+      document.getElementById("micBtn").addEventListener("click", async () => {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          log("getUserMedia OK — tracks: " + stream.getAudioTracks().map(t => t.label + " [" + t.readyState + "]").join(", "));
+
+          const Ctor = window.AudioContext || window.webkitAudioContext;
+          ctx = new Ctor();
+          log("AudioContext state at creation: " + ctx.state);
+          // THE THING THE ROOM WAS MISSING. A context created outside a user
+          // gesture starts suspended, and a suspended context's analyser
+          // returns silence forever — which looks exactly like a dead mic.
+          if (ctx.state === "suspended") {
+            await ctx.resume();
+            log("AudioContext resumed -> " + ctx.state);
+          }
+
+          const src = ctx.createMediaStreamSource(stream);
+          const an = ctx.createAnalyser();
+          an.fftSize = 512;
+          src.connect(an);
+          const buf = new Float32Array(an.fftSize);
+          const fill = document.getElementById("meterFill");
+
+          (function tick() {
+            an.getFloatTimeDomainData(buf);
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+            const rms = Math.sqrt(sum / buf.length);
+            peak = Math.max(peak, rms);
+            fill.style.width = Math.min(100, rms * 600) + "%";
+            requestAnimationFrame(tick);
+          })();
+
+          setTimeout(() => {
+            const v = document.getElementById("micVerdict");
+            if (peak > 0.01) { v.className = "verdict ok"; v.textContent = "Audio IS reaching the page (peak " + peak.toFixed(4) + ")."; }
+            else { v.className = "verdict bad"; v.textContent = "NO audio in 8 seconds (peak " + peak.toFixed(5) + "). Check the OS input device and mute switch."; }
+            log("mic peak after 8s: " + peak.toFixed(5));
+          }, 8000);
+        } catch (e) {
+          log("getUserMedia FAILED: " + e.name + " — " + e.message);
+          const v = document.getElementById("micVerdict");
+          v.className = "verdict bad"; v.textContent = "Microphone could not be opened: " + e.name;
+        }
+      });
+
+      // -- 3. recognition -------------------------------------------------
+      let rec = null, finals = [], gotAnything = false;
+      document.getElementById("recBtn").addEventListener("click", () => {
+        if (!SR) { log("no SpeechRecognition in this browser"); return; }
+        rec = new SR();
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.lang = "en-US";
+        finals = []; gotAnything = false;
+
+        rec.onstart = () => log("recognition: onstart");
+        rec.onaudiostart = () => log("recognition: onaudiostart (mic captured)");
+        rec.onsoundstart = () => log("recognition: onsoundstart (sound detected)");
+        rec.onspeechstart = () => log("recognition: onspeechstart (SPEECH detected)");
+        rec.onspeechend = () => log("recognition: onspeechend");
+        rec.onaudioend = () => log("recognition: onaudioend");
+        rec.onend = () => log("recognition: onend");
+        rec.onerror = (e) => {
+          log("recognition ERROR: " + e.error + (e.message ? " — " + e.message : ""));
+          const v = document.getElementById("recVerdict");
+          v.className = "verdict bad";
+          v.textContent = "Recognition error: " + e.error +
+            (e.error === "network" ? " — Chrome's speech service is unreachable. This is the usual cause." :
+             e.error === "not-allowed" ? " — microphone permission was refused." :
+             e.error === "audio-capture" ? " — no microphone could be captured (another app may hold it)." : "");
+        };
+        rec.onresult = (ev) => {
+          gotAnything = true;
+          let interim = "";
+          for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            const r = ev.results[i];
+            if (r.isFinal) { finals.push(r[0].transcript); log("FINAL  : " + r[0].transcript); }
+            else { interim += r[0].transcript; }
+          }
+          if (interim) log("interim: " + interim);
+          document.getElementById("heard").innerHTML =
+            finals.join(" ") + (interim ? ' <span class="interim">' + interim + "</span>" : "");
+          const v = document.getElementById("recVerdict");
+          v.className = "verdict ok";
+          v.textContent = finals.length
+            ? "Words are coming back, and finalising. This is what the room needs."
+            : "Interim words only so far — keep talking, then pause.";
+        };
+
+        try { rec.start(); log("recognition.start() called"); } catch (e) { log("start() threw: " + e.message); }
+        document.getElementById("recBtn").disabled = true;
+        document.getElementById("recStop").disabled = false;
+      });
+
+      document.getElementById("recStop").addEventListener("click", () => {
+        rec && rec.abort();
+        document.getElementById("recBtn").disabled = false;
+        document.getElementById("recStop").disabled = true;
+        if (!gotAnything) {
+          const v = document.getElementById("recVerdict");
+          v.className = "verdict bad";
+          v.textContent = "No result events at all — the recogniser heard nothing.";
+        }
+        log("final transcript: " + JSON.stringify(finals.join(" ")));
+      });
+
+      // -- 4. synthesis ----------------------------------------------------
+      document.getElementById("ttsBtn").addEventListener("click", () => {
+        const voices = window.speechSynthesis.getVoices();
+        log("voices available: " + voices.length + (voices.length ? " — using " + (voices.find(v => v.lang.startsWith("en")) || voices[0]).name : ""));
+        const u = new SpeechSynthesisUtterance("Hello Gaurav. If you can hear this sentence, speech output is working.");
+        const en = voices.find(v => v.lang.toLowerCase().startsWith("en"));
+        if (en) u.voice = en;
+        u.onstart = () => log("tts: onstart");
+        u.onend = () => {
+          log("tts: onend");
+          const v = document.getElementById("ttsVerdict");
+          v.className = "verdict ok"; v.textContent = "Speech finished and reported onend — the room's turn-taking depends on this event.";
+        };
+        u.onerror = (e) => {
+          log("tts ERROR: " + e.error);
+          const v = document.getElementById("ttsVerdict");
+          v.className = "verdict bad"; v.textContent = "Speech output failed: " + e.error;
+        };
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(u);
+        setTimeout(() => {
+          if (!window.speechSynthesis.speaking) return;
+          log("tts: still speaking after 12s");
+        }, 12000);
+      });
+
+      document.getElementById("copyBtn").addEventListener("click", async () => {
+        await navigator.clipboard.writeText(lines.join("\n"));
+        log("(log copied to clipboard)");
+      });
+
+      window.speechSynthesis?.addEventListener?.("voiceschanged", () => {
+        log("voiceschanged fired — " + window.speechSynthesis.getVoices().length + " voices");
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,170 @@
+/* ==================================================================
+   GroundTruth — the interview room
+   ------------------------------------------------------------------
+   A THIRD SANCTIONED CROSSING, scoped the same way `landing.css` is.
+
+   `design/tokens.css` ships a full light theme because a student filling in
+   education history in a bright library is a real case. An interview room is
+   not that case. Every video-call product a candidate has ever joined is dark,
+   the darkness is what makes a video tile read as a light source rather than a
+   rectangle, and a white interview room would look like a form with a webcam
+   in it. So the room is dark under both themes — deliberately, and only here.
+
+   The scoping mechanism is `[data-interview-room]` on the room's own root, for
+   the same reason `landing.css` scopes to `html:has([data-landing])`: a bare
+   `:root` block would follow the candidate out of the interview and repaint the
+   dashboard they return to.
+
+   These are `--room-*` and never redefine an app token. A room token shadowing
+   `--panel` would leave two meanings for one name depending on which subtree a
+   component happened to render in, which is exactly the failure the design
+   system migration existed to end.
+
+   The room's values are the app's dark palette pushed one step further down —
+   the same hues, less light — so the room reads as the same product with the
+   lights turned off rather than as a different application.
+   ================================================================== */
+
+[data-interview-room] {
+  /* Structure. Darker than --bg (#060814): the room has no page behind it and
+     nothing to sit against, so it supplies its own floor. */
+  --room-floor: #04060f;
+  --room-stage: #080c18;
+  --room-panel: #0e1424;
+  --room-raised: #151d31;
+  --room-rule: rgb(120 145 200 / 0.12);
+  --room-rule-strong: rgb(120 145 200 / 0.22);
+
+  /* Text. --room-ink matches the app's --ink so the two never look like
+     different typefaces of the same word. */
+  --room-ink: #eef2fb;
+  --room-slate: #9aa8c8;
+  --room-muted: #6b7899;
+
+  /* The one accent, borrowed from the app's --blue rather than minted fresh.
+     Used for the listening state and nothing else — an accent that also marks
+     errors and buttons stops marking anything. */
+  --room-accent: #4a9eff;
+  --room-accent-dim: rgb(74 158 255 / 0.16);
+
+  /* Danger, for the end-call control only. */
+  --room-danger: #f4564f;
+  --room-danger-dim: rgb(244 86 79 / 0.16);
+
+  /* Caution, for integrity notices. Amber, and — per the palette's rule 1 —
+     never green: nothing in this room is "verified". */
+  --room-caution: #ffb454;
+  --room-caution-dim: rgb(255 180 84 / 0.14);
+
+  /* The lamp behind the interviewer. A radial wash, not a surface gradient. */
+  --room-key-light: rgb(74 158 255 / 0.1);
+
+  color-scheme: dark;
+}
+
+/* ==================================================================
+   MOTION
+   ------------------------------------------------------------------
+   Four keyframes, all of them either compositor-only (transform, opacity) or
+   on a property that cannot reflow. Nothing in this room animates a layout
+   property: a candidate is being assessed while looking at it, and a UI that
+   jitters is a UI that costs them attention they need elsewhere.
+   ================================================================== */
+
+@keyframes room-speak-bar {
+  0%,
+  100% {
+    transform: scaleY(0.28);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* The listening ring. Opacity and scale only, one slow cycle — this sits
+   under a human face on screen and anything faster reads as an alarm. */
+@keyframes room-listen-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  70% {
+    transform: scale(1.14);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.14);
+    opacity: 0;
+  }
+}
+
+/* The idle state. Six seconds, two percent of scale — enough that the frame
+   is not frozen, far too little to read as an animation. */
+@keyframes room-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes room-thinking-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.room-speak-bar {
+  transform-origin: center;
+  animation: room-speak-bar 900ms ease-in-out infinite;
+}
+
+.room-listen-pulse {
+  animation: room-listen-pulse 2.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.room-breathe {
+  animation: room-breathe 6s ease-in-out infinite;
+}
+
+.room-thinking-dot {
+  animation: room-thinking-dot 1.4s ease-in-out infinite;
+}
+
+/* The room's own reduced-motion contract. `tokens.css` already clamps every
+   animation globally, and this is the backstop for the states that must still
+   be *distinguishable* without motion: a candidate who cannot see the waveform
+   move still has to be able to tell that the interviewer is speaking, which is
+   why the bars hold at full height rather than collapsing to their 28% start. */
+@media (prefers-reduced-motion: reduce) {
+  [data-interview-room] .room-speak-bar {
+    transform: scaleY(0.85);
+  }
+  [data-interview-room] .room-listen-pulse {
+    opacity: 0.35;
+    transform: scale(1.08);
+  }
+}
+
+/* The room owns the viewport while it is open. Both properties are set on the
+   element rather than on <body> so leaving the route restores the page without
+   a cleanup effect having to remember to. */
+[data-interview-room] {
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ...except anywhere the candidate might legitimately want to select text.
+   The transcript is theirs; so is anything they typed. */
+[data-interview-room] [data-selectable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
