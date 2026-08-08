@@ -167,3 +167,38 @@ def test_reachability_only_platforms_have_a_rate_limit() -> None:
             continue
         name = setting_name.get(platform, platform.value)
         assert getattr(settings, f"{name}_rate_limit_per_minute") > 0
+
+
+def test_integrity_event_vocabulary_matches_the_model():
+    """The schema's Literal is the validation boundary and the model's tuple is
+    the documentation; a value that exists in one and not the other means the
+    room can either write something nothing describes, or be rejected for
+    something the model says is legal."""
+    from typing import get_args
+
+    from src.domains.interview.models import INTEGRITY_EVENT_TYPES
+    from src.domains.interview.schemas import IntegrityEventType
+
+    assert set(get_args(IntegrityEventType)) == set(INTEGRITY_EVENT_TYPES)
+
+
+def test_integrity_event_detail_rejects_a_large_or_nested_payload():
+    """`detail` is room-supplied context, not a place to park arbitrary JSON on
+    an authenticated write path."""
+    from src.domains.interview.schemas import IntegrityEventRequest
+
+    with pytest.raises(ValidationError):
+        IntegrityEventRequest(
+            client_sequence=1,
+            event_type="tab_hidden",
+            elapsed_seconds=1,
+            detail={"nested": {"not": "allowed"}},
+        )
+
+    with pytest.raises(ValidationError):
+        IntegrityEventRequest(
+            client_sequence=1,
+            event_type="tab_hidden",
+            elapsed_seconds=1,
+            detail={f"k{i}": "v" for i in range(9)},
+        )

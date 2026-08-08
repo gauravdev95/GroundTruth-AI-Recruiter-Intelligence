@@ -56,6 +56,28 @@ def test_quality_score_cadence_needs_at_least_two_active_weeks():
     assert two_active_weeks == pytest.approx(0.3)
 
 
+def test_quality_score_renormalises_when_cadence_could_not_be_measured():
+    """Unmeasurable cadence must not read as absent cadence: a repo with tests
+    and real size scores full marks on the evidence that exists, rather than
+    being capped at 0.7 for a GitHub limitation the candidate cannot act on."""
+    unmeasured = compute_quality_score(
+        has_tests=True, file_count=10, weekly_commit_counts=[], cadence_available=False
+    )
+    assert unmeasured == pytest.approx(1.0)
+
+    # Renormalisation rescales the surviving signals, it does not gift them:
+    # tests alone is 0.4 of the 0.7 that remains measurable.
+    tests_only = compute_quality_score(
+        has_tests=True, file_count=1, weekly_commit_counts=[], cadence_available=False
+    )
+    assert tests_only == pytest.approx(0.4 / 0.7, abs=1e-4)  # scores are rounded to 4dp
+
+    nothing = compute_quality_score(
+        has_tests=False, file_count=1, weekly_commit_counts=[], cadence_available=False
+    )
+    assert nothing == 0.0
+
+
 def test_authenticity_is_full_for_a_non_fork_regardless_of_share():
     assert compute_authenticity_score(is_fork=False, contribution_share=0.0) == 1.0
 

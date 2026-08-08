@@ -42,7 +42,11 @@ from src.domains.student.models import (
 from src.domains.verification.clients import codeforces as codeforces_client
 from src.domains.verification.clients import github as github_client
 from src.domains.verification.clients import reachability
-from src.domains.verification.exceptions import ClaimNotFound, VerificationServiceUnavailable
+from src.domains.verification.exceptions import (
+    ClaimNotFound,
+    VerificationServiceUnavailable,
+    VerificationStatPending,
+)
 from src.platform.models import AsyncJob, AsyncJobStatus
 
 STUDENT_BASE = "/api/v1/student/profile"
@@ -305,6 +309,69 @@ def test_verify_repository_flags_a_low_contribution_fork(client: TestClient, db_
         select(Project).where(Project.candidate_profile_id == profile.id)
     ).scalar_one()
     assert project.verification_status is VerificationStatus.FLAGGED
+
+
+def _still_computing(owner, repo, **kw):
+    """GitHub's 202 answer, which for some repositories never becomes a 200."""
+    raise VerificationStatPending("GitHub is still computing this statistic")
+
+
+def test_verify_repository_retries_while_github_computes_commit_activity(
+    client: TestClient, db_session: Session, monkeypatch
+):
+    """A 202 is "not ready yet" while retries remain — the run must not settle
+    for a degraded answer it could still get in full."""
+    from src.jobs.tasks.verification import verify_repository_task
+
+    token, _profile = _candidate(db_session, "computing.stats@example.com")
+    _repo_project(client, db_session, token, "https://github.com/ada/computing")
+    job = _pending_job(db_session, "verify_repository")
+    _stub_repository_analysis(monkeypatch, contribution_share=0.9)
+    monkeypatch.setattr(github_client, "get_commit_activity", _still_computing)
+
+    with pytest.raises(VerificationStatPending):
+        verify_repository_task.run(str(job.id))
+
+
+def test_verify_repository_completes_when_github_never_computes_commit_activity(
+    client: TestClient, db_session: Session, monkeypatch
+):
+    """GitHub answers 202 forever for some repositories. Commit cadence is one
+    optional signal, so the last attempt drops it and finishes the run rather
+    than discarding four completed stages and leaving a real repository
+    UNVERIFIED — the failure this reproduces.
+    """
+    from src.domains.student.models import VerificationStageKind, VerificationStageStatus
+    from src.jobs.tasks.verification import verify_repository_task
+
+    token, profile = _candidate(db_session, "never.computes@example.com")
+    _repo_project(client, db_session, token, "https://github.com/ada/stuck")
+    job = _pending_job(db_session, "verify_repository")
+    _stub_repository_analysis(monkeypatch, contribution_share=0.9)
+    monkeypatch.setattr(github_client, "get_commit_activity", _still_computing)
+
+    verify_repository_task.push_request(retries=verify_repository_task.max_retries)
+    try:
+        verify_repository_task.run(str(job.id))
+    finally:
+        verify_repository_task.pop_request()
+
+    project = db_session.execute(
+        select(Project).where(Project.candidate_profile_id == profile.id)
+    ).scalar_one()
+    assert project.verification_status is VerificationStatus.VERIFIED
+
+    contribution = project.verification_payload["stages"]["contribution_analysis"]
+    assert contribution["status"] == "succeeded"
+    # Recorded as unknown, not as zero — the distinction the verdict rests on.
+    assert contribution["cadence_available"] is False
+    assert contribution["active_weeks"] is None
+    assert contribution["total_commits"] == 100
+
+    rows = _stages_by_kind(db_session, project.id)
+    assert rows[VerificationStageKind.CONTRIBUTION_ANALYSIS].status is VerificationStageStatus.SUCCEEDED
+    assert rows[VerificationStageKind.ARCHITECTURE_CODE_QUALITY].status is VerificationStageStatus.SUCCEEDED
+    assert rows[VerificationStageKind.TECHNOLOGY_DETECTION].status is VerificationStageStatus.SUCCEEDED
 
 
 # --------------------------------------------------------------------------
