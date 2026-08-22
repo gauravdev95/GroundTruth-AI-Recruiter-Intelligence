@@ -73,13 +73,8 @@ class CandidateRegisterRequest(BaseModel):
 
     email: EmailStr
     password: str
-
-    #: Optional so the two-field form can post without one, but still
-    #: *verified* whenever a secret key is configured — `verify_captcha`
-    #: bypasses only when `RECAPTCHA_SECRET_KEY` is unset, which is the dev
-    #: case. In production with a key set, an empty token fails closed, so
-    #: removing the field from the form without wiring the widget breaks
-    #: signup loudly rather than silently disabling bot protection.
+    #: Accepted for backwards compatibility with older clients. CAPTCHA is no
+    #: longer verified for registration.
     captcha_token: str = ""
 
     @field_validator("email")
@@ -99,7 +94,9 @@ class RecruiterRegisterRequest(BaseModel):
     company_email: EmailStr
     password: str
     confirm_password: str
-    captcha_token: str = Field(min_length=1)
+    #: Accepted for backwards compatibility with older clients. CAPTCHA is no
+    #: longer verified for registration.
+    captcha_token: str = ""
     accept_terms: bool
 
     @field_validator("company_email")
@@ -129,7 +126,9 @@ class RecruiterRegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
-    captcha_token: str = Field(min_length=1)
+    #: Accepted for backwards compatibility with older clients. CAPTCHA is no
+    #: longer verified for login.
+    captcha_token: str = ""
     remember_me: bool = False
     # Optional since the sign-in page became a single role-agnostic `/login`:
     # the caller no longer declares which lane it thinks the account is in, and

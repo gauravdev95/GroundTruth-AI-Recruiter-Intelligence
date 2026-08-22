@@ -9,7 +9,6 @@ import { Shake } from "@/design/primitives";
 
 import { AlertBanner } from "../components/AlertBanner";
 import { AuthHero, heroLinkClass } from "../components/AuthHero";
-import { CaptchaWidget } from "../components/CaptchaWidget";
 import { Checkbox } from "../components/Checkbox";
 import { FormField } from "../components/FormField";
 import { GoogleButton } from "../components/GoogleButton";
@@ -173,7 +172,6 @@ function StudentSignupForm() {
   const {
     register,
     handleSubmit,
-    setValue,
     watch,
     formState: { errors },
   } = useForm<CandidateSignupFormValues>({
@@ -181,7 +179,6 @@ function StudentSignupForm() {
     defaultValues: {
       email: "",
       password: "",
-      captcha_token: "",
     },
   });
 
@@ -230,14 +227,6 @@ function StudentSignupForm() {
       </motion.div>
 
       <motion.div {...field(2)}>
-        <CaptchaWidget
-          tone="hero"
-          error={errors.captcha_token?.message}
-          onChange={(token) => setValue("captcha_token", token ?? "", { shouldValidate: true })}
-        />
-      </motion.div>
-
-      <motion.div {...field(3)}>
         <HeroSubmit pending={register_.isPending} pendingLabel="Creating account…">
           Create account
         </HeroSubmit>
@@ -249,7 +238,7 @@ function StudentSignupForm() {
         legal posture change, not just a layout one — see the note in the
         backend's `CandidateRegisterRequest`.
       */}
-      <motion.div {...field(4)} className="flex flex-col gap-4">
+      <motion.div {...field(3)} className="flex flex-col gap-4">
         <p className="text-center text-xs leading-relaxed text-white/45">{termsLine}</p>
         <Divider />
         <GoogleButton role="candidate" tone="hero" label="Sign up with Google" />
@@ -267,7 +256,6 @@ function RecruiterSignupForm() {
   const {
     register,
     handleSubmit,
-    setValue,
     watch,
     formState: { errors },
   } = useForm<RecruiterSignupFormValues>({
@@ -278,7 +266,6 @@ function RecruiterSignupForm() {
       company_email: "",
       password: "",
       confirm_password: "",
-      captcha_token: "",
       accept_terms: false,
     },
   });
@@ -353,14 +340,6 @@ function RecruiterSignupForm() {
       </motion.div>
 
       <motion.div {...field(4)}>
-        <CaptchaWidget
-          tone="hero"
-          error={errors.captcha_token?.message}
-          onChange={(token) => setValue("captcha_token", token ?? "", { shouldValidate: true })}
-        />
-      </motion.div>
-
-      <motion.div {...field(5)}>
         <Checkbox
           label={termsCheckboxLabel}
           tone="hero"
@@ -369,7 +348,7 @@ function RecruiterSignupForm() {
         />
       </motion.div>
 
-      <motion.div {...field(6)} className="flex flex-col gap-4">
+      <motion.div {...field(5)} className="flex flex-col gap-4">
         <HeroSubmit pending={register_.isPending} pendingLabel="Creating account…">
           Create account
         </HeroSubmit>

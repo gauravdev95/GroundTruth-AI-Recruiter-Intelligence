@@ -9,7 +9,6 @@ import { Shake } from "@/design/primitives";
 
 import { AlertBanner } from "../components/AlertBanner";
 import { AuthHero, heroLinkClass } from "../components/AuthHero";
-import { CaptchaWidget } from "../components/CaptchaWidget";
 import { Checkbox } from "../components/Checkbox";
 import { FormField } from "../components/FormField";
 import { GoogleButton } from "../components/GoogleButton";
@@ -64,11 +63,10 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "", captcha_token: "", remember_me: false },
+    defaultValues: { email: "", password: "", remember_me: false },
   });
 
   const onSubmit = handleSubmit((values) => {
@@ -155,14 +153,6 @@ export function LoginPage() {
         </motion.div>
 
         <motion.div {...field(3)}>
-          <CaptchaWidget
-            tone="hero"
-            error={errors.captcha_token?.message}
-            onChange={(token) => setValue("captcha_token", token ?? "", { shouldValidate: true })}
-          />
-        </motion.div>
-
-        <motion.div {...field(4)}>
           <HeroSubmit pending={login.isPending} pendingLabel="Logging in…">
             Log in
           </HeroSubmit>
@@ -174,7 +164,7 @@ export function LoginPage() {
           are unaffected — the role on the account wins over the one in the
           link — so this only decides the lane for a brand-new Google account.
         */}
-        <motion.div {...field(5)} className="flex flex-col gap-3">
+        <motion.div {...field(4)} className="flex flex-col gap-3">
           <div className="my-1 flex items-center gap-3 text-xs uppercase tracking-widest text-white/35">
             <div className="h-px flex-1 bg-white/12" />
             or
@@ -187,7 +177,7 @@ export function LoginPage() {
 
         {/* Renders nothing outside a dev build, and is stripped from the
             production bundle entirely — see the component. */}
-        <motion.div {...field(6)}>
+        <motion.div {...field(5)}>
           <TestCredentials />
         </motion.div>
       </form>

@@ -127,7 +127,6 @@ def _register_and_sign_in(
 def candidate_register(
     request: Request, response: Response, payload: CandidateRegisterRequest, db: Session = Depends(get_db)
 ) -> AccessTokenResponse:
-    verify_captcha(payload.captcha_token, _client_ip(request))
     user = service.register_candidate(db, payload)
     return _register_and_sign_in(db, request, response, user)
 
@@ -137,7 +136,6 @@ def candidate_register(
 def recruiter_register(
     request: Request, response: Response, payload: RecruiterRegisterRequest, db: Session = Depends(get_db)
 ) -> AccessTokenResponse:
-    verify_captcha(payload.captcha_token, _client_ip(request))
     user = service.register_recruiter(db, payload)
     return _register_and_sign_in(db, request, response, user)
 
@@ -147,7 +145,6 @@ def recruiter_register(
 def login(
     request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)
 ) -> AccessTokenResponse:
-    verify_captcha(payload.captcha_token, _client_ip(request))
     user = service.authenticate(db, payload)
     session = service.issue_session(
         db,

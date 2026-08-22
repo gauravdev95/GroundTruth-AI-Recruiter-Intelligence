@@ -42,14 +42,12 @@ export interface RecruiterRegisterPayload {
   company_email: string;
   password: string;
   confirm_password: string;
-  captcha_token: string;
   accept_terms: boolean;
 }
 
 export interface LoginPayload {
   email: string;
   password: string;
-  captcha_token: string;
   remember_me: boolean;
   /** Optional, and the unified `/login` page omits it: the role comes back on
    * the issued session rather than being asserted up front. The server still

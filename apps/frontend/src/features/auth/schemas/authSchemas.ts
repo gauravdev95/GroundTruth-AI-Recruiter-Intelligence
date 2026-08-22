@@ -16,8 +16,6 @@ const acceptTermsSchema = z
   .boolean()
   .refine((v) => v === true, { message: "You must accept the Terms & Conditions" });
 
-const captchaSchema = z.string().min(1, "Please complete the CAPTCHA");
-
 /**
  * Student signup: email and password.
  *
@@ -33,14 +31,11 @@ const captchaSchema = z.string().min(1, "Please complete the CAPTCHA");
  * typed. Recruiter signup keeps the confirm field, because that form is
  * longer and its password is further from the submit button.
  *
- * `captcha_token` stays in the shape but is optional: the widget is only
- * mounted when a site key is configured, and the server fails closed if a
- * secret key is set and the token is empty.
+ * CAPTCHA is intentionally disabled for this flow.
  */
 export const candidateSignupSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
-  captcha_token: z.string().optional().default(""),
 });
 
 export type CandidateSignupFormValues = z.infer<typeof candidateSignupSchema>;
@@ -52,7 +47,6 @@ export const recruiterSignupSchema = z
     company_email: emailSchema,
     password: passwordSchema,
     confirm_password: z.string(),
-    captcha_token: captchaSchema,
     accept_terms: acceptTermsSchema,
   })
   .refine((data) => data.password === data.confirm_password, {
@@ -65,7 +59,6 @@ export type RecruiterSignupFormValues = z.infer<typeof recruiterSignupSchema>;
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "Password is required"),
-  captcha_token: captchaSchema,
   remember_me: z.boolean(),
 });
 
