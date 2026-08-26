@@ -1,0 +1,71 @@
+services:
+  # ── Backend API ──────────────────────────────────────────────────────
+  - type: web
+    name: groundtruth-backend
+    runtime: docker
+    dockerfilePath: apps/backend/Dockerfile
+    dockerContext: apps/backend
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false  # Set via Render dashboard — includes ?sslmode=require
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_PRIVATE_KEY
+        generateValue: true
+      - key: JWT_PUBLIC_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://groundtruth-ai-recruiter-intelligence-nqd5.onrender.com
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: FRONTEND_BASE_URL
+        value: https://groundtruth-ai-recruiter-intelligence-nqd5.onrender.com
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_OAUTH_REDIRECT_URI
+        value: https://groundtruth-ai-recruiter-intelligence.onrender.com/api/v1/auth/google/callback
+      - key: GITHUB_OAUTH_CLIENT_ID
+        sync: false
+      - key: GITHUB_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: groundtruth-redis
+          type: redis
+          property: connectionString
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_REGION
+        sync: false
+    preDeployCommand: >
+      uv run alembic upgrade head &&
+      uv run python -c "import sqlalchemy; from src.db.database import SessionLocal; s=SessionLocal(); s.execute(sqlalchemy.text('CREATE EXTENSION IF NOT EXISTS vector')); s.commit(); s.close()"
+    plan: starter
+
+  # ── Frontend ─────────────────────────────────────────────────────────
+  - type: web
+    name: groundtruth-frontend
+    runtime: docker
+    dockerfilePath: apps/frontend/Dockerfile
+    dockerContext: apps/frontend
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://groundtruth-ai-recruiter-intelligence.onrender.com/api/v1
+    plan: free
+
+  # ── Redis (realtime pub/sub + Celery broker) ────────────────────────
+  - type: redis
+    name: groundtruth-redis
+    ipAllowList: []  # Only accessible from other Render services
+    plan: starter

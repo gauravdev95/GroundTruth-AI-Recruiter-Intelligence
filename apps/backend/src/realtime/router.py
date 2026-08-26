@@ -49,11 +49,10 @@ import asyncio
 import uuid
 
 import structlog
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.config.config import get_realtime_settings
-from src.db.database import get_db
+from src.db.database import SessionLocal
 from src.domains.auth.dependencies import resolve_user_from_access_token
 from src.realtime.manager import manager
 
@@ -68,8 +67,15 @@ router = APIRouter(prefix="/api/v1/realtime", tags=["realtime"])
 CLOSE_AUTH_FAILED = 4401
 CLOSE_AUTH_TIMEOUT = 4408
 
+#: Server-initiated keepalive interval. Must be under the 60s idle timeout
+#: that most reverse proxies (including Render's) apply. The client pings at
+#: 25s, but a server-side ping provides a second safety net: if the client's
+#: keepalive is misconfigured or blocked by a network policy, the server
+#: still proves the connection is alive to the proxy.
+_SERVER_PING_INTERVAL_SECONDS = 15
 
-async def _authenticate(websocket: WebSocket, db: Session) -> uuid.UUID | None:
+
+async def _authenticate(websocket: WebSocket, db) -> uuid.UUID | None:
     settings = get_realtime_settings()
     try:
         frame = await asyncio.wait_for(
@@ -96,17 +102,46 @@ async def _authenticate(websocket: WebSocket, db: Session) -> uuid.UUID | None:
     return user.id
 
 
+async def _server_keepalive(websocket: WebSocket) -> None:
+    """Send periodic pings to keep the connection alive through proxies.
+
+    Render's reverse proxy (and most others) kill idle connections after ~60s.
+    The client already pings at 25s, but this server-side ping is a second
+    safety net that protects against client-side keepalive misconfiguration
+    and ensures the proxy always sees recent traffic.
+    """
+    try:
+        while True:
+            await asyncio.sleep(_SERVER_PING_INTERVAL_SECONDS)
+            await websocket.send_json({"type": "ping", "payload": {}})
+    except Exception:
+        # The socket is already dead — the read loop will handle cleanup.
+        pass
+
+
 @router.websocket("/ws")
-async def realtime_socket(websocket: WebSocket, db: Session = Depends(get_db)) -> None:
+async def realtime_socket(websocket: WebSocket) -> None:
     """One socket per client, bound to one user for its lifetime.
 
     The read loop exists to detect disconnects and to service client pings —
     the server never expects meaningful input after the handshake. Pushes go
     the other way, driven by `bus.RealtimeSubscriber`.
+
+    **DB session scope:** The database session is created only for
+    authentication and closed immediately after. Holding a session for the
+    entire WebSocket lifetime would exhaust the connection pool (5 + 10
+    overflow) when multiple sockets are connected, blocking HTTP API
+    requests on the same process.
     """
     await websocket.accept()
 
-    user_id = await _authenticate(websocket, db)
+    # Scoped session: open for authentication only, closed before the read loop.
+    db = SessionLocal()
+    try:
+        user_id = await _authenticate(websocket, db)
+    finally:
+        db.close()
+
     if user_id is None:
         return
 
@@ -118,6 +153,8 @@ async def realtime_socket(websocket: WebSocket, db: Session = Depends(get_db)) -
     await websocket.send_json({"type": "connected", "payload": {}})
     logger.info("realtime_connected", user_id=str(user_id))
 
+    # Server-side keepalive to prevent proxy idle-connection timeouts.
+    ping_task = asyncio.create_task(_server_keepalive(websocket))
     try:
         while True:
             message = await websocket.receive_json()
@@ -131,5 +168,10 @@ async def realtime_socket(websocket: WebSocket, db: Session = Depends(get_db)) -
     except Exception as exc:
         logger.debug("realtime_socket_closed", user_id=str(user_id), error=str(exc))
     finally:
+        ping_task.cancel()
+        try:
+            await ping_task
+        except asyncio.CancelledError:
+            pass
         await manager.remove(user_id, websocket)
         logger.info("realtime_disconnected", user_id=str(user_id))

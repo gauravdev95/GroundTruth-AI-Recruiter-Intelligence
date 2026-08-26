@@ -62,11 +62,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 register_error_handlers(app)
 
 configured_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-allowed_origins = [
-    origin.strip()
-    for origin in {*configured_origins, "https://groundtruth-ai-recruiter-intelligence-nqd5.onrender.com"}
-    if origin.strip()
-]
+allowed_origins = [origin.strip() for origin in configured_origins if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,

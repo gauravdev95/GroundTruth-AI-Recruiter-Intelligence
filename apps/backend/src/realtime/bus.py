@@ -33,7 +33,6 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from functools import lru_cache
 from typing import Any
 
 import redis
@@ -48,21 +47,37 @@ from src.realtime.manager import ConnectionManager, manager as default_manager
 logger = structlog.get_logger(__name__)
 
 
-@lru_cache
-def _publisher() -> redis.Redis | None:
-    """Cached sync client, or `None` if Redis is unreachable at first use.
+_publisher_client: redis.Redis | None = None
 
-    Same shape as `domains/verification/clients/http.py::_redis_client` —
-    including caching the `None`: if Redis is down, every subsequent publish
-    should be a no-op returning immediately, not a fresh connection attempt
-    with a two-second timeout on the critical path of a Celery task.
+
+def _publisher() -> redis.Redis | None:
+    """Cached sync client, or ``None`` if Redis is unreachable.
+
+    Unlike the original ``@lru_cache`` implementation, this does **not**
+    permanently cache a ``None`` result. If Redis was down at first use but
+    recovers 10 seconds later (common on shared Render Redis), subsequent
+    calls will retry the connection rather than remaining permanently dead
+    for the lifetime of the process.
+
+    The trade-off is a dict lookup on every publish instead of the
+    ``lru_cache`` fast-path — negligible compared to the network round-trip.
     """
+    global _publisher_client
+    if _publisher_client is not None:
+        # Verify the cached client is still alive with a fast pipeline ping.
+        try:
+            _publisher_client.ping()
+            return _publisher_client
+        except redis.RedisError:
+            _publisher_client = None
+
     settings = get_realtime_settings()
     try:
         client = redis.Redis.from_url(
             settings.redis_url, socket_connect_timeout=2, socket_timeout=2
         )
         client.ping()
+        _publisher_client = client
         return client
     except redis.RedisError as exc:
         logger.warning("realtime_publisher_unavailable", error=str(exc))
@@ -159,7 +174,11 @@ class RealtimeSubscriber:
 
     async def _consume(self) -> None:
         settings = get_realtime_settings()
-        self._client = aioredis.Redis.from_url(settings.redis_url)
+        self._client = aioredis.Redis.from_url(
+            settings.redis_url,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
         pubsub = self._client.pubsub()
         await pubsub.subscribe(EVENTS_CHANNEL)
         logger.info("realtime_subscriber_started", channel=EVENTS_CHANNEL)

@@ -22,6 +22,10 @@ export function OAuthCallbackPage() {
     if (searchParams.get("error")) return;
 
     let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (!cancelled) setError("Sign-in is taking too long. Please try again.");
+    }, 15_000);
+
     void (async () => {
       const token = await refreshAccessToken();
       if (cancelled) return;
@@ -41,6 +45,7 @@ export function OAuthCallbackPage() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [searchParams, navigate, setSession]);
 

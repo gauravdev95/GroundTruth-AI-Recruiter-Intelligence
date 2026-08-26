@@ -18,7 +18,6 @@ from sqlalchemy.orm import Session
 from src.config.config import get_security_settings
 from src.db.database import get_db
 from src.domains.auth import service
-from src.domains.auth.captcha import verify_captcha
 from src.domains.auth.dependencies import CSRF_COOKIE_NAME, get_current_user, verify_csrf
 from src.domains.auth.exceptions import InvalidRefreshToken, OAuthError
 from src.domains.auth.models import User, UserRole

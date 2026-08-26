@@ -345,7 +345,8 @@ def get_or_create_google_user(db: Session, info: GoogleUserInfo, role: UserRole)
     if role == UserRole.CANDIDATE:
         db.add(CandidateProfile(user_id=user.id, phone_number=""))
     else:
-        db.add(RecruiterProfile(user_id=user.id, company_name=info.full_name))
+        company = get_or_create_company(db, name=info.full_name or "Unknown", recruiter_email=info.email)
+        db.add(RecruiterProfile(user_id=user.id, company_id=company.id, company_name=company.name))
     db.commit()
     db.refresh(user)
     logger.info("google_user_created", user_id=str(user.id), role=role.value)

@@ -4,6 +4,7 @@ import { DashboardShell, type DashboardNavItem } from "@/components";
 import { useAuthContext } from "@/features/auth";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { NotificationBell } from "@/features/notifications";
+import { useRealtimeEvents } from "@/features/realtime";
 
 const NAV_ITEMS: DashboardNavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, to: "/recruiter/dashboard" },
@@ -14,6 +15,10 @@ const NAV_ITEMS: DashboardNavItem[] = [
 export function RecruiterDashboardLayout() {
   const { user } = useAuthContext();
   const logout = useLogout();
+
+  // Subscribed at the layout so the socket survives navigation within the
+  // recruiter area and the notification bell updates live.
+  useRealtimeEvents();
 
   return (
     <DashboardShell

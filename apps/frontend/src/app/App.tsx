@@ -44,7 +44,11 @@ function App() {
               request — the saving comes from the routes a first-time visitor
               never opens, which is all of the others.
             */}
-            <Suspense fallback={null}>
+            <Suspense fallback={
+              <div className="flex h-screen items-center justify-center bg-gt-vault">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-gt-electric" />
+              </div>
+            }>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 {legalRoutes}
