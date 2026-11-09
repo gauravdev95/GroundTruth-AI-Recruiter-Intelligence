@@ -42,6 +42,9 @@ who never appear on the board.
 
 from __future__ import annotations
 
+import os
+import secrets
+import string
 from datetime import date, timedelta
 
 from sqlalchemy import select
@@ -52,14 +55,43 @@ from src.domains.auth.models import User
 from src.domains.skills.models import ProficiencyLevel, SkillCategory
 from src.domains.student.models import CodingPlatform, EmploymentType, VerificationStatus
 
-#: NOT the brief's `test1234`, which this platform's own signup rejects:
-#: `auth/schemas.py::_validate_password_strength` requires an uppercase
-#: letter and a special character, and `test1234` has neither. The options
-#: were to weaken a password policy on a hiring platform holding student PII,
-#: or to move two characters in a demo credential. This is the two characters.
-#: The login screen's test-credentials panel reads this constant, so the value
-#: on screen cannot drift from the value that works.
-DEMO_PASSWORD = "Test1234!"
+
+def _resolve_demo_password() -> tuple[str, bool]:
+    """Return the demo password and whether it was auto-generated.
+
+    The password comes from the ``DEMO_USER_PASSWORD`` environment variable.
+    When it is unset (local dev), a random password is generated for this
+    seed run and printed to stdout by the seeder — the value is never
+    committed to the repo or printed in docs, so a published demo password
+    cannot drift into a shared credential.
+    The generated password satisfies the signup strength policy (uppercase
+    letter + special character; see ``auth/schemas.py``).
+    """
+    configured = os.environ.get("DEMO_USER_PASSWORD")
+    if configured:
+        return configured, False
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    while True:
+        candidate = "".join(secrets.choice(alphabet) for _ in range(16))
+        if (
+            any(c.isupper() for c in candidate)
+            and any(c.islower() for c in candidate)
+            and any(c.isdigit() for c in candidate)
+            and any(c in "!@#$%^&*" for c in candidate)
+        ):
+            return candidate, True
+
+
+DEMO_PASSWORD, _DEMO_PASSWORD_GENERATED = _resolve_demo_password()
+
+#: Set via the ``DEMO_USER_PASSWORD`` environment variable (see
+#: ``_resolve_demo_password`` above). When unset, a random password is
+#: generated for the seed run and printed to stdout — never a hardcoded
+#: shared value. The login screen's test-credentials panel must be fed the
+#: same value from the seed run output, not from a constant in this file.
+#: The value must satisfy the signup strength policy
+#: (``auth/schemas.py::_validate_password_strength`` requires an uppercase
+#: letter and a special character).
 DEMO_RECRUITER_EMAIL = "recruiter@test.com"
 #: Presence of this account means the demo cohort is already seeded.
 DEMO_MARKER_EMAIL = "rahul@test.com"
@@ -1029,7 +1061,10 @@ def seed_demo(db: Session) -> None:
         email=DEMO_RECRUITER_EMAIL,
         password=DEMO_PASSWORD,
     )
-    print(f"Recruiter: {DEMO_RECRUITER_EMAIL} / {DEMO_PASSWORD}  (Deepak Verma, TechNova Solutions)")
+    if _DEMO_PASSWORD_GENERATED:
+        print(f"Recruiter: {DEMO_RECRUITER_EMAIL} / {DEMO_PASSWORD}  (Deepak Verma, TechNova Solutions) — auto-generated for this seed run")
+    else:
+        print(f"Recruiter: {DEMO_RECRUITER_EMAIL}  (Deepak Verma, TechNova Solutions) — password from DEMO_USER_PASSWORD")
 
     skills = {
         name: helpers.get_or_create_skill(db, name, category)
@@ -1136,7 +1171,10 @@ def seed_demo(db: Session) -> None:
     for profile in profiles:
         student_service.recompute_and_persist_strength(db, profile.id)
     db.commit()
-    print(f"Students: {', '.join(spec['email'] for spec in STUDENTS)} (all password {DEMO_PASSWORD})")
+    if _DEMO_PASSWORD_GENERATED:
+        print(f"Students: {', '.join(spec['email'] for spec in STUDENTS)} (all password {DEMO_PASSWORD} — auto-generated for this seed run)")
+    else:
+        print(f"Students: {', '.join(spec['email'] for spec in STUDENTS)} (password from DEMO_USER_PASSWORD)")
 
     job = helpers.publish_job(db, recruiter, DEMO_JOB)
     print(f"Published job: {job.title} ({job.id})")

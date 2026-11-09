@@ -69,6 +69,33 @@ class SecuritySettings(BaseSettings):
     cookie_secure: bool = False
     app_env: str = "development"
     frontend_base_url: str = "http://localhost:5173"
+
+    @model_validator(mode="after")
+    def _reject_dev_placeholder_secrets_in_production(self) -> "SecuritySettings":
+        """Dev placeholder secrets must never run in production.
+
+        The defaults above exist so the app and test suite start on a fresh
+        machine with no secrets configured. If ``APP_ENV=production`` and
+        either key is still the placeholder (or empty), the process refuses
+        to start rather than signing tokens with a publicly known key.
+        """
+        if self.app_env.strip().lower() == "production":
+            placeholders = {
+                "SECRET_KEY": "dev-secret-key-change-me",
+                "JWT_SECRET_KEY": "dev-jwt-secret-key-change-me",
+            }
+            bad = [
+                name
+                for name, placeholder in placeholders.items()
+                if not getattr(self, name.lower(), "") or getattr(self, name.lower()) == placeholder
+            ]
+            if bad:
+                raise RuntimeError(
+                    "Refusing to start in production with dev placeholder secret(s): "
+                    + ", ".join(bad)
+                    + ". Set real values via SECRET_KEY / JWT_SECRET_KEY."
+                )
+        return self
     # Symmetric key for encrypting third-party OAuth tokens at rest
     # (`GithubAccount.access_token_encrypted` — see `core/crypto.py`). Left
     # unset in dev: `core/crypto.py` derives a stable key from `secret_key`

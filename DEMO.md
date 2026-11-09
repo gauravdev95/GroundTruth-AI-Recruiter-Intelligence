@@ -35,7 +35,7 @@ make seed
 
 ## Seeded credentials
 
-Password for every seeded account: **`SeedPass1!`**
+Seeded accounts take their password from the `DEMO_USER_PASSWORD` environment variable at seed time. When it is unset, `make seed` auto-generates a random password for that run and prints it to stdout — check the seed output for the password to log in with. No demo password is published in this file.
 
 | Role | Email | What they show |
 |---|---|---|

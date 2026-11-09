@@ -33,6 +33,8 @@ import hashlib
 import math
 import os
 import re
+import secrets
+import string
 import sys
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -48,7 +50,26 @@ from src.domains.ai.embedding_constants import EMBEDDING_DIMENSIONS
 logger = structlog.get_logger(__name__)
 
 SEED_MARKER_EMAIL = "ada.lovelace@seed.groundtruth.dev"
-SEED_PASSWORD = "SeedPass1!"
+def _resolve_seed_password() -> tuple[str, bool]:
+    """Demo password from ``DEMO_USER_PASSWORD`` env var; auto-generated
+    (and printed to stdout by the seeder) when unset. Never hardcoded.
+    Must satisfy the signup strength policy (uppercase + special char)."""
+    configured = os.environ.get("DEMO_USER_PASSWORD")
+    if configured:
+        return configured, False
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    while True:
+        candidate = "".join(secrets.choice(alphabet) for _ in range(16))
+        if (
+            any(c.isupper() for c in candidate)
+            and any(c.islower() for c in candidate)
+            and any(c.isdigit() for c in candidate)
+            and any(c in "!@#$%^&*" for c in candidate)
+        ):
+            return candidate, True
+
+
+SEED_PASSWORD, _SEED_PASSWORD_GENERATED = _resolve_seed_password()
 ACME_RECRUITER_EMAIL = "grace.hopper@seed.groundtruth.dev"
 INITECH_RECRUITER_EMAIL = "peter.gibbons@seed.groundtruth.dev"
 # Tracks the real embedding width rather than restating it: the seeded
@@ -389,8 +410,12 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
     initech_recruiter, initech_email = register_recruiter(
         "Peter Gibbons", "Initech", "peter.gibbons@seed.groundtruth.dev"
     )
-    print(f"Recruiters: {acme_email} / {SEED_PASSWORD}  (Acme Corp)")
-    print(f"            {initech_email} / {SEED_PASSWORD}  (Initech)")
+    if _SEED_PASSWORD_GENERATED:
+        print(f"Recruiters: {acme_email} / {SEED_PASSWORD}  (Acme Corp) — auto-generated for this seed run")
+        print(f"            {initech_email} / {SEED_PASSWORD}  (Initech)")
+    else:
+        print(f"Recruiters: {acme_email}  (Acme Corp) — password from DEMO_USER_PASSWORD")
+        print(f"            {initech_email}  (Initech)")
 
     # -----------------------------------------------------------------
     # Skills (shared taxonomy row per name — get-or-create)
@@ -657,9 +682,14 @@ def _seed(db) -> None:  # noqa: ANN001 — Session, imported lazily in main()
     for profile in (ada, grace, alan, margaret):
         student_service.recompute_and_persist_strength(db, profile.id)
     db.commit()
+    _seed_pw_note = (
+        f"{SEED_PASSWORD} — auto-generated for this seed run"
+        if _SEED_PASSWORD_GENERATED
+        else "from DEMO_USER_PASSWORD"
+    )
     print(
         f"Candidates: {SEED_MARKER_EMAIL}, grace.kim@..., alan.turing@..., "
-        f"marie.curie@..., margaret.hamilton@... (all @seed.groundtruth.dev, password {SEED_PASSWORD})"
+        f"marie.curie@..., margaret.hamilton@... (all @seed.groundtruth.dev, password {_seed_pw_note})"
     )
 
     # -----------------------------------------------------------------

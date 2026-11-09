@@ -1,3 +1,9 @@
+# Render deployment blueprint — NOT yet applied (see README §7).
+# This file declares the intended Render topology; no live deployment is
+# claimed. Before applying: fix the hostname mismatch — ALLOWED_ORIGINS and
+# FRONTEND_BASE_URL use groundtruth-ai-recruiter-intelligence-nqd5.onrender.com
+# while GOOGLE_OAUTH_REDIRECT_URI and VITE_API_BASE_URL use
+# groundtruth-ai-recruiter-intelligence.onrender.com (no nqd5). One is wrong.
 services:
   # ── Backend API ──────────────────────────────────────────────────────
   - type: web

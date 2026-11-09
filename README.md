@@ -368,6 +368,14 @@ snapshot with interview score, Kanban board, funnel analytics, evidence card, pr
 cross-tenant 403, illegal-transition 409). **Not done:** a cloud deployment — no hosting
 credentials were available.
 
+> **Render blueprint:** [`render.yaml`](render.yaml) is a deployment blueprint, not a live
+> deployment — it has not been applied, and no live URL is claimed. Before applying it, fix
+> the hostname mismatch inside it: `ALLOWED_ORIGINS` / `FRONTEND_BASE_URL` use
+> `groundtruth-ai-recruiter-intelligence-nqd5.onrender.com` while `GOOGLE_OAUTH_REDIRECT_URI`
+> and the frontend's `VITE_API_BASE_URL` use `groundtruth-ai-recruiter-intelligence.onrender.com`
+> (no `nqd5`) — one of the two is wrong. After a successful deploy, replace this note with
+> the verified live URL.
+
 ## 8. Documentation
 
 | Document | Contents |
