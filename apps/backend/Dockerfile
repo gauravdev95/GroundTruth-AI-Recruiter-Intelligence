@@ -34,4 +34,4 @@ ENV PATH="/app/.venv/bin:$PATH" \
 # Runs as the API by default; docker-compose overrides the command for
 # worker services and the one-shot migration job.
 EXPOSE 8000
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn src.main:app --host 0.0.0.0 --port 8000"]
