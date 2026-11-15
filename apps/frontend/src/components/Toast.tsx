@@ -1,10 +1,10 @@
-import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { createContext, useCallback, useContext, useState } from "react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-export type ToastVariant = "success" | "error" | "info";
+export type ToastVariant = "success" | "error" | "info" | "warning";
 
 interface ToastItem {
   id: string;
@@ -36,18 +36,26 @@ const VARIANT_STYLES: Record<ToastVariant, string> = {
   success: "border-[var(--rule)] border-l-[var(--verified)] text-[var(--ink)]",
   error: "border-[var(--rule)] border-l-[var(--failed)] text-[var(--ink)]",
   info: "border-[var(--rule)] border-l-[var(--blue)] text-[var(--ink)]",
+  /*
+   * `--flagged`, not a second amber: a warning toast says "claimed,
+   * unchecked" about the thing it reports, which is the same meaning the
+   * token carries everywhere else.
+   */
+  warning: "border-[var(--rule)] border-l-[var(--flagged)] text-[var(--ink)]",
 };
 
 const VARIANT_ICON_TONE: Record<ToastVariant, string> = {
   success: "text-[var(--verified)]",
   error: "text-[var(--failed)]",
   info: "text-[var(--blue)]",
+  warning: "text-[var(--flagged)]",
 };
 
 const VARIANT_ICONS: Record<ToastVariant, typeof Info> = {
   success: CheckCircle2,
   error: AlertCircle,
   info: Info,
+  warning: AlertTriangle,
 };
 
 const AUTO_DISMISS_MS = 5000;

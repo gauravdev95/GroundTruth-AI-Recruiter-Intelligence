@@ -41,7 +41,7 @@ export function SetupProgressBar({ stage, steps, onSelect }: SetupProgressBarPro
   return (
     <section
       aria-label="Onboarding progress"
-      className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-sm shadow-[var(--shadow-panel)] sm:p-6"
+      className="rounded-[var(--r-lg)] border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-[var(--shadow-panel)] backdrop-blur-sm sm:p-6"
     >
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 className="font-display text-sm font-semibold text-[var(--ink)]">

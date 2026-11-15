@@ -8,7 +8,12 @@ export function ForbiddenPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F6F7F9] px-4">
+    /*
+     * The background is the app token, not the hardcoded light grey this page
+     * used to carry — on the dark theme that grey was a white flash behind an
+     * otherwise dark error state.
+     */
+    <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] px-4">
       <div className="w-full max-w-md">
         <ErrorState
           title="You don't have access to this page"

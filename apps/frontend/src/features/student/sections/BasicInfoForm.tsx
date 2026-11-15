@@ -140,7 +140,7 @@ export function BasicInfoForm({ data, status, nav }: BasicInfoFormProps) {
           Doesn&apos;t affect your profile strength, but it is read when matching you to roles.
         </p>
         {errors.about?.message ? (
-          <p className="text-xs text-rejected">{errors.about.message}</p>
+          <p className="text-xs text-[var(--failed)]">{errors.about.message}</p>
         ) : null}
       </div>
 

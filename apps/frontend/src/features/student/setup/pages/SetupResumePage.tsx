@@ -2,7 +2,7 @@ import { AlertTriangle, ArrowLeft, Loader2, PencilLine, RotateCcw } from "lucide
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { ErrorState, Skeleton } from "@/components";
+import { Button, ErrorState, Skeleton } from "@/components";
 
 import { getProfileErrorMessage } from "../../lib/getProfileErrorMessage";
 import { DraftReview } from "../../resume/components/DraftReview";
@@ -27,17 +27,13 @@ const PARSE_TIMEOUT_MS = 3 * 60 * 1000;
 function FailureActions({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="mt-4 flex flex-wrap items-center gap-3">
-      <button
-        type="button"
-        onClick={onRetry}
-        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--violet)] to-[var(--blue)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[var(--shadow-panel)] transition   focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--violet)]"
-      >
+      <Button type="button" onClick={onRetry}>
         <RotateCcw size={15} aria-hidden="true" />
         Try again
-      </button>
+      </Button>
       <Link
         to="/student/profile/setup/manual"
-        className="inline-flex items-center gap-2 rounded-xl border-2 border-[var(--flagged)]/60 bg-[var(--panel)] px-4 py-2.5 text-sm font-semibold text-[var(--flagged)] transition hover:bg-[var(--flagged)]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--flagged)]"
+        className="inline-flex items-center gap-2 rounded-[var(--r-sm)] border border-[var(--flagged)]/60 bg-[var(--panel)] px-4 py-2.5 text-sm font-medium text-[var(--flagged)] transition hover:bg-[var(--flagged)]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--flagged)]"
       >
         <PencilLine size={15} aria-hidden="true" />
         Fill manually instead
@@ -146,11 +142,14 @@ export function SetupResumePage() {
       {isTransferring ? (
         <section
           aria-label="Uploading your resume"
-          className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-6 shadow-sm shadow-[var(--shadow-panel)]"
+          className="rounded-[var(--r-lg)] border border-[var(--violet)]/25 bg-[var(--panel)] p-6 shadow-[var(--shadow-panel)] backdrop-blur-sm"
         >
           <p className="text-sm font-semibold text-[var(--ink)]">
             Uploading {upload.fileName ?? "your resume"}…
           </p>
+          {upload.fileName ? (
+            <p className="mt-1 truncate font-mono text-xs text-[var(--slate)]">{upload.fileName}</p>
+          ) : null}
           <div
             className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[var(--violet)]/15"
             role="progressbar"
@@ -180,7 +179,7 @@ export function SetupResumePage() {
         <section
           role="status"
           aria-live="polite"
-          className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-6 shadow-sm shadow-[var(--shadow-panel)]"
+          className="rounded-[var(--r-lg)] border border-[var(--violet)]/25 bg-[var(--panel)] p-6 shadow-[var(--shadow-panel)] backdrop-blur-sm"
         >
           <div className="flex items-center gap-3">
             <Loader2 size={20} className="animate-spin text-[var(--violet)]" aria-hidden="true" />
@@ -256,7 +255,7 @@ export function SetupResumePage() {
       ) : null}
 
       {draft.data && draft.data.draft.status !== "pending_review" ? (
-        <section className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-6 text-sm shadow-sm shadow-[var(--shadow-panel)]">
+        <section className="rounded-[var(--r-lg)] border border-[var(--violet)]/25 bg-[var(--panel)] p-6 text-sm shadow-[var(--shadow-panel)] backdrop-blur-sm">
           <p className="font-semibold text-[var(--ink)]">
             {draft.data.draft.status === "confirmed"
               ? "This resume has been imported."

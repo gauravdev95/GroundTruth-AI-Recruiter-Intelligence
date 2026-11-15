@@ -151,7 +151,7 @@ export function ProfilePhotoField({ hasPhoto }: { hasPhoto: boolean }) {
       </p>
 
       {error ? (
-        <p role="alert" className="text-xs text-rejected">
+        <p role="alert" className="text-xs text-[var(--failed)]">
           {error}
         </p>
       ) : null}

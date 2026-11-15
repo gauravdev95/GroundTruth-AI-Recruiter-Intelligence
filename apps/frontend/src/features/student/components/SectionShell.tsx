@@ -54,8 +54,12 @@ export function SectionShell({
   nav,
 }: SectionShellProps) {
   return (
-    <form onSubmit={onSubmit} noValidate className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6">
-      <header className="mb-5 border-b border-[var(--rule)] pb-4">
+    <form
+      onSubmit={onSubmit}
+      noValidate
+      className="rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-6 shadow-[var(--shadow-panel)] backdrop-blur-sm sm:p-8"
+    >
+      <header className="mb-5 border-b border-[var(--rule-soft)] pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-lg font-semibold text-[var(--ink)]">
             {meta.title}

@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, Loader2, Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { AlertTriangle, Check, Loader2, Mic, MicOff, ShieldCheck, Video, VideoOff } from "lucide-react";
 import { useEffect, type RefObject } from "react";
 
 import type { AudioDiagnosis } from "../hooks/useAudioLevel";
@@ -58,8 +58,13 @@ function DeviceRow({ icon, offIcon, label, state, hint, note }: DeviceRowProps) 
   const ok = state === "granted";
 
   return (
-    <div className="flex items-start gap-3 rounded-[var(--r-md)] border border-[var(--room-rule)] bg-[var(--room-panel)] px-4 py-3">
-      <span className={ok ? "text-[var(--room-accent)]" : "text-[var(--room-muted)]"}>
+    <div className="flex items-start gap-3 rounded-[var(--r-md)] border border-[var(--room-rule)] bg-[var(--room-panel)] px-4 py-3.5">
+      <span
+        className={[
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+          ok ? "bg-[var(--room-accent-dim)] text-[var(--room-accent)]" : "bg-[var(--room-raised)] text-[var(--room-muted)]",
+        ].join(" ")}
+      >
         {ok ? icon : offIcon}
       </span>
       <div className="min-w-0 flex-1">
@@ -75,11 +80,11 @@ function DeviceRow({ icon, offIcon, label, state, hint, note }: DeviceRowProps) 
         ) : null}
       </div>
       {state === "prompting" ? (
-        <Loader2 size={16} className="animate-spin text-[var(--room-slate)]" aria-hidden="true" />
+        <Loader2 size={16} className="mt-1 shrink-0 animate-spin text-[var(--room-slate)]" aria-hidden="true" />
       ) : ok ? (
-        <Check size={16} className="text-[var(--room-accent)]" aria-hidden="true" />
+        <Check size={16} className="mt-1 shrink-0 text-[var(--room-accent)]" aria-hidden="true" />
       ) : (
-        <AlertTriangle size={16} className="text-[var(--room-caution)]" aria-hidden="true" />
+        <AlertTriangle size={16} className="mt-1 shrink-0 text-[var(--room-caution)]" aria-hidden="true" />
       )}
     </div>
   );
@@ -151,16 +156,20 @@ export function DeviceCheck({
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-10">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-[var(--room-muted)]">
-          Interview room
-        </p>
-        <h1 className="mt-1.5 font-display text-2xl font-semibold text-[var(--room-ink)]">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--room-muted)]">
+            Interview room
+          </p>
+          <span aria-hidden="true" className="h-3 w-px bg-[var(--room-rule-strong)]" />
+          <p className="text-xs text-[var(--room-muted)]">Step 1 of 2 · Check your devices</p>
+        </div>
+        <h1 className="mt-2 font-display text-2xl font-semibold text-[var(--room-ink)] sm:text-3xl">
           Ready to join?
         </h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--room-slate)]">
           A live technical conversation about <span className="text-[var(--room-ink)]">{projectTitle}</span> with
           an interviewer that has already read the code. Check your camera and microphone before you
-          go in.
+          go in — finding out a microphone is dead mid-interview is worse than finding out here.
         </p>
       </div>
 
@@ -177,6 +186,9 @@ export function DeviceCheck({
             className="h-full w-full object-cover"
             style={{ transform: "scaleX(-1)", opacity: camera === "granted" ? 1 : 0 }}
           />
+          <span className="absolute left-3 top-3 rounded-full bg-[rgb(4_6_15/0.7)] px-2.5 py-1 text-[11px] font-medium text-[var(--room-slate)] backdrop-blur-sm">
+            Camera preview · only you can see this
+          </span>
           {camera !== "granted" ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[var(--room-muted)]">
               <VideoOff size={26} aria-hidden="true" />
@@ -266,7 +278,10 @@ export function DeviceCheck({
       {/* Consent, in specifics. See the component docstring for why this is
           here and not in a policy link. */}
       <div className="rounded-[var(--r-md)] border border-[var(--room-rule)] bg-[var(--room-panel)] px-4 py-3.5">
-        <p className="text-xs font-medium text-[var(--room-ink)]">What happens to your camera and microphone</p>
+        <p className="flex items-center gap-2 text-xs font-medium text-[var(--room-ink)]">
+          <ShieldCheck size={14} className="text-[var(--room-accent)]" aria-hidden="true" />
+          What happens to your camera and microphone
+        </p>
         <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-[var(--room-slate)]">
           <li>
             Your video stays on this device. Nothing is recorded and no frame is ever uploaded.
@@ -282,26 +297,26 @@ export function DeviceCheck({
         </ul>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 border-t border-[var(--room-rule)] pt-6">
         <button
           type="button"
           onClick={onJoin}
           disabled={!canJoin}
-          className="rounded-[var(--r-md)] bg-[var(--room-accent)] px-6 py-2.5 text-sm font-semibold text-[#04060f] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          className="h-12 rounded-[var(--r-md)] bg-[var(--room-accent)] px-7 text-sm font-semibold text-[#04060f] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {interviewReady ? "Join interview" : "Preparing…"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-[var(--r-md)] px-4 py-2.5 text-sm text-[var(--room-slate)] transition-colors hover:text-[var(--room-ink)]"
+          className="h-12 rounded-[var(--r-md)] px-4 text-sm text-[var(--room-slate)] transition-colors hover:text-[var(--room-ink)]"
         >
           Not now
         </button>
         {blockedReason ? (
-          <p className="text-xs text-[var(--room-muted)]">{blockedReason}</p>
+          <p className="w-full text-xs text-[var(--room-muted)] sm:w-auto">{blockedReason}</p>
         ) : (
-          <p className="text-xs text-[var(--room-muted)]">
+          <p className="w-full text-xs text-[var(--room-muted)] sm:w-auto">
             You can only take this interview once for this repository.
           </p>
         )}

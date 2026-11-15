@@ -54,7 +54,7 @@ export function JobForm({ initial, isSaving, submitLabel, onSubmit }: JobFormPro
 
   return (
     <form
-      className="space-y-4 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6"
+      className="space-y-4 rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-6"
       onSubmit={handleSubmit((values) =>
         onSubmit({
           ...values,
@@ -78,7 +78,7 @@ export function JobForm({ initial, isSaving, submitLabel, onSubmit }: JobFormPro
           id="job-description"
           rows={8}
           placeholder="Describe the role, responsibilities, and what you're looking for. GroundTruth will mine required skills from this text."
-          className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
+          className="w-full rounded-[var(--r-sm)] border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--violet)] "
           {...register("description", { required: "Description is required", minLength: 20 })}
         />
         {errors.description?.message ? (

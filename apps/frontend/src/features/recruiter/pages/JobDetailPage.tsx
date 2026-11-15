@@ -1,7 +1,8 @@
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
-import { Button, ErrorState, Skeleton, useToast } from "@/components";
+import { Button, Card, ErrorState, Skeleton, useToast } from "@/components";
+import { Surface } from "@/design/Surface";
 
 import { JobForm } from "../components/JobForm";
 import { JobStatusBadge } from "../components/JobStatusBadge";
@@ -17,6 +18,23 @@ import {
   useSubmitJob,
   useUpdateJob,
 } from "../hooks/useJobs";
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function daysRemaining(deadline: string | null): string {
+  if (!deadline) return "No deadline set";
+  const days = Math.ceil((new Date(deadline).getTime() - Date.now()) / 86_400_000);
+  if (days < 0) return "Deadline passed";
+  if (days === 0) return "Closes today";
+  return `${days} day${days === 1 ? "" : "s"} left`;
+}
 
 /**
  * One page for the whole job lifecycle — which section renders is driven
@@ -69,13 +87,35 @@ export function JobDetailPage() {
   return (
     <div className="space-y-4">
       {backLink}
-      <header className="flex items-center justify-between gap-4">
-        <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">{job.title}</h1>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">
+            {job.title}
+          </h1>
+          {/* Machine-recorded facts in mono, human-written title in sans. */}
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--slate)]">
+            <span>{job.job_type.replace(/_/g, " ")}</span>
+            <span aria-hidden="true">·</span>
+            <span>{job.experience_level}</span>
+            <span aria-hidden="true">·</span>
+            <span>{job.is_remote ? "Remote" : (job.location ?? "Location not specified")}</span>
+            <span aria-hidden="true">·</span>
+            <span>{daysRemaining(job.deadline)}</span>
+            <span aria-hidden="true">·</span>
+            <span className="machine">Created {formatDate(job.created_at)}</span>
+            {job.published_at ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="machine">Published {formatDate(job.published_at)}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
         <JobStatusBadge status={job.status} />
       </header>
 
       {job.extraction_error ? (
-        <p role="alert" className="rounded-xl border border-[var(--failed)]/30 bg-[var(--failed)]/10 px-4 py-3 text-sm text-[var(--failed)]">
+        <p role="alert" className="rounded-[var(--r-md)] border border-[var(--failed)]/30 bg-[var(--failed)]/10 px-4 py-3 text-sm text-[var(--failed)]">
           The last extraction attempt failed: {job.extraction_error}. Edit the description and submit again.
         </p>
       ) : null}
@@ -88,7 +128,11 @@ export function JobDetailPage() {
             isSaving={updateJob.isPending}
             onSubmit={(payload) => updateJob.mutate(payload)}
           />
-          <div className="flex justify-end">
+          <Surface className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <p className="text-xs leading-relaxed text-[var(--slate)]">
+              Saving keeps this a draft. Submitting sends the description to GroundTruth to read
+              the requirements out of it.
+            </p>
             <Button
               type="button"
               onClick={() =>
@@ -98,19 +142,20 @@ export function JobDetailPage() {
               }
               isLoading={submitJob.isPending}
               disabled={submitJob.isPending}
+              className="bg-gt-electric hover:bg-gt-electric/90"
             >
               Submit for extraction
             </Button>
-          </div>
+          </Surface>
         </>
       ) : null}
 
       {job.status === "extracting" ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-10 text-center">
-          <Loader2 size={24} className="animate-spin text-[var(--ink)]" aria-hidden="true" />
+        <Surface className="flex flex-col items-center gap-3 p-10 text-center">
+          <Loader2 size={24} className="animate-spin text-gt-electric" aria-hidden="true" />
           <p className="text-sm font-medium text-[var(--ink)]">Reading your job description…</p>
           <p className="text-xs text-[var(--slate)]">Mining must-have skills, desirable skills, and seniority.</p>
-        </div>
+        </Surface>
       ) : null}
 
       {job.status === "awaiting_confirmation" ? (
@@ -127,13 +172,14 @@ export function JobDetailPage() {
 
       {job.status === "published" ? (
         <div className="space-y-6">
-          <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-lg font-semibold text-[var(--ink)]">Requirements</h2>
-              <div className="flex gap-2">
+          <Card
+            title="Requirements"
+            subtitle={`${requirements.filter((r) => r.is_required).length} must-have · ${requirements.filter((r) => !r.is_required).length} nice-to-have`}
+            actions={
+              <div className="flex flex-wrap gap-2">
                 <Link
                   to={`/recruiter/jobs/${jobId}/pipeline`}
-                  className="inline-flex items-center rounded border border-[var(--rule)] px-3 py-1.5 text-xs font-bold text-[var(--ink)] hover:bg-[var(--panel)]"
+                  className="inline-flex items-center rounded-[var(--r-sm)] border border-[var(--rule)] bg-[var(--panel)] px-3 py-1.5 text-xs font-semibold text-[var(--ink)] transition hover:border-gt-electric/40"
                 >
                   View pipeline
                 </Link>
@@ -158,20 +204,27 @@ export function JobDetailPage() {
                   Close job
                 </Button>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {requirements.map((req) => (
-                <span
-                  key={req.id}
-                  className={`rounded-full border px-2.5 py-0.5 text-xs ${
-                    req.is_required ? "border-[var(--rule)]/20 bg-[var(--panel)] text-[var(--ink)]" : "border-[var(--rule)] bg-[var(--panel)] text-[var(--slate)]"
-                  }`}
-                >
-                  {req.skill_name} ({req.min_proficiency}){req.is_required ? "" : " · nice-to-have"}
-                </span>
-              ))}
-            </div>
-          </div>
+            }
+          >
+            {requirements.length === 0 ? (
+              <p className="text-sm text-[var(--slate)]">No requirements confirmed yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {requirements.map((req) => (
+                  <span
+                    key={req.id}
+                    className={`rounded-full border px-2.5 py-0.5 text-xs ${
+                      req.is_required
+                        ? "border-[var(--rule)] bg-[var(--panel-raised)] font-medium text-[var(--ink)]"
+                        : "border-[var(--rule)] bg-[var(--panel)] text-[var(--slate)]"
+                    }`}
+                  >
+                    {req.skill_name} ({req.min_proficiency}){req.is_required ? "" : " · nice-to-have"}
+                  </span>
+                ))}
+              </div>
+            )}
+          </Card>
 
           <div>
             <h2 className="mb-3 font-display text-lg font-semibold text-[var(--ink)]">Matched candidates</h2>
@@ -187,11 +240,11 @@ export function JobDetailPage() {
       ) : null}
 
       {job.status === "closed" ? (
-        <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6 text-center">
+        <Surface className="p-6 text-center">
           <p className="text-sm text-[var(--slate)]">This job is closed and no longer matched to candidates.</p>
           <Button
             type="button"
-            className="mt-4"
+            className="mt-4 bg-gt-electric hover:bg-gt-electric/90"
             onClick={() =>
               reopenJob.mutate(undefined, { onSuccess: () => showToast("Job reopened.", "success") })
             }
@@ -199,7 +252,7 @@ export function JobDetailPage() {
           >
             Reopen job
           </Button>
-        </div>
+        </Surface>
       ) : null}
     </div>
   );

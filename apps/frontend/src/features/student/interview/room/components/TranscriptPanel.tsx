@@ -47,32 +47,52 @@ export function TranscriptPanel({ open, transcript, interim, onClose }: Transcri
 
   return (
     <aside
-      className="flex w-full max-w-sm shrink-0 flex-col border-l border-[var(--room-rule)] bg-[var(--room-panel)]"
+      className={[
+        "flex w-full max-w-sm shrink-0 flex-col border-l border-[var(--room-rule)] bg-[var(--room-panel)]",
+        // On laptop the panel sits beside the stage; on a tablet it would
+        // squeeze the interviewer into a strip, so below `lg` it overlays
+        // instead. Same component, same props — only the placement changes.
+        "max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-30 max-lg:w-[min(22rem,88vw)] max-lg:border-l max-lg:shadow-[-24px_0_64px_-24px_rgb(0_0_0/0.9)]",
+      ].join(" ")}
       aria-label="Interview transcript"
     >
       <div className="flex items-center justify-between border-b border-[var(--room-rule)] px-4 py-3">
-        <p className="text-sm font-medium text-[var(--room-ink)]">Transcript</p>
+        <p className="text-sm font-medium text-[var(--room-ink)]">
+          Transcript
+          {transcript.length > 0 ? (
+            <span className="ml-2 text-xs font-normal tabular-nums text-[var(--room-muted)]">
+              {transcript.length} {transcript.length === 1 ? "turn" : "turns"}
+            </span>
+          ) : null}
+        </p>
         <button
           type="button"
           onClick={onClose}
           aria-label="Hide transcript"
-          className="rounded-full p-1 text-[var(--room-slate)] transition-colors hover:bg-[var(--room-raised)] hover:text-[var(--room-ink)]"
+          className="rounded-full p-1.5 text-[var(--room-slate)] transition-colors hover:bg-[var(--room-raised)] hover:text-[var(--room-ink)]"
         >
           <X size={16} />
         </button>
       </div>
 
-      <div data-selectable className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div data-selectable className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
         {transcript.length === 0 ? (
-          <p className="text-sm text-[var(--room-muted)]">
-            The conversation will appear here as it happens.
-          </p>
+          <div className="flex flex-col items-start gap-1.5 pt-2">
+            <p className="text-sm font-medium text-[var(--room-ink)]">Nothing yet</p>
+            <p className="text-sm leading-relaxed text-[var(--room-muted)]">
+              The conversation will appear here as it happens — what the room hears is what
+              gets scored.
+            </p>
+          </div>
         ) : null}
 
         {transcript.map((turn) => (
           <div key={turn.id} className="space-y-1">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--room-muted)]">
-              {turn.role === "interviewer" ? "Interviewer" : "You"}
+            <p className="flex flex-wrap items-baseline gap-x-2 text-[11px] font-medium uppercase tracking-wide text-[var(--room-muted)]">
+              <span>{turn.role === "interviewer" ? "Interviewer" : "You"}</span>
+              <span className="machine normal-case tracking-normal">
+                {new Date(turn.spoken_at).toLocaleTimeString()}
+              </span>
             </p>
             <p
               className={[

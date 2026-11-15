@@ -2,8 +2,10 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge, MatchTimestamps } from "@/components";
+import { Surface } from "@/design/Surface";
 
 import type { MatchedCandidate, SkillMatchReason } from "../api/jobsApi";
+import { MatchScore } from "./MatchScore";
 
 function SkillReasonChip({ reason }: { reason: SkillMatchReason }) {
   return (
@@ -45,7 +47,8 @@ export function MatchedCandidatesList({ candidates }: { candidates: MatchedCandi
   return (
     <ul className="space-y-3">
       {candidates.map((match) => (
-        <li key={match.candidate.candidate_profile_id} className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
+        <li key={match.candidate.candidate_profile_id}>
+          <Surface className="p-5">
           <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
             <div>
               <Link
@@ -61,7 +64,10 @@ export function MatchedCandidatesList({ candidates }: { candidates: MatchedCandi
               </p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-semibold tabular-nums text-[var(--ink)]">{match.match_score.toFixed(0)}</p>
+              {/* The score band is the sanctioned `gt-electric` crossing:
+                  electric above 70%, slate below — never green/red, which
+                  are reserved for pipeline outcomes. */}
+              <MatchScore score={match.match_score} size="lg" withLabel={false} />
               <p className="text-xs text-[var(--muted)]">match score</p>
             </div>
           </div>
@@ -98,6 +104,7 @@ export function MatchedCandidatesList({ candidates }: { candidates: MatchedCandi
               </div>
             </div>
           ) : null}
+          </Surface>
         </li>
       ))}
     </ul>

@@ -1,5 +1,5 @@
 import { isAxiosError } from "axios";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -254,20 +254,27 @@ export function InterviewRoomPage() {
 
   if (stage === "finished") {
     return shell(
-      <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="font-display text-xl font-semibold">That&apos;s everything — thank you.</p>
-        <p className="max-w-md text-sm leading-relaxed text-[var(--room-slate)]">
-          {status === "failed"
-            ? "This attempt ran into a problem. You can see what happened on the interview page."
-            : "Your conversation is being reviewed against the same repository analysis the questions came from. Your report will be ready in a moment."}
-        </p>
-        <button
-          type="button"
-          onClick={leave}
-          className="mt-2 rounded-[var(--r-md)] bg-[var(--room-accent)] px-6 py-2.5 text-sm font-semibold text-[#04060f] transition-[filter] hover:brightness-110"
-        >
-          Leave the room
-        </button>
+      <div className="flex h-full flex-col items-center justify-center px-6 py-10 text-center">
+        <div className="w-full max-w-md rounded-[var(--r-lg)] border border-[var(--room-rule)] bg-[var(--room-panel)] p-8 sm:p-10">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--room-accent-dim)] text-[var(--room-accent)]">
+            <CheckCircle2 size={26} aria-hidden="true" />
+          </span>
+          <p className="mt-5 font-display text-xl font-semibold text-[var(--room-ink)]">
+            That&apos;s everything — thank you.
+          </p>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[var(--room-slate)]">
+            {status === "failed"
+              ? "This attempt ran into a problem. You can see what happened on the interview page."
+              : "Your conversation is being reviewed against the same repository analysis the questions came from. Your report will be ready in a moment."}
+          </p>
+          <button
+            type="button"
+            onClick={leave}
+            className="mt-6 h-12 rounded-[var(--r-md)] bg-[var(--room-accent)] px-7 text-sm font-semibold text-[#04060f] transition-[filter] hover:brightness-110"
+          >
+            {status === "failed" ? "Back to the interview page" : "Leave the room"}
+          </button>
+        </div>
       </div>,
     );
   }

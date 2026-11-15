@@ -1,9 +1,11 @@
 import { isAxiosError } from "axios";
-import { GitFork, Star } from "lucide-react";
+import { Check, GitFork, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button, Skeleton, useToast } from "@/components";
 import { cn } from "@/lib/utils";
+
+import { VerificationBadge } from "../../components/SectionBadges";
 
 import { useGithubRepos, useSelectGithubRepos } from "../../hooks/useGithubRepos";
 import { useProjectsSection, useSaveProjects } from "../../hooks/useProfileSection";
@@ -137,7 +139,7 @@ export function StageProjectsPage() {
           <Skeleton className="h-16 w-full rounded-xl" />
         </div>
       ) : repos.isError ? (
-        <p role="alert" className="text-sm text-rejected">
+        <p role="alert" className="text-sm text-[var(--failed)]">
           {getProfileErrorMessage(repos.error, "Could not load your repositories.")}
         </p>
       ) : (
@@ -153,27 +155,45 @@ export function StageProjectsPage() {
             {repos.data?.map((repo) => {
               const checked = selected.includes(repo.full_name);
               const disabled = !checked && selected.length >= MAX_REPOS;
+              // A repo already linked on the server carries its verification
+              // outcome — show it on the card rather than only after submit.
+              const linkedProject = linked.find(
+                (project) => repoFullName(project.repo_url) === repo.full_name,
+              );
 
               return (
                 <li key={repo.full_name}>
                   <label
                     title={disabled ? "Up to 3 projects for now — you can add more after verification." : undefined}
                     className={cn(
-                      "flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition",
-                      checked ? "border-[var(--rule)] bg-[var(--panel)]" : "border-[var(--rule)] bg-[var(--panel)]",
+                      "flex cursor-pointer items-start gap-3 rounded-[var(--r-md)] border p-3.5 transition",
+                      checked
+                        ? "border-[var(--violet)] bg-[var(--violet)]/10 shadow-[var(--shadow-sm)]"
+                        : "border-[var(--rule)] bg-[var(--panel)] hover:border-[var(--violet)]/40",
                       disabled && "cursor-not-allowed opacity-50",
                     )}
                   >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition",
+                        checked
+                          ? "border-[var(--violet)] bg-[var(--violet)] text-white"
+                          : "border-[var(--rule)] bg-[var(--panel)] text-transparent",
+                      )}
+                    >
+                      <Check size={12} strokeWidth={3} />
+                    </span>
                     <input
                       type="checkbox"
-                      className="mt-1"
+                      className="sr-only"
                       checked={checked}
                       disabled={disabled}
                       onChange={() => toggle(repo.full_name)}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 truncate text-sm font-medium text-[var(--ink)]">
-                        {repo.full_name}
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-[var(--ink)]">
+                        <span className="machine truncate">{repo.full_name}</span>
                         {repo.fork ? (
                           <GitFork size={12} className="shrink-0 text-[var(--muted)]" aria-hidden="true" />
                         ) : null}
@@ -187,7 +207,17 @@ export function StageProjectsPage() {
                           <span>Updated {new Date(repo.updated_at).toLocaleDateString()}</span>
                         ) : null}
                       </p>
+                      {repo.description ? (
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--slate)]">
+                          {repo.description}
+                        </p>
+                      ) : null}
                     </div>
+                    {linkedProject ? (
+                      <span className="shrink-0">
+                        <VerificationBadge status={linkedProject.verification_status} />
+                      </span>
+                    ) : null}
                   </label>
 
                   {checked ? (
@@ -226,7 +256,7 @@ export function StageProjectsPage() {
           </ul>
 
           {error ? (
-            <p role="alert" className="text-xs text-rejected">
+            <p role="alert" className="text-xs text-[var(--failed)]">
               {error}
             </p>
           ) : null}

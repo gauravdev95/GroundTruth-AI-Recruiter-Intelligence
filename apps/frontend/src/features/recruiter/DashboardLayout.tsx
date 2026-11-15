@@ -1,6 +1,6 @@
 import { BarChart3, Briefcase, LayoutDashboard } from "lucide-react";
 
-import { DashboardShell, type DashboardNavItem } from "@/components";
+import { DashboardShell, type DashboardNavItem, ThemeToggle } from "@/components";
 import { useAuthContext } from "@/features/auth";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { NotificationBell } from "@/features/notifications";
@@ -27,7 +27,16 @@ export function RecruiterDashboardLayout() {
       userEmail={user?.email ?? ""}
       onLogout={() => logout.mutate()}
       isLoggingOut={logout.isPending}
-      headerExtra={<NotificationBell applicationHref={(id) => `/recruiter/applications/${id}`} />}
+      // Collapsible rail (Phase 4, opt-in) and the theme toggle in the
+      // header, matching the student dashboard — the recruiter header is
+      // the toggle's home, per the Phase 2 note on the component itself.
+      collapsible
+      headerExtra={
+        <>
+          <ThemeToggle />
+          <NotificationBell applicationHref={(id) => `/recruiter/applications/${id}`} />
+        </>
+      }
     />
   );
 }

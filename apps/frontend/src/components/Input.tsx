@@ -5,6 +5,9 @@ import { cn } from "@/lib/utils";
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  /** Helper text shown under the field. Never shown together with `error` —
+   * an error replaces the hint, so the two cannot contradict each other. */
+  hint?: string;
   error?: string;
 }
 
@@ -25,7 +28,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
  * which field is active without drawing a second ring around it.
  */
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, className, id, ...props },
+  { label, hint, error, className, id, ...props },
   ref,
 ) {
   const generatedId = useId();
@@ -43,7 +46,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         ref={ref}
         id={inputId}
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${inputId}-error` : undefined}
+        aria-describedby={
+          error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
+        }
         className={cn(
           "w-full rounded-[var(--r-sm)] border bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--ink)]",
           "placeholder:text-[var(--muted)] transition-colors duration-150",
@@ -61,6 +66,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       {error ? (
         <p id={`${inputId}-error`} role="alert" className="text-xs text-[var(--failed)]">
           {error}
+        </p>
+      ) : hint ? (
+        <p id={`${inputId}-hint`} className="text-xs text-[var(--muted)]">
+          {hint}
         </p>
       ) : null}
     </div>

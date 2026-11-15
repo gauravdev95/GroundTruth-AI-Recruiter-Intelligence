@@ -12,10 +12,22 @@ export function CandidateEvidencePage() {
   if (!candidateProfileId) return null;
 
   return (
-    <div className="space-y-4">
-      <Link to="/recruiter/jobs" className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] hover:text-[var(--ink)]">
+    <div className="space-y-6">
+      <Link to="/recruiter/jobs" className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] transition hover:text-[var(--ink)]">
         <ArrowLeft size={14} aria-hidden="true" /> Back to jobs
       </Link>
+
+      <header>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">
+          Candidate evidence
+        </h1>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--slate)]">
+          Everything GroundTruth has independently checked about this candidate — verified
+          repositories, coding accounts, certificates and code-grounded interviews — read from
+          their stored verification records. Nothing here is narrated or estimated.
+        </p>
+      </header>
+
       <EvidenceCard candidateProfileId={candidateProfileId} />
     </div>
   );

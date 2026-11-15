@@ -1,6 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import { BadgeCheck, GripVertical } from "lucide-react";
 
+import { Badge } from "@/components";
 import { cn } from "@/lib/utils";
 
 import { MatchScore } from "../../components/MatchScore";
@@ -36,6 +37,19 @@ export interface CandidateCardProps {
   isOverlay?: boolean;
 }
 
+/** The stage a card is in, in the recruiter's words. The column already
+ * says it, but a card dragged out of context — in the overlay, or after a
+ * column scrolls — should still name where it stands. `hired` / `rejected`
+ * reuse the board's own outcome colours (verified / failed); the in-flight
+ * stages stay neutral, because a stage is not a verdict. */
+const STAGE_LABELS: Record<ApplicationStatus, string> = {
+  applied: "Applied",
+  shortlisted: "Shortlisted",
+  interview_scheduled: "Interviewing",
+  hired: "Hired",
+  rejected: "Closed",
+};
+
 export function CandidateCard({
   card,
   onOpen,
@@ -55,13 +69,16 @@ export function CandidateCard({
     <div
       ref={isOverlay ? undefined : setNodeRef}
       className={cn(
-        "group relative rounded-xl border bg-[var(--panel)] p-2.5 transition",
-        selected ? "border-gt-electric ring-1 ring-gt-electric/30" : "border-[var(--rule)] hover:border-[var(--violet)]/40",
+        "group relative rounded-[var(--r-md)] border bg-[var(--panel)] p-3 transition",
+        "hover:-translate-y-px hover:border-gt-electric/30 hover:shadow-[var(--shadow-panel)]",
+        selected
+          ? "border-gt-electric ring-1 ring-gt-electric/30 shadow-[var(--shadow-panel)]"
+          : "border-[var(--rule)]",
         // The original stays in place at low opacity rather than being
         // removed: a column that reflows the instant you pick a card up moves
         // the drop target out from under the cursor.
         isDragging && !isOverlay ? "opacity-40" : null,
-        isOverlay ? "cursor-grabbing shadow-raised" : null,
+        isOverlay ? "cursor-grabbing shadow-[var(--shadow-raised)]" : null,
         isNew ? "animate-slide-up" : null,
       )}
     >
@@ -72,7 +89,7 @@ export function CandidateCard({
             {...attributes}
             {...listeners}
             aria-label={`Move ${card.headline ?? "candidate"}`}
-            className="-ml-1 mt-0.5 shrink-0 cursor-grab touch-none rounded p-0.5 text-[var(--muted)] opacity-0 transition hover:text-[var(--slate)] focus-visible:opacity-100 group-hover:opacity-100"
+            className="-ml-1 mt-1 shrink-0 cursor-grab touch-none rounded p-0.5 text-[var(--muted)] opacity-0 transition hover:text-[var(--slate)] focus-visible:opacity-100 group-hover:opacity-100"
           >
             <GripVertical size={13} aria-hidden="true" />
           </button>
@@ -83,13 +100,13 @@ export function CandidateCard({
           <div className="flex items-center gap-1.5">
             <span
               aria-hidden="true"
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--panel)] text-[10px] font-semibold text-[var(--slate)]"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gt-electric/10 text-[11px] font-semibold text-gt-electric"
             >
               {initialsFrom(card.headline)}
             </span>
             {card.isVerified ? (
               <BadgeCheck
-                size={13}
+                size={14}
                 className="shrink-0 text-[var(--verified)]"
                 aria-label="Verified — evidence and a completed interview"
               />
@@ -104,20 +121,38 @@ export function CandidateCard({
           <button
             type="button"
             onClick={() => onOpen(card)}
-            className="mt-1.5 block w-full truncate text-left text-[13px] font-medium text-[var(--ink)] hover:underline"
+            className="mt-2 block w-full truncate text-left text-[13px] font-medium text-[var(--ink)] hover:text-gt-electric hover:underline"
             title={card.headline ?? undefined}
           >
             {card.headline ?? "Candidate"}
           </button>
 
-          {/* Row 3 — top matched skills. */}
+          {/* Row 3 — current stage, where one exists. Matched candidates
+              have no application and therefore no stage. */}
+          {card.status ? (
+            <div className="mt-1.5">
+              <Badge
+                variant={
+                  card.status === "hired"
+                    ? "verified"
+                    : card.status === "rejected"
+                      ? "rejected"
+                      : "neutral"
+                }
+              >
+                {STAGE_LABELS[card.status]}
+              </Badge>
+            </div>
+          ) : null}
+
+          {/* Row 4 — top matched skills. */}
           {card.matchedSkills.length > 0 ? (
-            <p className="mt-1 truncate text-[11px] text-[var(--slate)]" title={card.matchedSkills.join(" · ")}>
+            <p className="mt-1.5 truncate text-[11px] text-[var(--slate)]" title={card.matchedSkills.join(" · ")}>
               {card.matchedSkills.join(" · ")}
             </p>
           ) : null}
 
-          {/* Row 4 — the reasoning string, verbatim from the server. */}
+          {/* Row 5 — the reasoning string, verbatim from the server. */}
           {card.reasoning ? (
             <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--muted)]">{card.reasoning}</p>
           ) : null}

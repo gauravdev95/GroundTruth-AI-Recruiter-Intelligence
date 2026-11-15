@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { Button, ErrorState, Skeleton, useToast } from "@/components";
+import { Reveal, Surface } from "@/design";
 
 import type { SectionCacheKey } from "../api/profileApi";
 import { DiscoverabilityBanner } from "../components/DiscoverabilityBanner";
@@ -66,23 +67,32 @@ export function ProfileBuilderPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">Your profile</h1>
-        <p className="mt-1 text-sm text-[var(--slate)]">
-          Each section saves on its own — you can finish this over several sittings.
-        </p>
-      </header>
+      <Reveal trigger="mount">
+        <header>
+          <p className="text-xs font-semibold uppercase tracking-[var(--tracking-overline)] text-[var(--muted)]">
+            Your profile
+          </p>
+          <h1 className="mt-1 font-display text-2xl font-semibold text-[var(--ink)] sm:text-[var(--fs-h1)]">
+            Build your verified profile
+          </h1>
+          <p className="mt-1 text-sm text-[var(--slate)]">
+            Each section saves on its own — you can finish this over several sittings.
+          </p>
+        </header>
+      </Reveal>
 
       <DiscoverabilityBanner completeness={completeness.data} />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)]">
+        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           <ProfileStrengthMeter completeness={completeness.data} />
-          <ProfileStepper
-            completeness={completeness.data}
-            activeSection={activeSection}
-            onSelect={setActiveSection}
-          />
+          <Surface className="p-3">
+            <ProfileStepper
+              completeness={completeness.data}
+              activeSection={activeSection}
+              onSelect={setActiveSection}
+            />
+          </Surface>
         </aside>
 
         <div className="min-w-0">

@@ -11,6 +11,8 @@ export interface SelectOption {
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
+  /** Helper text shown under the field; replaced by `error` when one exists. */
+  hint?: string;
   error?: string;
   options: SelectOption[];
   placeholder?: string;
@@ -28,7 +30,7 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
  * list onto a dark page.
  */
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, error, options, placeholder, className, id, ...props },
+  { label, hint, error, options, placeholder, className, id, ...props },
   ref,
 ) {
   const generatedId = useId();
@@ -47,7 +49,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           ref={ref}
           id={selectId}
           aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${selectId}-error` : undefined}
+          aria-describedby={
+            error ? `${selectId}-error` : hint ? `${selectId}-hint` : undefined
+          }
           className={cn(
             "w-full appearance-none rounded-[var(--r-sm)] border bg-[var(--surface)] px-4 py-2.5 pr-9 text-sm text-[var(--ink)]",
             "transition-colors duration-150",
@@ -80,6 +84,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       {error ? (
         <p id={`${selectId}-error`} role="alert" className="text-xs text-[var(--failed)]">
           {error}
+        </p>
+      ) : hint ? (
+        <p id={`${selectId}-hint`} className="text-xs text-[var(--muted)]">
+          {hint}
         </p>
       ) : null}
     </div>

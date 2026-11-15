@@ -105,6 +105,25 @@ export default {
         grotesk: ["Space Grotesk", "Archivo", "system-ui", "sans-serif"],
       },
       /**
+       * Elevation and radius as Tailwind utilities, reading the same tokens
+       * `Surface` and the components use directly (`shadow-[var(--shadow-panel)]`
+       * still works; `shadow-panel` is the shorter spelling for later phases).
+       * `borderRadius` extends rather than replaces, so `rounded-2xl`/`rounded-3xl`
+       * keep their defaults and only the token steps are re-pointed.
+       */
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        panel: "var(--shadow-panel)",
+        raised: "var(--shadow-raised)",
+      },
+      borderRadius: {
+        xs: "var(--r-xs)",
+        sm: "var(--r-sm)",
+        md: "var(--r-md)",
+        lg: "var(--r-lg)",
+        xl: "var(--r-xl)",
+      },
+      /**
        * Fluid type for the landing page. Every size the brief specifies as a
        * desktop/mobile pair is expressed as one clamp instead, so the type
        * scales through the range rather than snapping at a breakpoint — the
@@ -143,6 +162,29 @@ export default {
         "gt-over": ["0.875rem", { lineHeight: "1", letterSpacing: "0.12em" }],
         /* The hero's orange overline is smaller and wider than the rest. */
         "gt-over-hero": ["0.75rem", { lineHeight: "1", letterSpacing: "0.15em" }],
+        /*
+         * The app's type scale. Sizes and leading read the custom properties
+         * in `design/tokens.css`, so the scale has one source and these
+         * classes are spellings of it. Pairing rule (also in tokens.css):
+         * `app-display` / `app-h1` / `app-h2` / `app-h3` are set in
+         * `font-display` (Archivo); `app-body` / `app-body-sm` /
+         * `app-caption` are Inter, the default. `app-overline` is uppercase
+         * with wide tracking, always a label, never a sentence.
+         */
+        "app-display": [
+          "var(--fs-display)",
+          { lineHeight: "var(--lh-display)", letterSpacing: "-0.02em" },
+        ],
+        "app-h1": ["var(--fs-h1)", { lineHeight: "var(--lh-h1)", letterSpacing: "-0.02em" }],
+        "app-h2": ["var(--fs-h2)", { lineHeight: "var(--lh-h2)", letterSpacing: "-0.01em" }],
+        "app-h3": ["var(--fs-h3)", { lineHeight: "var(--lh-h3)", letterSpacing: "-0.01em" }],
+        "app-body": ["var(--fs-body)", { lineHeight: "var(--lh-body)" }],
+        "app-body-sm": ["var(--fs-body-sm)", { lineHeight: "var(--lh-body-sm)" }],
+        "app-caption": ["var(--fs-caption)", { lineHeight: "var(--lh-caption)" }],
+        "app-overline": [
+          "var(--fs-overline)",
+          { lineHeight: "var(--lh-overline)", letterSpacing: "var(--tracking-overline)" },
+        ],
       },
       keyframes: {
         "fade-in": {

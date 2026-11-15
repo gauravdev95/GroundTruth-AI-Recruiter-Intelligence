@@ -1,11 +1,13 @@
-import { LogOut, Menu, X } from "lucide-react";
+import { ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Backdrop } from "@/design/Surface";
 import { cn } from "@/lib/utils";
+
+import { Dropdown, type DropdownEntry } from "./Dropdown";
 
 export interface DashboardNavItem {
   label: string;
@@ -23,6 +25,17 @@ export interface DashboardShellProps {
    * Optional so non-dashboard consumers of this shell aren't forced to wire
    * one in. */
   headerExtra?: ReactNode;
+  /**
+   * Collapse the desktop rail to icons only. Opt-in per dashboard: the
+   * student dashboard offers it (long pages, small laptop screens); the
+   * recruiter dashboard keeps the full rail until its own phase decides.
+   * The choice persists in localStorage, not in state that resets per visit.
+   */
+  collapsible?: boolean;
+  /** Where "Your profile" in the user menu goes. Absent, the menu is just
+   * sign-out — a shell that does not know its own profile route must not
+   * guess one. */
+  profileHref?: string;
 }
 
 /**
@@ -54,9 +67,25 @@ export function DashboardShell({
   onLogout,
   isLoggingOut,
   headerExtra,
+  collapsible = false,
+  profileHref,
 }: DashboardShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  // Desktop-only; the mobile sheet is always full-width. Read lazily so a
+  // stored choice applies on the first paint rather than after a re-render.
+  const [railCollapsed, setRailCollapsed] = useState(
+    () => collapsible && window.localStorage.getItem("gt:rail-collapsed") === "1",
+  );
+
+  function toggleRail() {
+    setRailCollapsed((current) => {
+      const next = !current;
+      window.localStorage.setItem("gt:rail-collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
 
   /*
    * The sheet closes on navigation. Previously each NavLink closed it in its
@@ -90,16 +119,22 @@ export function DashboardShell({
     };
   }, [mobileNavOpen]);
 
-  const nav = (
-    <nav className="flex flex-1 flex-col gap-0.5 px-3 py-4">
+  // One nav, two widths. The mobile sheet always renders the full labels;
+  // the desktop rail hides them when collapsed, keeping the icon, the active
+  // rail and a `title`/`aria-label` so the item is still identifiable.
+  const renderNav = (collapsed: boolean) => (
+    <nav className={cn("flex flex-1 flex-col gap-0.5 py-4", collapsed ? "items-center px-2" : "px-3")}>
       {navItems.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
           end
+          title={collapsed ? item.label : undefined}
+          aria-label={collapsed ? item.label : undefined}
           className={({ isActive }) =>
             cn(
-              "relative flex items-center gap-3 rounded-[var(--r-sm)] px-3 py-2.5 text-sm font-medium",
+              "relative flex items-center gap-3 rounded-[var(--r-sm)] py-2.5 text-sm font-medium",
+              collapsed ? "justify-center px-2.5" : "px-3",
               "transition-colors duration-150",
               isActive
                 ? /*
@@ -123,12 +158,67 @@ export function DashboardShell({
                 />
               ) : null}
               <item.icon size={18} aria-hidden="true" />
-              {item.label}
+              {collapsed ? null : item.label}
             </>
           )}
         </NavLink>
       ))}
     </nav>
+  );
+
+  const nav = renderNav(false);
+
+  // The user menu: avatar trigger, profile link, sign-out. The old bare
+  // logout icon is gone — a header action that ends the session deserves a
+  // named menu item, and the avatar is where a signed-in user looks for one.
+  const userMenuItems: DropdownEntry[] = [
+    ...(profileHref
+      ? [
+          {
+            id: "profile",
+            label: "Your profile",
+            icon: UserRound,
+            onSelect: () => navigate(profileHref),
+          } satisfies DropdownEntry,
+        ]
+      : []),
+    ...(profileHref ? [{ type: "separator", id: "sep" } satisfies DropdownEntry] : []),
+    {
+      id: "logout",
+      label: isLoggingOut ? "Signing out…" : "Sign out",
+      icon: LogOut,
+      danger: true,
+      disabled: isLoggingOut,
+      onSelect: onLogout,
+    },
+  ];
+
+  const userMenu = (
+    <Dropdown
+      align="end"
+      items={userMenuItems}
+      trigger={(props) => (
+        <button
+          type="button"
+          {...props}
+          className="flex items-center gap-2 rounded-[var(--r-sm)] py-1 pl-1 pr-1.5 transition-colors hover:bg-[var(--panel)] sm:pr-2"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--violet)] text-sm font-semibold text-white"
+          >
+            {userName.slice(0, 1).toUpperCase() || "?"}
+          </span>
+          <span className="hidden text-right sm:block">
+            <span className="block text-sm font-medium leading-tight text-[var(--ink)]">{userName}</span>
+            <span className="block max-w-[12rem] truncate text-xs leading-tight text-[var(--muted)]">
+              {userEmail}
+            </span>
+          </span>
+          <ChevronDown size={15} className="hidden text-[var(--muted)] sm:block" aria-hidden="true" />
+        </button>
+      )}
+    />
   );
 
   const brand = (
@@ -143,9 +233,45 @@ export function DashboardShell({
 
       {/* Sticky and viewport-tall, so the nav stays reachable on a long
           dashboard instead of scrolling off the top with the content. */}
-      <aside className="sticky top-0 hidden h-screen w-[var(--rail-w)] flex-col border-r border-[var(--rule)] bg-[var(--surface)] lg:flex">
-        <div className="flex h-[var(--nav-h)] items-center px-5">{brand}</div>
-        {nav}
+      <aside
+        className={cn(
+          "sticky top-0 hidden h-screen flex-col border-r border-[var(--rule)] bg-[var(--surface)] transition-[width] duration-200 lg:flex",
+          railCollapsed ? "w-16" : "w-[var(--rail-w)]",
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-[var(--nav-h)] shrink-0 items-center",
+            railCollapsed ? "justify-center px-2" : "justify-between px-5",
+          )}
+        >
+          {railCollapsed ? (
+            <span
+              aria-hidden="true"
+              className="flex size-9 items-center justify-center rounded-[var(--r-sm)] bg-[var(--violet)] font-display text-base font-bold text-white"
+            >
+              G
+            </span>
+          ) : (
+            brand
+          )}
+          {collapsible ? (
+            <button
+              type="button"
+              onClick={toggleRail}
+              aria-label={railCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={railCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="rounded-[var(--r-sm)] p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--panel)] hover:text-[var(--ink)]"
+            >
+              {railCollapsed ? (
+                <PanelLeftOpen size={18} aria-hidden="true" />
+              ) : (
+                <PanelLeftClose size={18} aria-hidden="true" />
+              )}
+            </button>
+          ) : null}
+        </div>
+        {renderNav(railCollapsed)}
       </aside>
 
       {mobileNavOpen ? (
@@ -194,23 +320,7 @@ export function DashboardShell({
           <div className="hidden lg:block" />
           <div className="flex items-center gap-1.5 sm:gap-3">
             {headerExtra}
-            <div className="hidden text-right sm:block">
-              <div className="text-sm font-medium text-[var(--ink)]">{userName}</div>
-              <div className="text-xs text-[var(--muted)]">{userEmail}</div>
-            </div>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--violet)] text-sm font-semibold text-white">
-              {userName.slice(0, 1).toUpperCase() || "?"}
-            </div>
-            <button
-              type="button"
-              onClick={onLogout}
-              disabled={isLoggingOut}
-              aria-label="Log out"
-              title="Log out"
-              className="rounded-[var(--r-sm)] p-2 text-[var(--muted)] transition-colors hover:bg-[var(--panel)] hover:text-[var(--ink)] disabled:opacity-60"
-            >
-              <LogOut size={18} />
-            </button>
+            {userMenu}
           </div>
         </header>
 

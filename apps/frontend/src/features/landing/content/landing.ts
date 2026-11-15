@@ -28,6 +28,13 @@
  *    on-page anchors and the footer carries no Blog, Careers, Roadmap,
  *    Privacy, Terms or social row. Those pages do not exist, and a footer
  *    column of dead links reads worse than a short footer.
+ *
+ * 5. Phase 3 (2026-11-15) restates the hero and nav in the redesign brief's
+ *    own words: the headline and supporting line are the brief's exact copy,
+ *    the nav carries the brief's five links, and How It Works is the brief's
+ *    five steps rather than the three the page previously summarised them as.
+ *    Nothing else in this file changed its meaning to fit that restyle — the
+ *    statistics, plans and team note are untouched.
  */
 
 /* ==================================================================
@@ -43,21 +50,22 @@ export interface NavLink {
  * On-page anchors, not routes. Each `href` matches the `id` of the section it
  * names; `Section` sets `scroll-mt` so a jump does not land under the nav.
  *
- * "Product" from the brief's list is dropped rather than pointed somewhere
- * arbitrary: there is no product page, and every other item here is a real
- * destination on this page.
+ * "Product" points at the preview section — the closest thing to a product
+ * page this app serves. "FAQ" from the earlier list is dropped to keep the
+ * nav to the brief's five links; the FAQ section is still one scroll away and
+ * linked from the footer.
  */
 export const NAV_LINKS: NavLink[] = [
-  { label: "How it works", href: "#how-it-works" },
-  { label: "For engineers", href: "#engineers" },
-  { label: "For recruiters", href: "#recruiters" },
+  { label: "Product", href: "#preview" },
+  { label: "For Engineers", href: "#engineers" },
+  { label: "For Recruiters", href: "#recruiters" },
+  { label: "How It Works", href: "#how-it-works" },
   { label: "Pricing", href: "#pricing" },
-  { label: "FAQ", href: "#faq" },
 ];
 
 export const NAV = {
-  logIn: { label: "Log in", href: "/login" },
-  cta: { label: "Get started", href: "/signup" },
+  logIn: { label: "Login", href: "/login" },
+  cta: { label: "Get Started", href: "/signup" },
   openMenu: "Open menu",
   closeMenu: "Close menu",
   skipToContent: "Skip to content",
@@ -70,25 +78,48 @@ export const NAV = {
 
 export const HERO = {
   overline: "AI-verified engineering talent",
-  /* Set as two stacked lines, so it is stored as two. */
-  wordmark: ["Ground", "Truth"] as const,
   /**
-   * The headline names the category before it makes a claim.
-   *
-   * The previous version opened with "Every skill proven by code" — a promise
-   * with no subject. A first-time visitor who has never heard of GroundTruth
-   * had to infer from a wordmark and an orange sphere what kind of thing they
-   * were looking at. "The hiring platform where…" answers that in four words,
-   * and the proof claim still lands in the same sentence.
+   * The headline and supporting line are the redesign brief's exact copy
+   * (Phase 3). The headline is the page's `<h1>`; the wordmark lockup the
+   * hero used to carry lives on in the nav, which already brands every
+   * scroll position.
    */
-  headline: "The hiring platform where every skill is proven by code.",
-  /** The second beat, kept from the original headline. */
-  support: "Every claim defended in interview.",
+  headline: "Skills deserve proof. Not just promises.",
+  support:
+    "GroundTruth AI verifies engineering skills through real code, authentic evidence, " +
+    "and intelligent technical interviews.",
   lead:
     "Adaptive AI interviews grounded in each candidate's real repositories — so recruiters " +
     "see proven builders, not polished resumes.",
-  primary: { label: "Get verified — free", href: "/signup" },
-  secondary: { label: "For recruiters", href: "#recruiters" },
+  primary: { label: "Get Started", href: "/signup" },
+  secondary: { label: "Explore the Platform", href: "#preview" },
+} as const;
+
+/**
+ * The three floating cards beside the hero copy.
+ *
+ * All three reuse figures the page already publishes as sample data (the
+ * evidence report's `payments-api · 312 commits`, the interview question) —
+ * no new number is introduced here, and each card carries the "Sample" chip
+ * so none of them reads as a real candidate.
+ */
+export const HERO_CARDS = {
+  repo: {
+    caption: "Sample",
+    repo: "payments-api",
+    status: "Repository verified",
+    detail: "312 commits analysed",
+  },
+  interview: {
+    caption: "Sample",
+    label: "AI interview",
+    detail: "Question grounded in your own code",
+  },
+  skill: {
+    caption: "Sample",
+    skill: "Rust",
+    detail: "Evidence-linked · payments-api",
+  },
 } as const;
 
 /**
@@ -134,6 +165,12 @@ export interface Stat {
   label: string;
 }
 
+export interface ProblemIssue {
+  icon: "file-warning" | "folder-git" | "shield-alert" | "timer";
+  headline: string;
+  body: string;
+}
+
 export const PROBLEM = {
   overline: "The hiring problem",
   headline: "Hiring runs on claims nobody verifies.",
@@ -141,6 +178,32 @@ export const PROBLEM = {
     "Resumes are AI-generated. GitHub graphs are fake-able in an afternoon. Coding tests are " +
     "cheated with off-screen AI. Recruiters spend the bulk of their time filtering noise. Real " +
     "engineers get missed. Everyone loses.",
+  /**
+   * The four failure modes, one line each. Every line is a sentence from the
+   * lead above, split out — no new claim is introduced here.
+   */
+  issues: [
+    {
+      icon: "file-warning",
+      headline: "Resume inflation",
+      body: "Resumes are AI-generated, and the claims in them go unchecked.",
+    },
+    {
+      icon: "folder-git",
+      headline: "Fake project claims",
+      body: "GitHub graphs are fake-able in an afternoon.",
+    },
+    {
+      icon: "shield-alert",
+      headline: "Unverified technical skills",
+      body: "Coding tests are cheated with off-screen AI.",
+    },
+    {
+      icon: "timer",
+      headline: "Inefficient recruitment",
+      body: "Recruiters spend the bulk of their time filtering noise.",
+    },
+  ] satisfies ProblemIssue[],
   /**
    * `countTo: null` on the third stat is deliberate. "1 in 4" is a ratio, and
    * animating it would mean counting one of its two numbers while the other sat
@@ -180,25 +243,39 @@ export interface Step {
 export const HOW_IT_WORKS = {
   overline: "How GroundTruth works",
   headline: "Evidence, not assertions.",
-  lead: "Three steps between signup and a verified engineering credential you can carry anywhere.",
+  lead: "Five steps between signup and a verified engineering credential you can carry anywhere.",
   steps: [
     {
       index: "01",
-      headline: "Connect your work.",
+      headline: "Build Your Profile",
+      body:
+        "Create your GroundTruth profile and tell us who you are as an engineer. It is a " +
+        "portable credential — built once, readable by every recruiter on the platform.",
+    },
+    {
+      index: "02",
+      headline: "Connect Your Evidence",
       body:
         "Link your GitHub, coding profiles, and projects. We analyze your actual code — " +
         "commits, contributions, architecture, code quality.",
     },
     {
-      index: "02",
-      headline: "Prove your skills in a personalized AI interview.",
+      index: "03",
+      headline: "Verify Your Skills",
+      body:
+        "Your skills are checked against the evidence behind them — commit history, " +
+        "contribution share, authorship signals — not against what you typed about yourself.",
+    },
+    {
+      index: "04",
+      headline: "Complete AI Interview",
       body:
         "Answer questions generated from your own code. Explain your decisions. Debug your own " +
         "systems. No LeetCode. No memorization. No generic questions.",
     },
     {
-      index: "03",
-      headline: "Get matched to jobs that fit.",
+      index: "05",
+      headline: "Match With Opportunities",
       body:
         "Recruiters see verified evidence. You see personalized matches. Both sides skip the " +
         "noise entirely.",
@@ -206,7 +283,7 @@ export const HOW_IT_WORKS = {
   ] satisfies Step[],
 } as const;
 
-/** The code sample in step 01's visual. Held here so no string lives in JSX. */
+/** The code sample in step 02's visual. Held here so no string lives in JSX. */
 export const STEP_ONE_SNIPPET = [
   { text: "async fn", tone: "keyword" },
   { text: " settle_batch", tone: "name" },
@@ -214,12 +291,12 @@ export const STEP_ONE_SNIPPET = [
   { text: " -> Result<Receipt> {", tone: "plain" },
 ] as const;
 
-/** Step 02's visual: a question the interviewer asks about that same code. */
+/** Step 04's visual: a question the interviewer asks about that same code. */
 export const STEP_TWO_QUESTION =
   "settle_batch takes a write lock for the whole batch. What happens when one settlement fails " +
   "halfway through?";
 
-/** Step 03's visual: the match strength on the connector between two cards. */
+/** Step 05's visual: the match strength on the connector between two cards. */
 export const STEP_THREE_MATCH = "98% match";
 
 /* ==================================================================

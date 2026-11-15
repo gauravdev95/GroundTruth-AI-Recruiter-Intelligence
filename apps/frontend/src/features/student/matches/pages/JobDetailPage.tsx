@@ -1,13 +1,15 @@
-import { ArrowLeft, Building2, Check, MapPin, X } from "lucide-react";
+import { ArrowLeft, Building2, CalendarClock, Check, MapPin, X } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
-import { ErrorState, MatchTimestamps, Skeleton } from "@/components";
-import { useCountUp } from "@/design/motion";
+import { Badge, ErrorState, MatchTimestamps, Skeleton } from "@/components";
 import { SmartApplyButton } from "@/features/student/applications/components/SmartApplyButton";
 import { useMyApplications } from "@/features/student/applications/hooks/useApplications";
 
 import type { MatchedJob, SkillMatchReason } from "../api/matchesApi";
+import { MatchScoreBreakdown } from "../components/MatchScoreBreakdown";
+import { MatchScoreRing } from "../components/MatchScoreRing";
 import { useJobFeed } from "../hooks/useJobFeed";
+import { formatJobLabel } from "../lib/feedFilters";
 
 /**
  * One requirement, with the student's own standing against it.
@@ -46,10 +48,18 @@ function RequirementRow({ skill, isRequired }: { skill: SkillMatchReason; isRequ
         </div>
       </div>
       {percent !== null ? (
-        <span className="tabular shrink-0 text-xs text-[var(--slate)]">{percent}%</span>
+        <span className="machine tabular shrink-0 text-xs text-[var(--slate)]">{percent}%</span>
       ) : null}
     </li>
   );
+}
+
+function formatDeadline(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 /**
@@ -65,6 +75,14 @@ function RequirementRow({ skill, isRequired }: { skill: SkillMatchReason; isRequ
  * dashboard already loaded (React Query serves it from cache on a click
  * through from the High Match card), and a job the student did not match
  * simply is not found, with no separate 403 path to get wrong.
+ *
+ * ## What is not here
+ *
+ * The posting carries one free-text `description` — no separate
+ * responsibilities or requirements fields — so there is no invented
+ * "Responsibilities" section. The description is the role overview, and
+ * the requirements are the matched-skills list below it, read from the
+ * same match row.
  */
 export function JobDetailPage() {
   const { jobId = "" } = useParams<{ jobId: string }>();
@@ -72,8 +90,6 @@ export function JobDetailPage() {
   const applications = useMyApplications();
 
   const match: MatchedJob | undefined = feed.data?.find((item) => item.job.job_id === jobId);
-  const score = Math.round(match?.match_score ?? 0);
-  const displayScore = Math.round(useCountUp(score));
 
   if (feed.isPending) {
     return (
@@ -119,10 +135,17 @@ export function JobDetailPage() {
         Your matches
       </Link>
 
-      <header className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+      <header className="rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-6 shadow-[var(--shadow-panel)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {match.tier === "smart_apply_recommended" ? (
+                <Badge variant="accent">High match</Badge>
+              ) : null}
+              <Badge variant="neutral">{formatJobLabel(match.job.job_type)}</Badge>
+              <Badge variant="neutral">{formatJobLabel(match.job.experience_level)}</Badge>
+            </div>
+            <h1 className="mt-3 font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">
               {match.job.title}
             </h1>
             <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-[var(--slate)]">
@@ -132,14 +155,17 @@ export function JobDetailPage() {
               <MapPin size={13} aria-hidden="true" />
               <span>{place}</span>
             </p>
-            <MatchTimestamps computedAt={match.computed_at} updatedAt={match.updated_at} />
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
+              <MatchTimestamps computedAt={match.computed_at} updatedAt={match.updated_at} />
+              {match.job.deadline ? (
+                <span className="inline-flex items-center gap-1">
+                  <CalendarClock size={12} aria-hidden="true" />
+                  Applications close {formatDeadline(match.job.deadline)}
+                </span>
+              ) : null}
+            </div>
           </div>
-          <div className="shrink-0 text-right">
-            <p className="tabular font-display text-3xl font-semibold text-[var(--blue)]">
-              {displayScore}%
-            </p>
-            <p className="text-[11px] uppercase tracking-wide text-[var(--muted)]">match</p>
-          </div>
+          <MatchScoreRing value={match.match_score} size={88} strokeWidth={7} />
         </div>
 
         <p className="mt-4 border-l-2 border-[var(--blue)] bg-[var(--blue)]/5 py-2.5 pl-3.5 pr-3 text-[13px] leading-relaxed text-[var(--slate)]">
@@ -154,10 +180,29 @@ export function JobDetailPage() {
             emphasis={match.tier === "smart_apply_recommended"}
             hasApplied={hasApplied}
           />
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            Smart Apply sends your verified evidence profile — one click, no forms, no resume
+            upload.
+          </p>
         </div>
       </header>
 
-      <section className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-6 shadow-[var(--shadow-panel)]">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--slate)]">
+          What your score is made of
+        </h2>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          Both parts come from the same match computation as the score above.
+        </p>
+        <div className="mt-4">
+          <MatchScoreBreakdown
+            semanticScore={match.semantic_score}
+            evidenceScore={match.evidence_score}
+          />
+        </div>
+      </section>
+
+      <section className="rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-6 shadow-[var(--shadow-panel)]">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--slate)]">
           How you score against the requirements
         </h2>
@@ -174,7 +219,7 @@ export function JobDetailPage() {
         </ul>
       </section>
 
-      <section className="rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-6 shadow-[var(--shadow-panel)]">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--slate)]">
           About the role
         </h2>

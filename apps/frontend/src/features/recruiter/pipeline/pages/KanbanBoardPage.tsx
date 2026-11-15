@@ -296,6 +296,34 @@ export function KanbanBoardPage() {
         </div>
       </header>
 
+      {/* Stage totals, derived from the same board response as the columns —
+          a recruiter scanning the header should not have to count cards. */}
+      <div className="flex flex-wrap items-center gap-1.5" aria-label="Pipeline totals">
+        {(
+          [
+            ["Matched", cards.matched.length],
+            ["Applied", cards.applied.length],
+            ["Shortlisted", cards.shortlisted.length],
+            ["Interviewing", cards.interviewing.length],
+            ["Hired", cards.hired.length],
+            ["Closed", cards.rejected.length],
+          ] as const
+        ).map(([label, count]) => (
+          <span
+            key={label}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--rule)] bg-[var(--panel)] px-2.5 py-1 text-xs text-[var(--slate)]"
+          >
+            {label}
+            <span className="tabular font-semibold text-[var(--ink)]">{count}</span>
+          </span>
+        ))}
+        {arrivals.size > 0 ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--violet)]/12 px-2.5 py-1 text-xs font-medium text-[var(--violet)]">
+            {arrivals.size} new since you opened this board
+          </span>
+        ) : null}
+      </div>
+
       <DndContext
         sensors={sensors}
         onDragStart={(event: DragStartEvent) =>

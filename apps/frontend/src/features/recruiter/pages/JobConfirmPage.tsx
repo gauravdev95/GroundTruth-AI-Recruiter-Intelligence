@@ -1,7 +1,7 @@
 import { AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
-import { Button, ErrorState, Skeleton, useToast } from "@/components";
+import { Badge, Button, Card, ErrorState, Skeleton, useToast } from "@/components";
 import { parseApiError } from "@/lib/apiError";
 
 import { ExtractionConfirmPanel } from "../components/ExtractionConfirmPanel";
@@ -127,13 +127,22 @@ export function JobConfirmPage() {
       {backLink}
 
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">{job.title}</h1>
+        <div>
+          <ol className="mb-2 flex flex-wrap items-center gap-2 text-xs" aria-label="Posting steps">
+            <li className="text-[var(--slate)]">Step 1 — Describe the role</li>
+            <li aria-hidden="true" className="text-[var(--muted)]">→</li>
+            <li>
+              <Badge variant="accent">Step 2 of 2 — Review &amp; publish</Badge>
+            </li>
+          </ol>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">{job.title}</h1>
+        </div>
         <p className="text-sm text-[var(--slate)]">Review extracted requirements</p>
       </header>
 
       <div
         role="alert"
-        className="flex items-start gap-2.5 rounded-lg bg-[var(--flagged)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--flagged)]"
+        className="flex items-start gap-2.5 rounded-[var(--r-md)] border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--flagged)]"
       >
         <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
         <p>
@@ -147,25 +156,26 @@ export function JobConfirmPage() {
           one — so the breakpoint is where two columns are genuinely usable,
           not where they first fit. */}
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-[var(--rule)] bg-[var(--panel)]">
-          <div className="border-b border-[var(--rule)] px-5 py-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--slate)]">
-              Your description
-            </h2>
-          </div>
+        <Card
+          title="Your description"
+          subtitle="What you wrote — the source the extraction was read from."
+        >
           {/* Capped and scrolled rather than allowed to run the page long:
               the right column must stay reachable without scrolling past a
               2,000-word posting. */}
-          <div className="max-h-[36rem] overflow-y-auto px-5 py-4 text-sm leading-relaxed text-[var(--slate)]">
+          <div className="max-h-[36rem] overflow-y-auto text-sm leading-relaxed text-[var(--slate)]">
             <MarkdownLite text={job.description} />
           </div>
-        </section>
+        </Card>
 
-        <section className="rounded-xl border border-[var(--rule)] bg-[var(--panel)]">
+        <section className="rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)]">
           <div className="border-b border-[var(--rule)] px-5 py-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--slate)]">
+            <h2 className="font-display text-base font-semibold tracking-tight text-[var(--ink)]">
               Extracted requirements
             </h2>
+            <p className="mt-0.5 text-sm text-[var(--slate)]">
+              What GroundTruth read out of it — edit before publishing.
+            </p>
           </div>
           <ExtractionConfirmPanel
             detail={detail.data}

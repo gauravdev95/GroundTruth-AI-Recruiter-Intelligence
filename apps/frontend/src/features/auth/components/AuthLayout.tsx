@@ -52,21 +52,15 @@ function BrandMark() {
 }
 
 /**
- * The card layout behind `/forgot-password`, `/reset-password` and the OAuth
- * callback.
+ * The card layout behind auth screens that do not need the hero.
  *
- * This is the seam the auth rebuild left open: `/login` and `/signup` moved to
- * the dark `AuthHero`, and these three stayed on a white card with a
- * `#D3DAE3` blueprint grid, so "Forgot password?" walked you out of the
- * product's visual world. It is now on the same tokens as the rest of the app
- * and shares the app's ambient `Backdrop`, which is what makes the transition
- * out of the hero read as one product rather than two.
- *
- * It is deliberately NOT converted into `AuthHero`. The hero is a full-height
- * animated aurora sized for a page a first-time visitor lands on with intent;
- * a password reset is a two-field errand, and wrapping it in the same
- * production would make the smallest task in the product look like the
- * biggest. Same tokens, same backdrop, quieter form.
+ * Phase 3 moved `/forgot-password`, `/reset-password` and the OAuth callback
+ * onto `AuthHero`, so no current page uses this layout. It is kept, on the
+ * same tokens as the rest of the app and sharing the app's ambient `Backdrop`,
+ * for any future low-ceremony auth screen — a password reset is a two-field
+ * errand, and wrapping every future one in the full-height animated aurora
+ * would make the smallest task in the product look like the biggest. Same
+ * tokens, same backdrop, quieter form.
  */
 export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
   return (

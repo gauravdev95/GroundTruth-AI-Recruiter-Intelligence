@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { useToast } from "@/components";
+import { Badge, useToast } from "@/components";
 import { parseApiError } from "@/lib/apiError";
 
 import { JobCreateForm, type JobDraft } from "../components/JobCreateForm";
@@ -52,6 +52,15 @@ export function JobCreatePage() {
       </Link>
 
       <header>
+        {/* The flow is two screens, and a recruiter mid-flow should always
+            know which one they are on and what the next one asks of them. */}
+        <ol className="mb-3 flex flex-wrap items-center gap-2 text-xs" aria-label="Posting steps">
+          <li>
+            <Badge variant="accent">Step 1 of 2 — Describe the role</Badge>
+          </li>
+          <li aria-hidden="true" className="text-[var(--muted)]">→</li>
+          <li className="text-[var(--slate)]">Step 2 — Review extracted requirements &amp; publish</li>
+        </ol>
         <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">New job posting</h1>
         <p className="mt-1 text-sm text-[var(--slate)]">
           Describe the role. GroundTruth reads the requirements out of it, and you confirm them

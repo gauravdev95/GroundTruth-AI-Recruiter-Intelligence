@@ -46,13 +46,18 @@ export function SelfView({
   }, [stream, videoRef]);
 
   const showVideo = cameraEnabled && !cameraLost && stream !== null;
+  const speaking = microphoneEnabled && level > 0.08;
 
   return (
     <div
       className={[
-        "relative w-[clamp(160px,18vw,248px)] overflow-hidden rounded-[var(--r-lg)]",
-        "border border-[var(--room-rule-strong)] bg-[var(--room-panel)]",
-        "shadow-[0_16px_48px_-20px_rgb(0_0_0/0.85)]",
+        "relative w-[clamp(144px,18vw,248px)] overflow-hidden rounded-[var(--r-lg)]",
+        "border bg-[var(--room-panel)]",
+        // The ring answers "am I being heard" at a glance: it lights while the
+        // candidate's own voice is above the noise floor, and is a plain
+        // hairline otherwise. Border colour only — no layout change.
+        speaking ? "border-[var(--room-accent)]" : "border-[var(--room-rule-strong)]",
+        "shadow-[0_16px_48px_-20px_rgb(0_0_0/0.85)] transition-[border-color] duration-200",
       ].join(" ")}
       style={{ aspectRatio: "4 / 3" }}
     >

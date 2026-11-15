@@ -50,7 +50,7 @@ export function SetupStepper({
   return (
     <section
       aria-label="Profile setup progress"
-      className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-sm shadow-[var(--shadow-panel)] sm:p-6"
+      className="rounded-[var(--r-lg)] border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-[var(--shadow-panel)] backdrop-blur-sm sm:p-6"
     >
       <div className="mb-5 flex items-start justify-between gap-3">
         <h2 className="font-display text-sm font-semibold text-[var(--ink)]">Your progress</h2>
@@ -178,7 +178,7 @@ export function SetupStepperSkeleton() {
   return (
     <section
       aria-hidden="true"
-      className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-sm shadow-[var(--shadow-panel)] sm:p-6"
+      className="rounded-[var(--r-lg)] border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-[var(--shadow-panel)] backdrop-blur-sm sm:p-6"
     >
       <div className="mb-5 flex items-center justify-between">
         <Skeleton className="h-4 w-28" />

@@ -2,6 +2,7 @@ import { GitBranch } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components";
+import { Surface } from "@/design";
 import { useLatestInterview } from "@/features/student/interview/hooks/useInterview";
 
 import type { Project } from "../api/profileApi";
@@ -18,7 +19,7 @@ export function RepoEvidenceCard({ project }: { project: Project }) {
   const contributionShare = project.verification_payload?.contribution_share;
 
   return (
-    <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-4">
+    <Surface className="p-4">
       <div className="mb-2 flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <GitBranch size={14} className="text-[var(--muted)]" aria-hidden="true" />
@@ -61,6 +62,6 @@ export function RepoEvidenceCard({ project }: { project: Project }) {
           has no stages, and `StageTimeline` renders nothing for an empty
           list rather than an empty strip. */}
       <StageTimeline stages={project.verification_stages ?? []} />
-    </div>
+    </Surface>
   );
 }

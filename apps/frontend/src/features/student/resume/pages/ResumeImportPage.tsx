@@ -2,6 +2,7 @@ import { CheckCircle2, FileText, Loader2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { Button, ErrorState, Skeleton, useToast } from "@/components";
+import { Surface } from "@/design";
 
 import { getProfileErrorMessage } from "../../lib/getProfileErrorMessage";
 import { DraftReview } from "../components/DraftReview";
@@ -23,6 +24,9 @@ export function ResumeImportPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploadId, setUploadId] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  // Kept so the page can show what was actually chosen — name and size —
+  // while the parse runs, rather than a bare spinner.
+  const [chosenFile, setChosenFile] = useState<{ name: string; size: number } | null>(null);
 
   const upload = useUploadResume();
   const { showToast } = useToast();
@@ -32,6 +36,7 @@ export function ResumeImportPage() {
   const draft = useResumeDraft(uploadId, extractionSucceeded);
 
   function handleFile(file: File) {
+    setChosenFile({ name: file.name, size: file.size });
     // No `onProgress`: this page is the standalone importer, which uploads
     // from a modest form rather than the setup flow's drop zone and has no
     // progress bar to feed.
@@ -47,6 +52,7 @@ export function ResumeImportPage() {
   function reset() {
     setUploadId(null);
     setJobId(null);
+    setChosenFile(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -64,7 +70,7 @@ export function ResumeImportPage() {
       </header>
 
       {!uploadId ? (
-        <div className="rounded-2xl border border-dashed border-[var(--rule)] bg-[var(--panel)] p-10 text-center">
+        <Surface className="border-dashed p-10 text-center">
           <Upload size={28} className="mx-auto text-[var(--muted)]" aria-hidden="true" />
           <p className="mt-3 text-sm font-medium text-[var(--ink)]">Choose your resume</p>
           <p className="mt-1 text-xs text-[var(--slate)]">PDF or DOCX, up to 10 MB.</p>
@@ -92,15 +98,20 @@ export function ResumeImportPage() {
               {getProfileErrorMessage(upload.error, "Could not upload that file.")}
             </p>
           ) : null}
-        </div>
+        </Surface>
       ) : null}
 
       {uploadId && isWorking ? (
-        <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6" role="status">
+        <div className="rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-6" role="status">
           <div className="flex items-center gap-3">
             <Loader2 size={18} className="animate-spin text-[var(--ink)]" aria-hidden="true" />
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--ink)]">Reading your resume…</p>
+              {chosenFile ? (
+                <p className="mt-0.5 truncate font-mono text-xs text-[var(--slate)]">
+                  {chosenFile.name} · {(chosenFile.size / 1024).toFixed(0)} KB
+                </p>
+              ) : null}
               <p className="mt-0.5 text-xs text-[var(--slate)]">
                 {job.data && job.data.attempts > 1
                   ? `Retrying (attempt ${job.data.attempts}). This can take a moment.`

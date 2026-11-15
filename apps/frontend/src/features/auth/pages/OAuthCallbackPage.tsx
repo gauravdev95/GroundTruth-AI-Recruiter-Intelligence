@@ -4,12 +4,25 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { refreshAccessToken } from "@/lib/apiClient";
 
 import { AlertBanner } from "../components/AlertBanner";
-import { AuthLayout } from "../components/AuthLayout";
+import { AuthHero, heroLinkClass } from "../components/AuthHero";
 import { authApi } from "../api/authApi";
 import { useAuthContext } from "../context/AuthContext";
 import { dashboardPathForRole } from "../lib/dashboardPath";
 
-/** Google redirects here after the backend has already set session cookies. */
+const PITCH = [
+  "Google confirms your identity; GroundTruth does the rest.",
+  "Your role decides where you land — student or recruiter.",
+  "No password to type: the session is already being created.",
+] as const;
+
+/**
+ * Google redirects here after the backend has already set session cookies.
+ *
+ * Phase 3 moved this off the quiet `AuthLayout` card onto the split-screen
+ * hero, so the OAuth round-trip never leaves the product's visual world. The
+ * refresh-then-`me` handshake, the 15s timeout and the error handling are
+ * unchanged — only the shell moved.
+ */
 export function OAuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -51,25 +64,47 @@ export function OAuthCallbackPage() {
 
   if (error) {
     return (
-      <AuthLayout title="Sign-in failed">
+      <AuthHero
+        eyebrow="Google sign-in"
+        headline="Sign-in failed"
+        lead="Google didn't finish handing you over. Nothing was changed on your account."
+        points={PITCH}
+        title="Sign-in failed"
+        subtitle="Google sign-in didn't complete. Please try again."
+        footer={
+          <>
+            <Link to="/login" className={heroLinkClass}>
+              Back to login
+            </Link>
+          </>
+        }
+      >
         <div className="flex flex-col gap-4">
-          <AlertBanner message={error} />
-          <Link
-            to="/login"
-            className="text-center text-sm font-medium text-[var(--ink)] underline decoration-[var(--rule)] underline-offset-2 transition-colors hover:decoration-[var(--ink)]"
-          >
+          <AlertBanner message={error} tone="hero" />
+          <Link to="/login" className={`text-center text-sm ${heroLinkClass}`}>
             Back to login
           </Link>
         </div>
-      </AuthLayout>
+      </AuthHero>
     );
   }
 
   return (
-    <AuthLayout title="Signing you in…">
+    <AuthHero
+      eyebrow="Google sign-in"
+      headline="Signing you in"
+      lead="Confirming your Google session, then taking you to your dashboard."
+      points={PITCH}
+      title="Signing you in…"
+      subtitle="This usually takes a few seconds."
+    >
       <div className="flex justify-center py-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--rule)] border-t-[var(--violet)]" />
+        <div
+          role="status"
+          aria-label="Signing you in"
+          className="h-8 w-8 animate-spin rounded-full border-2 border-white/15 border-t-gt-electric"
+        />
       </div>
-    </AuthLayout>
+    </AuthHero>
   );
 }

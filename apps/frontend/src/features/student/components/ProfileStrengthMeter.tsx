@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { ProgressRing, Surface } from "@/design";
 
 import type { ProfileCompleteness } from "../api/profileApi";
 import { SECTIONS } from "../constants";
@@ -10,40 +10,36 @@ import { formSectionStatus } from "../lib/sectionScoring";
  * the database actually holds.
  *
  * Strength measures what is *filled*, not what is *verified*, which is why
- * this component shows no verification colour: an unverified profile at 100
+ * the ring sweeps violet → blue and never green: an unverified profile at 100
  * is a real state, and the badges are where verification is communicated.
+ * (An earlier version painted the bar `--verified` once the profile became
+ * discoverable — the exact confusion this rule exists to prevent.)
  */
 export function ProfileStrengthMeter({ completeness }: { completeness: ProfileCompleteness }) {
   const { profile_strength: strength } = completeness;
 
   return (
-    <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-sm font-semibold text-[var(--ink)]">Profile strength</h2>
-        <p className="font-mono text-2xl font-semibold tabular-nums text-[var(--ink)]">
-          {strength}
-          <span className="text-base text-[var(--muted)]">/100</span>
-        </p>
+    <Surface as="section" aria-label="Profile strength" className="p-5">
+      <div className="flex items-center gap-4">
+        <ProgressRing value={strength} size={96} strokeWidth={8}>
+          <span className="font-mono text-xl font-semibold tabular-nums text-[var(--ink)]">
+            {strength}
+            <span className="text-xs text-[var(--muted)]">/100</span>
+          </span>
+        </ProgressRing>
+        <div className="min-w-0">
+          <h2 className="font-display text-sm font-semibold text-[var(--ink)]">Profile strength</h2>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--slate)]">
+            {completeness.is_discoverable
+              ? "Discoverable — recruiters can find you."
+              : completeness.meets_section_requirements
+                ? "Requirements met — indexing is in progress."
+                : "Complete the required sections to become discoverable."}
+          </p>
+        </div>
       </div>
 
-      <div
-        className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[var(--rule)]"
-        role="progressbar"
-        aria-valuenow={strength}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="Profile strength"
-      >
-        <div
-          className={cn(
-            "h-full rounded-full transition-[width] duration-500 ease-out",
-            completeness.is_discoverable ? "bg-[var(--verified)]" : "bg-[var(--violet)]",
-          )}
-          style={{ width: `${strength}%` }}
-        />
-      </div>
-
-      <dl className="mt-4 space-y-1.5">
+      <dl className="mt-4 space-y-1.5 border-t border-[var(--rule-soft)] pt-4">
         {SECTIONS.map((meta) => {
           const section = formSectionStatus(completeness, meta.key);
           if (!section) return null;
@@ -61,9 +57,9 @@ export function ProfileStrengthMeter({ completeness }: { completeness: ProfileCo
         })}
       </dl>
 
-      <p className="mt-3 border-t border-[var(--rule)] pt-3 text-xs text-[var(--slate)]">
+      <p className="mt-3 border-t border-[var(--rule-soft)] pt-3 text-xs text-[var(--slate)]">
         <span className="text-[var(--flagged)]">*</span> Required before recruiters can find you.
       </p>
-    </div>
+    </Surface>
   );
 }

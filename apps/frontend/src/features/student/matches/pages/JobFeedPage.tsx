@@ -1,123 +1,105 @@
-import { Briefcase, CheckCircle2, MapPin, XCircle } from "lucide-react";
+import { Briefcase, SearchX } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { Badge, EmptyState, ErrorState, MatchTimestamps, Skeleton } from "@/components";
-import { SmartApplyButton } from "@/features/student/applications/components/SmartApplyButton";
+import { Button, EmptyState, ErrorState, Pagination, Skeleton } from "@/components";
 import { useMyApplications } from "@/features/student/applications/hooks/useApplications";
 
-import type { MatchedJob, SkillMatchReason } from "../api/matchesApi";
+import { JobCard } from "../components/JobCard";
+import { JobFeedFilters } from "../components/JobFeedFilters";
 import { useJobFeed } from "../hooks/useJobFeed";
+import {
+  DEFAULT_FEED_FILTERS,
+  feedFilterOptions,
+  filterFeedJobs,
+  isDefaultFilters,
+  sortFeedJobs,
+  type FeedFilterState,
+} from "../lib/feedFilters";
 
-function SkillReasonChip({ reason }: { reason: SkillMatchReason }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
-        reason.candidate_has_skill
-          ? "border-[var(--verified)]/30 bg-[var(--verified)]/10 text-[var(--verified)]"
-          : "border-[var(--rule)] bg-[var(--panel)] text-[var(--muted)]"
-      }`}
-    >
-      {reason.candidate_has_skill ? (
-        <CheckCircle2 size={11} aria-hidden="true" />
-      ) : (
-        <XCircle size={11} aria-hidden="true" />
-      )}
-      {reason.skill_name}
-    </span>
-  );
-}
-
-function JobCard({ match, alreadyApplied }: { match: MatchedJob; alreadyApplied: boolean }) {
-  return (
-    <li className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
-      <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-medium text-[var(--ink)]">{match.job.title}</p>
-          <p className="text-xs text-[var(--slate)]">{match.job.company_name}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-semibold tabular-nums text-[var(--ink)]">{match.match_score.toFixed(0)}</p>
-          <p className="text-xs text-[var(--muted)]">match score</p>
-        </div>
-      </div>
-
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-[var(--slate)]">
-        <Badge variant="neutral">{match.job.job_type.replace("_", " ")}</Badge>
-        <Badge variant="neutral">{match.job.experience_level}</Badge>
-        <span className="flex items-center gap-1">
-          <MapPin size={12} aria-hidden="true" />
-          {match.job.is_remote ? "Remote" : (match.job.location ?? "Not specified")}
-        </span>
-        <MatchTimestamps computedAt={match.computed_at} updatedAt={match.updated_at} />
-      </div>
-
-      {match.matched_required_skills.length > 0 ? (
-        <div className="mb-4">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Must-have skills</p>
-          <div className="flex flex-wrap gap-1.5">
-            {match.matched_required_skills.map((reason) => (
-              <SkillReasonChip key={reason.skill_name} reason={reason} />
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <p className="mb-3 text-xs leading-relaxed text-[var(--slate)]">{match.reasoning}</p>
-
-      <div className="flex items-center justify-end gap-2">
-        <Link
-          to={`/student/jobs/${match.job.job_id}`}
-          className="rounded-xl border border-[var(--rule)] px-3.5 py-2 text-[13px] font-semibold text-[var(--ink)] transition hover:bg-[var(--panel-raised)]"
-        >
-          View details
-        </Link>
-        {/* No `emphasis` here even for a Tier B row: several of these sit in
-            one column, and a column of pulsing buttons is noise. The Tier B
-            interrupt lives on the dashboard card, once. */}
-        <SmartApplyButton
-          jobId={match.job.job_id}
-          jobTitle={match.job.title}
-          companyName={match.job.company_name}
-          hasApplied={alreadyApplied}
-        />
-      </div>
-    </li>
-  );
-}
+/** One screen of cards. The feed is uncapped server-side, so a long ranked
+ * list paginates client-side rather than growing without end. */
+const PAGE_SIZE = 10;
 
 /**
  * The student side of the same computation the recruiter's matched-
  * candidates list reads (`domains/matching/service.py`) — a personalised
  * ranked job feed, `GET /api/v1/student/matches`. Nothing here is computed
  * client-side; every score and reason is read straight off `match_results`.
+ *
+ * Search and filters run over the returned rows (`matches/lib/feedFilters`)
+ * because the endpoint takes no query parameters. The Tier B interrupt
+ * stays on the dashboard (`SmartApplyPrompts`): this page is the full
+ * ranked list, and a Tier B card duplicated above it would not obey the
+ * same filters — so Tier B jobs carry their `High match` chip here instead.
  */
 export function JobFeedPage() {
   const feed = useJobFeed();
   const applications = useMyApplications();
+  const [filters, setFilters] = useState<FeedFilterState>(DEFAULT_FEED_FILTERS);
+  const [page, setPage] = useState(1);
+
   const appliedJobIds = new Set((applications.data ?? []).map((item) => item.application.job_posting_id));
+
+  const visible = useMemo(() => {
+    if (!feed.data) return [];
+    return sortFeedJobs(filterFeedJobs(feed.data, filters), filters.sort);
+  }, [feed.data, filters]);
+
+  // A filter change can shrink the list below the current page.
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
+
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   if (feed.isPending) {
     return (
-      <div className="space-y-3">
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-40 w-full" />
+      <div className="space-y-3" aria-label="Loading job matches">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
       </div>
     );
   }
 
   if (feed.isError) {
-    return <ErrorState title="Could not load your job feed" description="Something went wrong." />;
+    return (
+      <ErrorState
+        title="Could not load your job feed"
+        description="Something went wrong while fetching your matches."
+        action={
+          <Button variant="secondary" onClick={() => void feed.refetch()}>
+            Try again
+          </Button>
+        }
+      />
+    );
   }
 
   if (feed.data.length === 0) {
     return (
-      <EmptyState
-        icon={Briefcase}
-        title="No matched jobs yet"
-        description="Complete your profile and verify a repository or coding-platform account — matches appear here once your profile clears the match threshold against a published job."
-      />
+      <div className="space-y-6">
+        <header>
+          <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">Job matches</h1>
+          <p className="mt-1 text-sm text-[var(--slate)]">
+            Ranked for you, from the same computation recruiters use to find candidates.
+          </p>
+        </header>
+        <EmptyState
+          icon={Briefcase}
+          title="No matched jobs yet"
+          description="Complete your profile and verify a repository or coding-platform account — matches appear here once your profile clears the match threshold against a published job."
+        />
+      </div>
     );
   }
+
+  const jobTypeOptions = feedFilterOptions(feed.data, "job_type");
+  const experienceOptions = feedFilterOptions(feed.data, "experience_level");
+  const highMatchCount = feed.data.filter((match) => match.tier === "smart_apply_recommended").length;
 
   return (
     <div className="space-y-6">
@@ -126,6 +108,9 @@ export function JobFeedPage() {
           <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">Job matches</h1>
           <p className="mt-1 text-sm text-[var(--slate)]">
             Ranked for you, from the same computation recruiters use to find candidates.
+            {highMatchCount > 0
+              ? ` ${highMatchCount} ${highMatchCount === 1 ? "is a high match" : "are high matches"} — worth a Smart Apply.`
+              : ""}
           </p>
         </div>
         <Link to="/student/applications" className="text-sm font-medium text-[var(--ink)] hover:underline">
@@ -133,11 +118,59 @@ export function JobFeedPage() {
         </Link>
       </header>
 
-      <ul className="space-y-3">
-        {feed.data.map((match) => (
-          <JobCard key={match.job.job_id} match={match} alreadyApplied={appliedJobIds.has(match.job.job_id)} />
-        ))}
-      </ul>
+      <JobFeedFilters
+        filters={filters}
+        onChange={setFilters}
+        jobTypeOptions={jobTypeOptions}
+        experienceOptions={experienceOptions}
+      />
+
+      {visible.length === 0 ? (
+        <EmptyState
+          icon={SearchX}
+          title="No matches for these filters"
+          description="Try widening the search or clearing a filter — your full ranked feed is still there."
+          action={
+            <Button
+              variant="secondary"
+              onClick={() =>
+                setFilters({
+                  query: "",
+                  jobType: "all",
+                  experience: "all",
+                  remoteOnly: false,
+                  highMatchOnly: false,
+                  sort: "best",
+                })
+              }
+            >
+              Clear filters
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          <p className="text-sm text-[var(--slate)]" aria-live="polite">
+            Showing{" "}
+            <span className="tabular font-medium text-[var(--ink)]">{pageItems.length}</span> of{" "}
+            <span className="tabular font-medium text-[var(--ink)]">{visible.length}</span>{" "}
+            {visible.length === 1 ? "match" : "matches"}
+            {!isDefaultFilters(filters) ? ` (from ${feed.data.length} total)` : ""}
+          </p>
+
+          <ul className="space-y-3">
+            {pageItems.map((match) => (
+              <li key={match.job.job_id}>
+                <JobCard match={match} alreadyApplied={appliedJobIds.has(match.job.job_id)} />
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex justify-center">
+            <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

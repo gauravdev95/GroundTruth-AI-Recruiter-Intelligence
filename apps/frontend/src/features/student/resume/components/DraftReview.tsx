@@ -230,7 +230,7 @@ export function DraftReview({ detail, onDone }: DraftReviewProps) {
   }
 
   const sectionShell = (title: string, description: string, key: string, body: React.ReactNode) => (
-    <section className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
+    <section className="rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-5 shadow-[var(--shadow-panel)] backdrop-blur-sm sm:p-6">
       <header className="mb-4">
         <h3 className="font-display text-base font-semibold text-[var(--ink)]">{title}</h3>
         <p className="mt-0.5 text-sm text-[var(--slate)]">{description}</p>
@@ -252,8 +252,11 @@ export function DraftReview({ detail, onDone }: DraftReviewProps) {
       <div className="rounded-2xl border border-[var(--flagged)]/30 bg-[var(--flagged)]/10 p-4 text-sm">
         <p className="font-medium text-[var(--ink)]">Nothing here is saved yet.</p>
         <p className="mt-0.5 text-[var(--slate)]">
-          This was read from your resume by {draft.provider} ({draft.model}). Check each field —
-          untick anything that&apos;s wrong, and correct what you keep. Only what you confirm is
+          This was read from your resume by{" "}
+          <span className="machine">
+            {draft.provider} ({draft.model})
+          </span>
+          . Check each field — untick anything that&apos;s wrong, and correct what you keep. Only what you confirm is
           written to your profile.
         </p>
         {suggestions.unmapped.length > 0 ? (
@@ -383,7 +386,7 @@ export function DraftReview({ detail, onDone }: DraftReviewProps) {
         />,
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-sm sm:px-5">
         <p className="text-sm text-[var(--slate)]">
           {includedCount === 0
             ? "Nothing selected yet."

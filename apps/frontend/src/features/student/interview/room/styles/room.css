@@ -168,3 +168,41 @@
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* ==================================================================
+   SCROLLBARS
+   ------------------------------------------------------------------
+   The transcript is the room's one scrolling surface. A default scrollbar
+   is a bright strip beside a dark panel; a thin one in the room's own
+   hairline colour stays out of the way. `scrollbar-width` covers Firefox;
+   the `::-webkit-scrollbar` rules cover Chromium.
+   ================================================================== */
+
+[data-interview-room] * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--room-rule-strong) transparent;
+}
+
+[data-interview-room] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-interview-room] ::-webkit-scrollbar-thumb {
+  background: var(--room-rule-strong);
+  border-radius: 999px;
+}
+
+[data-interview-room] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Short viewports (a laptop with the browser chrome open, a tablet in
+   landscape): the stage portrait is vh-clamped, but the caption and the
+   self-view both sit at the bottom — give the caption room by letting it
+   sit a little higher when there is not much height to spare. */
+@media (max-height: 560px) {
+  [data-interview-room] .room-caption {
+    bottom: 0.75rem;
+  }
+}

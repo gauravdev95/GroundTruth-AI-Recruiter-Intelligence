@@ -1,6 +1,8 @@
 import { Check, Clock, FileText, PencilLine } from "lucide-react";
 import { useRef } from "react";
 
+import { Button } from "@/components";
+
 import { ResumeDropZone, type ResumeDropZoneHandle } from "./ResumeDropZone";
 
 /**
@@ -61,7 +63,7 @@ export function UploadResumeCard({ onFile, onReject, isUploading, error }: Uploa
   return (
     <section
       aria-labelledby="setup-option-resume"
-      className="relative flex h-full flex-col rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-sm shadow-[var(--shadow-panel)] sm:p-6"
+      className="relative flex h-full flex-col rounded-[var(--r-lg)] border border-[var(--violet)]/25 bg-[var(--panel)] p-5 shadow-[var(--shadow-panel)] backdrop-blur-sm sm:p-6"
     >
       <span className="absolute -top-2.5 left-5 rounded-full bg-gradient-to-r from-[var(--violet)] to-[var(--blue)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm shadow-[var(--shadow-panel)]">
         Recommended
@@ -107,14 +109,15 @@ export function UploadResumeCard({ onFile, onReject, isUploading, error }: Uploa
       </div>
 
       <div className="mt-auto flex items-center gap-4 pt-5">
-        <button
+        <Button
           type="button"
           onClick={() => dropZone.current?.open()}
           disabled={isUploading}
-          className="flex-1 rounded-xl bg-gradient-to-r from-[var(--violet)] to-[var(--blue)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[var(--shadow-panel)] transition   focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--violet)] disabled:cursor-not-allowed disabled:opacity-60"
+          isLoading={isUploading}
+          className="flex-1"
         >
           {isUploading ? "Uploading…" : "Upload Resume"}
-        </button>
+        </Button>
         <EstimatedTime value="30 sec" />
       </div>
     </section>
@@ -125,7 +128,7 @@ export function FillManuallyCard({ onStart }: { onStart: () => void }) {
   return (
     <section
       aria-labelledby="setup-option-manual"
-      className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--flagged)]/25 bg-[var(--panel)] p-5 shadow-sm shadow-[var(--shadow-panel)] sm:p-6"
+      className="relative flex h-full flex-col overflow-hidden rounded-[var(--r-lg)] border border-[var(--flagged)]/25 bg-[var(--panel)] p-5 shadow-[var(--shadow-panel)] backdrop-blur-sm sm:p-6"
     >
       {/* Decorative only — a soft amber illustration that anchors the card's
           secondary accent without carrying information a screen reader needs. */}

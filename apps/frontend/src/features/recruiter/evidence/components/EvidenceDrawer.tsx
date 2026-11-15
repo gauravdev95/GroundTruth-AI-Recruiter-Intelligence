@@ -323,7 +323,7 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
         role="dialog"
         aria-modal="true"
         aria-label={`Evidence report — ${candidate.headline ?? "candidate"}`}
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] animate-slide-up flex-col border-l border-[var(--rule)] bg-[var(--panel)] shadow-raised outline-none"
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] animate-slide-up flex-col border-l border-[var(--rule)] bg-[var(--panel-raised)] shadow-[var(--shadow-raised)] outline-none"
       >
         {/* ---- header ---- */}
         <header className="shrink-0 border-b border-[var(--rule)] px-5 py-4">
@@ -526,7 +526,7 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
         </div>
 
         {/* ---- sticky actions ---- */}
-        <footer className="relative flex shrink-0 items-center gap-2 border-t border-[var(--rule)] bg-[var(--panel)] px-5 py-3.5">
+        <footer className="relative flex shrink-0 items-center gap-2 border-t border-[var(--rule)] bg-[var(--panel-raised)] px-5 py-3.5">
           {candidate.applicationId ? (
             <Link
               to={`/recruiter/applications/${candidate.applicationId}`}
@@ -572,7 +572,7 @@ export function EvidenceDrawer({ candidate, jobId, onClose, isMoving }: Evidence
               <MoreHorizontal size={17} aria-hidden="true" />
             </button>
             {menuOpen ? (
-              <div className="absolute bottom-14 right-5 w-48 overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--panel)] py-1 shadow-raised">
+              <div className="absolute bottom-14 right-5 w-48 overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--panel-raised)] py-1 shadow-[var(--shadow-raised)]">
                 <Link
                   to={`/recruiter/candidates/${candidate.candidateProfileId}/evidence`}
                   className="block px-3 py-2 text-xs text-[var(--slate)] transition hover:bg-[var(--panel-raised)]"

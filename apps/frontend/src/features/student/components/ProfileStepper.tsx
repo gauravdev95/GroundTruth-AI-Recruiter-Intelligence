@@ -1,3 +1,5 @@
+import { Check } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 import type { ProfileCompleteness, SectionCacheKey } from "../api/profileApi";
@@ -34,21 +36,31 @@ export function ProfileStepper({ completeness, activeSection, onSelect }: Profil
                 onClick={() => onSelect(meta.key)}
                 aria-current={isActive ? "step" : undefined}
                 className={cn(
-                  "w-full rounded-xl border px-3 py-2.5 text-left transition",
+                  "relative w-full rounded-xl border px-3 py-2.5 text-left transition",
                   isActive
                     ? "border-[var(--rule)] bg-[var(--panel)] shadow-sm"
                     : "border-transparent hover:border-[var(--rule)] hover:bg-[var(--panel)]/60",
                 )}
               >
+                {isActive ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-[var(--violet)]"
+                  />
+                ) : null}
                 <span className="flex items-start gap-2.5">
                   <span
                     aria-hidden="true"
                     className={cn(
                       "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[11px]",
-                      isActive ? "bg-[var(--violet)] text-white" : "bg-[var(--rule)] text-[var(--slate)]",
+                      isActive
+                        ? "bg-[var(--violet)] text-white"
+                        : section?.is_complete
+                          ? "bg-[var(--violet)]/15 text-[var(--violet)]"
+                          : "bg-[var(--rule)] text-[var(--slate)]",
                     )}
                   >
-                    {index + 1}
+                    {section?.is_complete && !isActive ? <Check size={12} strokeWidth={3} /> : index + 1}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-[var(--ink)]">

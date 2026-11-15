@@ -54,13 +54,13 @@ function BrandMark() {
 }
 
 /**
- * The sign-in / sign-up shell: a landing-hero surface with a form on it.
+ * The sign-in / sign-up / recovery shell: a landing-hero surface with a form on it.
  *
- * WHY THIS EXISTS ALONGSIDE `AuthLayout` RATHER THAN REPLACING IT. Only the two
- * pages a logged-out visitor arrives at from marketing — `/login` and `/signup`
- * — are worth a full-height animated hero. `/forgot-password` and
- * `/reset-password` are recovery screens reached mid-task, and they keep the
- * quiet light card. `AuthLayout` is still the layout for those, unchanged.
+ * WHY THIS EXISTS ALONGSIDE `AuthLayout` RATHER THAN REPLACING IT. `AuthLayout`
+ * is the quiet card behind no current page — Phase 3 moved the three recovery
+ * screens onto this hero as well, so a visitor never leaves the product's
+ * visual world mid-task — but it stays as the lightweight shell for any future
+ * low-ceremony auth screen that does not need the full-height aurora.
  *
  * THE LEFT COLUMN IS NOT DECORATION. It carries the same three claims the
  * landing page makes, so a visitor who arrived on a deep link to `/signup`

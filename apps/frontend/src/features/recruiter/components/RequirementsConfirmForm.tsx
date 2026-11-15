@@ -86,7 +86,7 @@ export function RequirementsConfirmForm({ detail, isSaving, onSubmit }: Requirem
 
   return (
     <form
-      className="space-y-5 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6"
+      className="space-y-5 rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-6"
       onSubmit={handleSubmit((values) => onSubmit(values))}
     >
       <div>
@@ -101,7 +101,7 @@ export function RequirementsConfirmForm({ detail, isSaving, onSubmit }: Requirem
 
       <div className="space-y-2">
         {fields.map((field, index) => (
-          <div key={field.id} className="flex flex-wrap items-end gap-2 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-3">
+          <div key={field.id} className="flex flex-wrap items-end gap-2 rounded-[var(--r-md)] border border-[var(--rule-soft)] bg-[var(--surface)]/50 p-3">
             <div className="min-w-[10rem] flex-1">
               <Input
                 label="Skill"

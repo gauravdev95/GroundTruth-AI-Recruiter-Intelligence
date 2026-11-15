@@ -60,7 +60,11 @@ function ControlButton({
       aria-pressed={pressed}
       title={label}
       className={[
-        "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
+        // 48px targets: the bar is used mid-interview, often on a tablet, and
+        // a 44px button is the floor — 48px leaves room for a finger that is
+        // not looking at the screen.
+        "flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--room-accent)]",
         "disabled:cursor-not-allowed disabled:opacity-40",
         styles,
       ].join(" ")}
@@ -107,7 +111,7 @@ export function RoomControlBar({
   onEnd,
 }: RoomControlBarProps) {
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-[var(--room-rule)] bg-[var(--room-panel)] px-4 py-3 sm:px-6">
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--room-rule)] bg-[var(--room-panel)] px-3 py-2.5 sm:px-6">
       <div className="flex items-center gap-2">
         <ControlButton
           onClick={onToggleMicrophone}
@@ -141,7 +145,7 @@ export function RoomControlBar({
           onClick={onFinishAnswering}
           disabled={!canFinishAnswering}
           className={[
-            "hidden h-11 items-center gap-2 rounded-full px-5 text-sm font-medium transition-colors sm:flex",
+            "hidden h-12 items-center gap-2 rounded-full px-5 text-sm font-medium transition-colors sm:flex",
             canFinishAnswering
               ? "bg-[var(--room-accent-dim)] text-[var(--room-accent)] hover:bg-[rgb(74_158_255/0.24)]"
               : "cursor-not-allowed bg-[var(--room-raised)] text-[var(--room-muted)] opacity-50",
@@ -173,10 +177,11 @@ export function RoomControlBar({
       <button
         type="button"
         onClick={onEnd}
-        className="flex h-11 items-center gap-2 rounded-full bg-[var(--room-danger)] px-5 text-sm font-medium text-white transition-[filter] hover:brightness-110"
+        className="flex h-12 shrink-0 items-center gap-2 rounded-full bg-[var(--room-danger)] px-4 text-sm font-medium text-white transition-[filter] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--room-danger)] sm:px-5"
       >
         <PhoneOff size={16} aria-hidden="true" />
         <span className="hidden sm:inline">End interview</span>
+        <span className="sm:hidden">End</span>
       </button>
     </div>
   );

@@ -141,7 +141,7 @@ export function AiInterviewerStage({
         }}
       />
 
-      <div className="relative flex flex-col items-center gap-5 px-6">
+      <div className="relative flex flex-col items-center gap-6 px-6">
         <div className="relative">
           {/* The listening ring. Rendered only while listening so there is no
               chance of a stale ring implying an open microphone. */}
@@ -163,9 +163,24 @@ export function AiInterviewerStage({
             </>
           ) : null}
 
+          {/* Speaking halo: the portrait reads as a light source while the
+              interviewer talks, and settles when they stop. Opacity only —
+              nothing here moves layout. Painted before the portrait so the
+              tile itself covers its centre. */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 rounded-full transition-opacity duration-500"
+            style={{
+              opacity: speaking ? 1 : 0,
+              background:
+                "radial-gradient(closest-side, rgb(74 158 255 / 0.22) 0%, transparent 100%)",
+              transform: "scale(1.25)",
+            }}
+          />
+
           <div
             className={[
-              "relative h-[clamp(180px,26vh,300px)] w-[clamp(180px,26vh,300px)] overflow-hidden rounded-full",
+              "relative h-[clamp(200px,32vh,320px)] w-[clamp(200px,32vh,320px)] overflow-hidden rounded-full",
               "border border-[var(--room-rule-strong)] bg-[var(--room-stage)]",
               "shadow-[0_24px_80px_-32px_rgb(0_0_0/0.9)]",
               speaking || listening ? "" : "room-breathe",
@@ -175,15 +190,21 @@ export function AiInterviewerStage({
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-3">
-          <p className="font-display text-base font-semibold text-[var(--room-ink)]">
+        <div className="flex flex-col items-center gap-2">
+          <p className="font-display text-lg font-semibold text-[var(--room-ink)]">
             AI Interviewer
+          </p>
+          <p className="text-xs text-[var(--room-muted)]">
+            Technical interview · Grounded in your repository
           </p>
 
           {/* One status row. `aria-live` so a screen-reader user is told the
               microphone opened — they have no ring to look at, and the ring is
               the only other place that information exists. */}
-          <div className="flex h-8 items-center gap-2.5" aria-live="polite">
+          <div
+            className="mt-1 flex h-8 items-center gap-2.5 rounded-full border border-[var(--room-rule)] bg-[var(--room-panel)] px-3.5"
+            aria-live="polite"
+          >
             {speaking ? <SpeakingWaveform /> : null}
             {thinking ? <ThinkingDots /> : null}
             {listening ? (
@@ -205,7 +226,7 @@ export function AiInterviewerStage({
           or a word that did not survive the synthesiser — not as the primary
           channel. Two lines maximum, so it never becomes a chat log. */}
       {caption ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-6">
+        <div className="room-caption pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-6">
           <p
             data-selectable
             className={[

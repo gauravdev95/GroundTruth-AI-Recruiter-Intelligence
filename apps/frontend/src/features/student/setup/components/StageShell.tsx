@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Button } from "@/components";
+import { Reveal, Surface } from "@/design";
 
 import { useStageNav } from "../hooks/useStageNav";
 import type { OnboardingStage } from "../lib/stages";
@@ -30,15 +31,15 @@ export function StageShell({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-6">
-      <header className="mb-5 border-b border-[var(--rule)] pb-4">
+    <Surface as="section" elevation="raised" className="p-6 sm:p-8">
+      <header className="mb-5 border-b border-[var(--rule-soft)] pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-display text-lg font-semibold text-[var(--ink)]">{title}</h1>
+          <h1 className="font-display text-lg font-semibold text-[var(--ink)] sm:text-[var(--fs-h3)]">{title}</h1>
           <span
             className={
               stage.isMandatory
-                ? "text-xs font-medium text-[var(--flagged)]"
-                : "text-xs font-medium text-[var(--muted)]"
+                ? "rounded-full bg-[var(--flagged)]/12 px-2.5 py-0.5 text-xs font-medium text-[var(--flagged)]"
+                : "rounded-full bg-[var(--panel-raised)] px-2.5 py-0.5 text-xs font-medium text-[var(--muted)]"
             }
           >
             {stage.isMandatory ? "Required" : "Optional"}
@@ -47,8 +48,8 @@ export function StageShell({
         <p className="mt-1.5 text-sm leading-relaxed text-[var(--slate)]">{description}</p>
       </header>
 
-      {children}
-    </section>
+      <Reveal trigger="mount">{children}</Reveal>
+    </Surface>
   );
 }
 

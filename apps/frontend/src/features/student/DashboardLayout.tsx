@@ -1,6 +1,6 @@
 import { Briefcase, ClipboardList, FileUp, LayoutDashboard, UserRoundPen } from "lucide-react";
 
-import { DashboardShell, type DashboardNavItem } from "@/components";
+import { DashboardShell, type DashboardNavItem, ThemeToggle } from "@/components";
 import { useAuthContext } from "@/features/auth";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { NotificationBell } from "@/features/notifications";
@@ -31,7 +31,17 @@ export function StudentDashboardLayout() {
       userEmail={user?.email ?? ""}
       onLogout={() => logout.mutate()}
       isLoggingOut={logout.isPending}
-      headerExtra={<NotificationBell applicationHref={(id) => `/student/applications/${id}`} />}
+      // The rail collapses to icons on this dashboard; the choice persists
+      // per browser. The theme toggle lives here too — the dashboard header
+      // is its home, per the Phase 2 note on the component itself.
+      collapsible
+      profileHref="/student/profile"
+      headerExtra={
+        <>
+          <ThemeToggle />
+          <NotificationBell applicationHref={(id) => `/student/applications/${id}`} />
+        </>
+      }
     />
   );
 }

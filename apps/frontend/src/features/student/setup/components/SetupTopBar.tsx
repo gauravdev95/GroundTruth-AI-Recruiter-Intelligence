@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import { useAuthContext } from "@/features/auth";
 import { useLogout } from "@/features/auth/hooks/useAuth";
+import { ThemeToggle } from "@/components";
 
 /** Initials for the avatar. Two letters at most — three-word names would
  * otherwise overflow the circle. */
@@ -70,6 +71,7 @@ export function SetupTopBar() {
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-4">
+          <ThemeToggle />
           <a
             href="mailto:support@groundtruth.dev?subject=Help%20with%20profile%20setup"
             className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-[var(--slate)] transition hover:bg-[var(--violet)]/10 hover:text-[var(--violet)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--violet)]"

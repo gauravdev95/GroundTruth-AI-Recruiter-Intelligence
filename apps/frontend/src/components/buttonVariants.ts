@@ -55,11 +55,28 @@ export const buttonVariants = cva(
          */
         destructive:
           "border border-[var(--failed)]/50 bg-[var(--failed)]/10 text-[var(--failed)] hover:border-[var(--failed)] hover:bg-[var(--failed)]/20",
+        /*
+         * `danger` is the same recipe as `destructive`, spelled the way the
+         * rest of the system spells it (`Badge` has `danger`, `Toast` has
+         * `error`, `ConfirmDialog` has a `danger` tone). Both spellings stay
+         * so existing call sites do not churn; they are one recipe, not two
+         * danger styles.
+         */
+        danger:
+          "border border-[var(--failed)]/50 bg-[var(--failed)]/10 text-[var(--failed)] hover:border-[var(--failed)] hover:bg-[var(--failed)]/20",
       },
       size: {
+        xs: "px-2 py-1 text-xs",
         sm: "px-3 py-1.5 text-xs",
         md: "px-4 py-2.5 text-sm",
         lg: "px-5 py-3 text-base",
+        /*
+         * Square, for icon-only buttons. `h-9 w-9` matches the `md` height
+         * so an icon button beside a text button sits on the same baseline.
+         * Icon-only buttons must still carry an `aria-label` — see
+         * `ThemeToggle`.
+         */
+        icon: "h-9 w-9 p-0",
       },
     },
     defaultVariants: {

@@ -31,6 +31,25 @@ const badgeVariants = cva(
         warning: "bg-[var(--flagged)]/12 text-[var(--flagged)]",
         danger: "bg-[var(--failed)]/12 text-[var(--failed)]",
         info: "border border-[var(--rule)] bg-[var(--panel)] text-[var(--ink)]",
+        /*
+         * The verification vocabulary, spelled the way the product thinks
+         * about it. `verified` / `flagged` / `rejected` are the same tints as
+         * `success` / `warning` / `danger` — one tint per meaning, not one
+         * per spelling — so a screen that says VERIFIED and a screen that
+         * says "success" cannot drift apart. Use the semantic spelling
+         * wherever the chip annotates a claim; `success` stays for the
+         * non-claim cases (the toast exemption, a completed step).
+         */
+        verified: "bg-[var(--verified)]/12 text-[var(--verified)]",
+        flagged: "bg-[var(--flagged)]/12 text-[var(--flagged)]",
+        rejected: "bg-[var(--failed)]/12 text-[var(--failed)]",
+        /*
+         * Emphasis that is not status. A violet tint for "new", "featured",
+         * "recommended" — the cases that used to reach for green because
+         * there was no other way to make a chip stand out. It is `--violet`,
+         * never `--verified`: rule 1 forbids spending green on emphasis.
+         */
+        accent: "bg-[var(--violet)]/12 text-[var(--violet)]",
       },
     },
     defaultVariants: { variant: "neutral" },

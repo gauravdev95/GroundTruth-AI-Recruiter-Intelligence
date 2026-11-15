@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button, ErrorState, Skeleton, useToast } from "@/components";
+import { Surface } from "@/design";
 import { queryKeys } from "@/lib/queryKeys";
 
 import type { SectionKey } from "../../api/profileApi";
@@ -57,8 +58,8 @@ function Panel({
   const to = stage ? stagePath(stage) : ".";
 
   return (
-    <section className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
-      <header className="mb-3 flex items-center justify-between gap-3 border-b border-[var(--rule)] pb-3">
+    <Surface as="section" className="p-5">
+      <header className="mb-3 flex items-center justify-between gap-3 border-b border-[var(--rule-soft)] pb-3">
         <h3 className="flex items-center gap-2 font-display text-sm font-semibold text-[var(--ink)]">
           {filled ? (
             <Check size={15} className="text-[var(--verified)]" aria-hidden="true" />
@@ -90,7 +91,7 @@ function Panel({
         </Link>
       </header>
       {children}
-    </section>
+    </Surface>
   );
 }
 
@@ -178,13 +179,20 @@ export function StageReviewPage() {
 
   return (
     <div className="space-y-4">
-      <header className="rounded-2xl border border-[var(--violet)]/25 bg-[var(--panel)] p-5">
-        <h1 className="font-display text-lg font-semibold text-[var(--ink)]">Review &amp; submit</h1>
-        <p className="mt-1 text-sm text-[var(--slate)]">
-          This is everything on your profile. Edit any section, then submit — verification starts in
-          the background and you&apos;ll be emailed when it finishes.
-        </p>
-      </header>
+      <Surface as="section" elevation="raised" className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display text-lg font-semibold text-[var(--ink)]">Review &amp; submit</h1>
+            <p className="mt-1 text-sm text-[var(--slate)]">
+              This is everything on your profile. Edit any section, then submit — verification starts in
+              the background and you&apos;ll be emailed when it finishes.
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-[var(--violet)]/10 px-3 py-1 font-mono text-xs font-semibold tabular-nums text-[var(--violet)]">
+            {state.completion_percentage}% profile strength
+          </span>
+        </div>
+      </Surface>
 
       {!state.can_submit ? (
         <p
@@ -313,7 +321,7 @@ export function StageReviewPage() {
         )}
       </Panel>
 
-      <section className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
+      <Surface as="section" className="p-5">
         <label className="flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
@@ -336,9 +344,9 @@ export function StageReviewPage() {
             .
           </span>
         </label>
-      </section>
+      </Surface>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
+      <footer className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-5 shadow-[var(--shadow-panel)] backdrop-blur-sm">
         <Button type="button" variant="secondary" onClick={goBack} disabled={submit.isPending}>
           <ArrowLeft size={16} aria-hidden="true" className="mr-1.5" />
           Previous

@@ -1,9 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
-import { AlertCircle, Check, Github, Loader2 } from "lucide-react";
+import { AlertCircle, Check, ExternalLink, Github, Loader2 } from "lucide-react";
 
 import { Button, Skeleton } from "@/components";
 
 import { githubApi } from "../../api/githubApi";
+import { VerificationBadge } from "../../components/SectionBadges";
 import { useTechnicalSection } from "../../hooks/useProfileSection";
 import { getProfileErrorMessage } from "../../lib/getProfileErrorMessage";
 import { StageShell } from "../components/StageShell";
@@ -69,18 +70,70 @@ export function StageGithubPage() {
         </div>
       ) : account ? (
         <div className="space-y-5">
-          <div className="flex items-center gap-3 rounded-xl border border-[var(--verified)]/30 bg-[var(--verified)]/10 p-4">
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--verified)]/12">
-              <Check size={18} className="text-[var(--verified)]" aria-hidden="true" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-[var(--ink)]">
-                Connected as {account.github_username}
-              </p>
-              <p className="mt-0.5 text-xs text-[var(--slate)]">
-                We&apos;ll start analysing your repositories once you link them on the next stage.
-              </p>
+          {/* The connected account, visualised from the API row itself —
+              username, profile URL and verification outcome are all server
+              data; nothing here is typed in or assumed. The username is mono:
+              it is machine-read from GitHub, not something the student wrote. */}
+          <div className="rounded-[var(--r-lg)] border border-[var(--verified)]/30 bg-[var(--verified)]/10 p-5">
+            <div className="flex items-start gap-4">
+              <span
+                aria-hidden="true"
+                className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[var(--panel-raised)] text-[var(--ink)]"
+              >
+                <Github size={22} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="machine truncate text-base font-semibold text-[var(--ink)]">
+                    {account.github_username}
+                  </p>
+                  <VerificationBadge status={account.verification_status} />
+                </div>
+                <a
+                  href={account.profile_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 truncate text-xs text-[var(--slate)] underline-offset-4 hover:text-[var(--ink)] hover:underline"
+                >
+                  <span className="machine truncate">{account.profile_url}</span>
+                  <ExternalLink size={11} className="shrink-0" aria-hidden="true" />
+                </a>
+                <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--slate)]">
+                  <div className="flex gap-1.5">
+                    <dt className="text-[var(--muted)]">Verified</dt>
+                    <dd className="font-medium text-[var(--ink)]">
+                      {account.verified_at
+                        ? new Date(account.verified_at).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "Not yet verified"}
+                    </dd>
+                  </div>
+                  {account.verification_score !== null && account.verification_score !== undefined ? (
+                    <div className="flex gap-1.5">
+                      <dt className="text-[var(--muted)]">Verification score</dt>
+                      <dd className="font-mono tabular-nums text-[var(--ink)]">
+                        {/* 0-100 per `models.py` — the check's own confidence,
+                            not a fraction. */}
+                        {Math.round(account.verification_score)}/100
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </div>
+              <span
+                aria-hidden="true"
+                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--verified)]/15"
+              >
+                <Check size={16} className="text-[var(--verified)]" />
+              </span>
             </div>
+            <p className="mt-4 border-t border-[var(--verified)]/20 pt-3 text-xs leading-relaxed text-[var(--slate)]">
+              Connected. We&apos;ll start analysing your repositories once you link them on the
+              next stage.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--rule)] pt-4">
@@ -116,9 +169,9 @@ export function StageGithubPage() {
           {connect.isError ? (
             <div
               role="alert"
-              className="flex items-start gap-3 rounded-xl border border-failed/30 bg-failed/5 p-3.5"
+              className="flex items-start gap-3 rounded-xl border border-[var(--failed)]/30 bg-[var(--failed)]/10 p-3.5"
             >
-              <AlertCircle size={15} className="mt-0.5 shrink-0 text-failed" aria-hidden="true" />
+              <AlertCircle size={15} className="mt-0.5 shrink-0 text-[var(--failed)]" aria-hidden="true" />
               <div className="text-xs">
                 <p className="font-medium text-[var(--ink)]">We could not reach GitHub</p>
                 <p className="mt-0.5 text-[var(--slate)]">

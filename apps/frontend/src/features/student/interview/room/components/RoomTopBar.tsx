@@ -62,18 +62,30 @@ export function RoomTopBar({
   const connectionNote = CONNECTION_COPY[connection];
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-[var(--room-rule)] bg-[var(--room-panel)] px-4 py-3 sm:px-6">
+    <header className="flex items-center justify-between gap-3 border-b border-[var(--room-rule)] bg-[var(--room-panel)] px-4 py-2.5 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="font-display text-sm font-semibold tracking-tight text-[var(--room-ink)]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--r-sm)] bg-[var(--room-accent-dim)] font-display text-sm font-bold text-[var(--room-accent)]">
+          G
+        </span>
+        <span className="hidden font-display text-sm font-semibold tracking-tight text-[var(--room-ink)] sm:inline">
           GroundTruth
         </span>
-        <span aria-hidden="true" className="h-4 w-px bg-[var(--room-rule-strong)]" />
+        <span aria-hidden="true" className="hidden h-4 w-px bg-[var(--room-rule-strong)] sm:block" />
         <span className="truncate text-sm text-[var(--room-slate)]">{title}</span>
+        {connection === "live" ? (
+          <span className="hidden shrink-0 items-center gap-1.5 rounded-full border border-[var(--room-rule-strong)] bg-[var(--room-panel)] px-2.5 py-1 text-[11px] font-medium text-[var(--room-slate)] sm:flex">
+            <span aria-hidden="true" className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--room-accent)] opacity-60" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--room-accent)]" />
+            </span>
+            Live
+          </span>
+        ) : null}
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         {connectionNote ? (
-          <span className={["flex items-center gap-1.5 text-xs", connectionNote.tone].join(" ")}>
+          <span className={["flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium", connectionNote.tone].join(" ")}>
             {connection === "reconnecting" || connection === "unavailable" ? (
               <WifiOff size={13} aria-hidden="true" />
             ) : (
@@ -94,17 +106,26 @@ export function RoomTopBar({
           </button>
         ) : null}
 
-        <div className="flex items-baseline gap-2">
+        <div
+          className={[
+            "flex items-baseline gap-2 rounded-full px-3 py-1.5",
+            closing
+              ? "border border-[var(--room-rule-strong)] bg-[var(--room-raised)]"
+              : "border border-transparent",
+          ].join(" ")}
+        >
           <span
             className={[
-              "machine tabular text-base",
+              "machine tabular text-base font-medium",
               closing ? "text-[var(--room-ink)]" : "text-[var(--room-slate)]",
             ].join(" ")}
             aria-label={`${Math.floor(Math.max(0, timeRemaining) / 60)} minutes remaining`}
           >
             {formatClock(timeRemaining)}
           </span>
-          <span className="hidden text-xs text-[var(--room-muted)] sm:inline">remaining</span>
+          <span className="hidden text-xs text-[var(--room-muted)] sm:inline">
+            {closing ? "left — wrapping up" : "remaining"}
+          </span>
         </div>
       </div>
     </header>

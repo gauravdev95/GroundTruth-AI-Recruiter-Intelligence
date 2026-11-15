@@ -1,7 +1,8 @@
-import { Play } from "lucide-react";
+import { BadgeCheck, Play } from "lucide-react";
 
-import { PREVIEW } from "../content/landing";
+import { ENGINEERS, PREVIEW, RECRUITERS } from "../content/landing";
 import { stagger } from "../lib/reveal";
+import { MockCard } from "./ui/MockCard";
 import { Reveal } from "./ui/Reveal";
 import { Section } from "./ui/Section";
 import { SectionHead } from "./ui/SectionHead";
@@ -65,6 +66,106 @@ function WalkthroughFrame() {
   );
 }
 
+/**
+ * The two product screens the walkthrough frame stands between.
+ *
+ * Condensed versions of the mocks the audience sections already carry — the
+ * engineer's evidence report and the recruiter's pipeline — so this section
+ * shows the actual product surfaces rather than describing them. Same data,
+ * same "Sample" caption rule: nothing here is a real candidate, and the
+ * footer carries the same disclosure a fourth time.
+ */
+function ProductScreens() {
+  const { report } = ENGINEERS;
+  const { board } = RECRUITERS;
+
+  return (
+    <div className="mt-12 grid gap-8 lg:grid-cols-2">
+      <MockCard
+        tone="dark"
+        tilt="left"
+        caption={report.caption}
+        title={
+          <div>
+            <p className="font-grotesk text-lg font-bold text-gt-chalk">{report.candidate}</p>
+            <p className="mt-1 font-sans text-sm text-gt-ash">{report.subject}</p>
+          </div>
+        }
+      >
+        <dl className="mt-8 space-y-5">
+          {report.skills.map((skill) => (
+            <div key={skill.name}>
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="font-sans text-gt-body-sm font-medium text-gt-chalk">
+                  {skill.name}
+                </dt>
+                <dd className="font-mono text-sm tabular-nums text-gt-electric">
+                  {skill.confidence}%
+                </dd>
+              </div>
+              <div role="presentation" className="mt-2 h-1 w-full rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gt-electric"
+                  style={{ width: `${skill.confidence}%` }}
+                />
+              </div>
+              <p className="mt-2 font-mono text-[11px] text-gt-dim">{skill.source}</p>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-8 border-t border-white/10 pt-5 font-sans text-[13px] text-gt-ash">
+          {report.footnote}
+        </p>
+      </MockCard>
+
+      <MockCard
+        tone="dark"
+        tilt="right"
+        caption={board.caption}
+        title={
+          <div>
+            <p className="font-grotesk text-lg font-bold text-gt-chalk">{board.role}</p>
+            <p className="mt-1 font-sans text-sm text-gt-ash">Hiring pipeline</p>
+          </div>
+        }
+      >
+        <div className="mt-8 space-y-6">
+          {board.columns.map((column) => (
+            <div key={column.name}>
+              <p className="font-mono text-[11px] uppercase tracking-wider text-gt-dim">
+                {column.name}
+              </p>
+              <div className="mt-3 space-y-3">
+                {column.cards.map((card) => (
+                  <div
+                    key={card.initials}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-gt-void/60 px-4 py-3"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono text-[13px] text-gt-chalk">{card.initials}</span>
+                      {card.verified && (
+                        <BadgeCheck
+                          size={13}
+                          aria-hidden="true"
+                          className="shrink-0 text-gt-electric"
+                        />
+                      )}
+                      <span className="font-mono text-[11px] text-gt-dim">{card.skills}</span>
+                    </span>
+                    <span className="font-mono text-[11px] tabular-nums text-gt-electric">
+                      {card.match}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </MockCard>
+    </div>
+  );
+}
+
 export function Preview() {
   return (
     <Section id="preview" label="Product preview" tone="wash">
@@ -79,6 +180,10 @@ export function Preview() {
         <div className="mt-12">
           <WalkthroughFrame />
         </div>
+      </Reveal>
+
+      <Reveal delay={0.15}>
+        <ProductScreens />
       </Reveal>
 
       <ul className="mt-10 flex flex-wrap gap-x-10 gap-y-4">

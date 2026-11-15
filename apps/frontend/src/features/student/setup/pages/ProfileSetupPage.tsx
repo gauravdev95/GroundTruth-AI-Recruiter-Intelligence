@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { ErrorState, Skeleton } from "@/components";
+import { Reveal, Stagger } from "@/design";
 
 import { useChooseOnboarding } from "../../hooks/useProfileSection";
 import { getProfileErrorMessage } from "../../lib/getProfileErrorMessage";
@@ -68,19 +69,21 @@ export function ProfileSetupPage() {
         />
       )}
 
-      <header className="mx-auto max-w-2xl pt-2 text-center">
-        <h1 className="flex items-center justify-center gap-2 font-display text-2xl font-bold text-[var(--ink)] sm:text-[28px]">
-          <Sparkles size={22} className="shrink-0 text-[var(--violet)]" aria-hidden="true" />
-          Complete Your AI Verified Profile
-        </h1>
-        <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[var(--slate)]">
-          Build your professional identity and increase your visibility to top recruiters.
-        </p>
-        <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-[var(--slate)]">
-          <ShieldCheck size={14} className="shrink-0 text-[var(--violet)]" aria-hidden="true" />
-          Your data is secure and only visible to verified companies.
-        </p>
-      </header>
+      <Reveal trigger="mount">
+        <header className="mx-auto max-w-2xl pt-2 text-center">
+          <h1 className="flex items-center justify-center gap-2 font-display text-2xl font-bold text-[var(--ink)] sm:text-[28px]">
+            <Sparkles size={22} className="shrink-0 text-[var(--violet)]" aria-hidden="true" />
+            Complete Your AI Verified Profile
+          </h1>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[var(--slate)]">
+            Build your professional identity and increase your visibility to top recruiters.
+          </p>
+          <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-[var(--slate)]">
+            <ShieldCheck size={14} className="shrink-0 text-[var(--violet)]" aria-hidden="true" />
+            Your data is secure and only visible to verified companies.
+          </p>
+        </header>
+      </Reveal>
 
       <div className="flex items-center gap-4 pt-2">
         <span aria-hidden="true" className="h-px flex-1 bg-[var(--violet)]/15" />
@@ -96,15 +99,19 @@ export function ProfileSetupPage() {
           <Skeleton className="h-[30rem] w-full rounded-2xl" />
         </div>
       ) : (
-        <div className="grid items-stretch gap-5 md:grid-cols-2">
-          <UploadResumeCard
-            onFile={startResume}
-            onReject={setRejection}
-            isUploading={upload.isUploading}
-            error={uploadError}
-          />
-          <FillManuallyCard onStart={startManual} />
-        </div>
+        <Stagger className="grid items-stretch gap-5 md:grid-cols-2">
+          <Stagger.Item className="h-full">
+            <UploadResumeCard
+              onFile={startResume}
+              onReject={setRejection}
+              isUploading={upload.isUploading}
+              error={uploadError}
+            />
+          </Stagger.Item>
+          <Stagger.Item className="h-full">
+            <FillManuallyCard onStart={startManual} />
+          </Stagger.Item>
+        </Stagger>
       )}
 
       <SetupFooterStrip />

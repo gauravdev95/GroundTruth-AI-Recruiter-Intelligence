@@ -88,51 +88,64 @@ export function ExtractionConfirmPanel({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 space-y-5 p-5">
-        <TagInput
-          label="Must-have skills"
-          value={state.mustHave}
-          onChange={(mustHave) => patch({ mustHave })}
-          hint="A candidate is scored on how much verified evidence they have for each of these."
-        />
-
-        <TagInput
-          label="Nice-to-have skills"
-          value={state.niceToHave}
-          onChange={(niceToHave) => patch({ niceToHave })}
-          hint="Counted at half weight. Never used to exclude anyone."
-        />
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Select
-            label="Seniority"
-            options={SENIORITY_OPTIONS}
-            value={state.seniority}
-            onChange={(event) => patch({ seniority: event.target.value })}
-          />
-          <Select
-            label="Role type"
-            options={roleTypeOptions}
-            value={state.roleType}
-            onChange={(event) => patch({ roleType: event.target.value })}
+      <div className="flex-1 space-y-4 p-5">
+        {/* Each skill list is its own editable requirement card: a bordered
+            group with a count, so must-haves and nice-to-haves cannot be
+            mistaken for one list. The payload built on confirm is unchanged
+            — `toSkillPayloads(state)` — only the grouping is new. */}
+        <div className="rounded-[var(--r-md)] border border-[var(--rule-soft)] bg-[var(--surface)]/50 p-4">
+          <TagInput
+            label="Must-have skills"
+            value={state.mustHave}
+            onChange={(mustHave) => patch({ mustHave })}
+            hint={`${state.mustHave.length} skill${state.mustHave.length === 1 ? "" : "s"} — a candidate is scored on how much verified evidence they have for each of these.`}
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="location-constraint" className="text-sm font-medium text-[var(--slate)]">
-            Location constraint
-          </label>
-          <input
-            id="location-constraint"
-            value={state.locationConstraint}
-            onChange={(event) => patch({ locationConstraint: event.target.value })}
-            placeholder="Bangalore, India"
-            className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
+        <div className="rounded-[var(--r-md)] border border-[var(--rule-soft)] bg-[var(--surface)]/50 p-4">
+          <TagInput
+            label="Nice-to-have skills"
+            value={state.niceToHave}
+            onChange={(niceToHave) => patch({ niceToHave })}
+            hint={`${state.niceToHave.length} skill${state.niceToHave.length === 1 ? "" : "s"} — counted at half weight. Never used to exclude anyone.`}
           />
-          <p className="text-xs text-[var(--slate)]">
-            From your posting. Edit it here and you are editing the job — change the posting itself
-            with “Back to edit”.
+        </div>
+
+        <div className="rounded-[var(--r-md)] border border-[var(--rule-soft)] bg-[var(--surface)]/50 p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--slate)]">
+            Seniority &amp; role
           </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select
+              label="Seniority"
+              options={SENIORITY_OPTIONS}
+              value={state.seniority}
+              onChange={(event) => patch({ seniority: event.target.value })}
+            />
+            <Select
+              label="Role type"
+              options={roleTypeOptions}
+              value={state.roleType}
+              onChange={(event) => patch({ roleType: event.target.value })}
+            />
+          </div>
+
+          <div className="mt-4 flex flex-col gap-1.5">
+            <label htmlFor="location-constraint" className="text-sm font-medium text-[var(--slate)]">
+              Location constraint
+            </label>
+            <input
+              id="location-constraint"
+              value={state.locationConstraint}
+              onChange={(event) => patch({ locationConstraint: event.target.value })}
+              placeholder="Bangalore, India"
+              className="w-full rounded-[var(--r-sm)] border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--violet)] "
+            />
+            <p className="text-xs text-[var(--slate)]">
+              From your posting. Edit it here and you are editing the job — change the posting itself
+              with “Back to edit”.
+            </p>
+          </div>
         </div>
 
         {!hasRequirements ? (

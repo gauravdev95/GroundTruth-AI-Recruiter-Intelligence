@@ -1,6 +1,8 @@
 import { Check, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { InterviewerPortrait } from "./InterviewerPortrait";
+
 /**
  * The moment between pressing Join and the interviewer speaking.
  *
@@ -47,22 +49,33 @@ export function JoiningSequence({
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-8 px-6">
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-4">
         <div className="relative">
           <span
             aria-hidden="true"
             className="room-listen-pulse absolute inset-0 rounded-full border border-[var(--room-accent)]"
           />
-          <div className="h-16 w-16 rounded-full border border-[var(--room-rule-strong)] bg-[var(--room-panel)]" />
+          <div className="relative h-20 w-20 overflow-hidden rounded-full border border-[var(--room-rule-strong)] bg-[var(--room-stage)]">
+            <InterviewerPortrait speaking={false} />
+          </div>
         </div>
-        <p className="font-display text-lg font-semibold text-[var(--room-ink)]">
-          Preparing your interview
-        </p>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <p className="font-display text-lg font-semibold text-[var(--room-ink)]">
+            Preparing your interview
+          </p>
+          <p className="max-w-xs text-xs leading-relaxed text-[var(--room-muted)]">
+            Your interviewer is reading your repository and getting ready — this usually takes
+            a few seconds.
+          </p>
+        </div>
       </div>
 
       <ul className="w-full max-w-xs space-y-3" aria-live="polite">
         {steps.slice(0, Math.max(1, revealed)).map((step) => (
-          <li key={step.label} className="flex items-center gap-3 text-sm">
+          <li
+            key={step.label}
+            className="flex items-center gap-3 rounded-[var(--r-md)] border border-[var(--room-rule)] bg-[var(--room-panel)] px-3.5 py-2.5 text-sm"
+          >
             {step.done ? (
               <Check size={15} className="shrink-0 text-[var(--room-accent)]" aria-hidden="true" />
             ) : (

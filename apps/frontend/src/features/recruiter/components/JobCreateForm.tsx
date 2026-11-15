@@ -174,7 +174,10 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <section className="space-y-5 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6">
+      <section className="space-y-5 rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-6">
+        <h2 className="font-display text-base font-semibold tracking-tight text-[var(--ink)]">
+          Role details
+        </h2>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-3">
             <label htmlFor="job-title" className="text-sm font-medium text-[var(--slate)]">
@@ -189,7 +192,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
             maxLength={TITLE_MAX}
             placeholder="Backend Engineer — Payments"
             aria-invalid={Boolean(errors.title)}
-            className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
+            className="w-full rounded-[var(--r-sm)] border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--violet)] "
             {...register("title", {
               required: "A title is required",
               maxLength: { value: TITLE_MAX, message: `Keep the title under ${TITLE_MAX} characters` },
@@ -210,7 +213,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
             <span
               className={cn(
                 "tabular text-xs",
-                descriptionLength < DESCRIPTION_MIN ? "text-[var(--muted)]" : "text-[var(--verified)]",
+                descriptionLength < DESCRIPTION_MIN ? "text-[var(--muted)]" : "text-[var(--ink)]",
               )}
             >
               {descriptionLength}/{DESCRIPTION_MIN} min
@@ -224,7 +227,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
             }
             aria-invalid={Boolean(errors.description)}
             aria-describedby="job-description-hint"
-            className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 font-sans text-sm leading-relaxed text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
+            className="w-full rounded-[var(--r-sm)] border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 font-sans text-sm leading-relaxed text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--violet)] "
             {...register("description", {
               required: "A description is required",
               minLength: {
@@ -264,7 +267,10 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
         />
       </section>
 
-      <section className="space-y-5 rounded-xl border border-[var(--rule)] bg-[var(--panel)] p-6">
+      <section className="space-y-5 rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-6">
+        <h2 className="font-display text-base font-semibold tracking-tight text-[var(--ink)]">
+          Requirements &amp; logistics
+        </h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Select label="Job type" options={JOB_TYPE_OPTIONS} {...register("jobType")} />
           <Select
@@ -320,7 +326,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
               placeholder="Bangalore, India"
               autoComplete="off"
               aria-invalid={Boolean(errors.location)}
-              className="w-full rounded border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--rule)] "
+              className="w-full rounded-[var(--r-sm)] border border-[var(--rule)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] outline-none transition focus:border-[var(--violet)] "
               {...register("location", {
                 validate: (value, values) => {
                   const mode = WORK_MODES.find((m) => m.value === values.workMode);
@@ -355,7 +361,7 @@ export function JobCreateForm({ isSaving, onSubmit }: JobCreateFormProps) {
         />
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--rule)] bg-[var(--panel)] px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] px-5 py-4">
         <p className="text-xs leading-relaxed text-[var(--slate)]">
           This creates a draft. Nothing is visible to candidates until you review what GroundTruth
           extracts and publish it yourself.

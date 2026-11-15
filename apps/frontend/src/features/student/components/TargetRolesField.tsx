@@ -95,7 +95,7 @@ export function TargetRolesField({ value, onChange, error }: TargetRolesFieldPro
       </p>
 
       {error ? (
-        <p role="alert" className="text-xs text-rejected">
+        <p role="alert" className="text-xs text-[var(--failed)]">
           {error}
         </p>
       ) : null}

@@ -1,5 +1,4 @@
 import { TEAM } from "../content/landing";
-import { stagger } from "../lib/reveal";
 import { Overline } from "./ui/Overline";
 import { Reveal } from "./ui/Reveal";
 import { Section } from "./ui/Section";
@@ -24,7 +23,7 @@ import { Section } from "./ui/Section";
 export function Team() {
   return (
     <Section id="team" label="Who built this" tone="paper" className="border-t border-black/10">
-      <div className="max-w-[640px]">
+      <div className="max-w-[680px]">
         <Reveal>
           <Overline tone="light">{TEAM.overline}</Overline>
         </Reveal>
@@ -33,18 +32,33 @@ export function Team() {
           <h2 className="mt-5 font-grotesk text-gt-h3 font-bold text-gt-void">{TEAM.headline}</h2>
         </Reveal>
 
-        {TEAM.note.map((paragraph, index) => (
-          <Reveal key={paragraph.slice(0, 24)} delay={0.12 + stagger(index, 0.05)}>
-            <p className="mt-5 font-sans text-gt-body-sm leading-[1.7] text-gt-slate">
-              {paragraph}
+        {/*
+          One card, not a roster. There are no named team members to put in
+          cards — this page carries no invented people — so the collective
+          note is presented as the team's card: the brand mark, the note, the
+          signature. A grid of faces here would have to be stock photos or
+          fiction, and either would break the page's one rule.
+        */}
+        <Reveal delay={0.12}>
+          <div className="mt-10 rounded-2xl border border-black/[0.08] bg-white p-8 shadow-[0_4px_24px_rgba(0,0,0,0.08)] md:p-10">
+            <p className="flex items-center gap-2.5 font-grotesk text-lg font-bold tracking-tight text-gt-void">
+              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-gt-electric" />
+              GroundTruth
             </p>
-          </Reveal>
-        ))}
 
-        <Reveal delay={0.3}>
-          <p className="mt-8 font-sans text-gt-body-sm font-medium text-gt-void">
-            {TEAM.signature}
-          </p>
+            {TEAM.note.map((paragraph) => (
+              <p
+                key={paragraph.slice(0, 24)}
+                className="mt-5 font-sans text-gt-body-sm leading-[1.7] text-gt-slate"
+              >
+                {paragraph}
+              </p>
+            ))}
+
+            <p className="mt-8 border-t border-black/[0.08] pt-6 font-sans text-gt-body-sm font-medium text-gt-void">
+              {TEAM.signature}
+            </p>
+          </div>
         </Reveal>
       </div>
     </Section>

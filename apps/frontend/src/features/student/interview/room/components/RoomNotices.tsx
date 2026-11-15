@@ -38,7 +38,7 @@ export function IntegrityNotice({ warning, onDismiss }: IntegrityNoticeProps) {
   return (
     <div
       role="status"
-      className="pointer-events-auto flex items-start gap-3 rounded-[var(--r-md)] border border-[rgb(255_180_84/0.3)] bg-[var(--room-caution-dim)] px-4 py-3 text-sm text-[var(--room-ink)] shadow-[0_16px_48px_-24px_rgb(0_0_0/0.9)] backdrop-blur-sm"
+      className="pointer-events-auto flex w-full items-start gap-3 rounded-[var(--r-lg)] border border-[rgb(255_180_84/0.35)] bg-[var(--room-caution-dim)] px-4 py-3 text-sm text-[var(--room-ink)] shadow-[0_16px_48px_-24px_rgb(0_0_0/0.9)] backdrop-blur-sm"
     >
       <AlertTriangle size={16} className="mt-0.5 shrink-0 text-[var(--room-caution)]" aria-hidden="true" />
       <div className="min-w-0 flex-1">
@@ -73,7 +73,7 @@ export function RoomNotice({ tone, title, description, action }: RoomNoticeProps
   return (
     <div
       role={tone === "warning" ? "alert" : "status"}
-      className="pointer-events-auto flex items-start gap-3 rounded-[var(--r-md)] border border-[var(--room-rule-strong)] bg-[rgb(14_20_36/0.94)] px-4 py-3 shadow-[0_16px_48px_-24px_rgb(0_0_0/0.9)] backdrop-blur-sm"
+      className="pointer-events-auto flex w-full items-start gap-3 rounded-[var(--r-lg)] border border-[var(--room-rule-strong)] bg-[rgb(14_20_36/0.94)] px-4 py-3 shadow-[0_16px_48px_-24px_rgb(0_0_0/0.9)] backdrop-blur-sm"
     >
       {tone === "warning" ? (
         <AlertTriangle size={16} className="mt-0.5 shrink-0" style={{ color: accent }} aria-hidden="true" />
@@ -130,7 +130,7 @@ export function IntegrityLog({ open, counts, onClose }: IntegrityLogProps) {
   const entries = Object.entries(counts).filter(([, count]) => (count ?? 0) > 0);
 
   return (
-    <div className="pointer-events-auto w-full max-w-sm rounded-[var(--r-md)] border border-[var(--room-rule-strong)] bg-[rgb(14_20_36/0.97)] p-4 shadow-[0_16px_48px_-24px_rgb(0_0_0/0.9)] backdrop-blur-sm">
+    <div className="pointer-events-auto w-full max-w-sm rounded-[var(--r-lg)] border border-[var(--room-rule-strong)] bg-[rgb(14_20_36/0.97)] p-4 shadow-[0_16px_48px_-24px_rgb(0_0_0/0.9)] backdrop-blur-sm">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-[var(--room-ink)]">Session events</p>
         <button
@@ -211,7 +211,7 @@ export function TypedAnswerBar({ enabled, placeholder, onSubmit }: TypedAnswerBa
         type="button"
         onClick={submit}
         disabled={!enabled || draft.trim().length === 0}
-        className="h-11 rounded-[var(--r-md)] bg-[var(--room-accent-dim)] px-4 text-sm font-medium text-[var(--room-accent)] transition-colors hover:bg-[rgb(74_158_255/0.24)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="h-12 shrink-0 rounded-[var(--r-md)] bg-[var(--room-accent-dim)] px-5 text-sm font-medium text-[var(--room-accent)] transition-colors hover:bg-[rgb(74_158_255/0.24)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         Send
       </button>

@@ -1,7 +1,7 @@
 import { ArrowLeft, Undo2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
-import { Button, ErrorState, Skeleton, useToast } from "@/components";
+import { Button, Card, ErrorState, Skeleton, useToast } from "@/components";
 import { EvidenceCard } from "@/features/recruiter/evidence/components/EvidenceCard";
 import { MessageThread } from "@/features/messaging";
 import { NotesPanel } from "@/features/recruiter/notes/components/NotesPanel";
@@ -42,7 +42,7 @@ export function ApplicationDetailPage() {
   if (!applicationId) return null;
 
   const backLink = (
-    <Link to="/recruiter/jobs" className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] hover:text-[var(--ink)]">
+    <Link to="/recruiter/jobs" className="inline-flex items-center gap-1.5 text-sm text-[var(--slate)] transition hover:text-[var(--ink)]">
       <ArrowLeft size={14} aria-hidden="true" /> Back to jobs
     </Link>
   );
@@ -51,6 +51,7 @@ export function ApplicationDetailPage() {
     return (
       <div className="space-y-4">
         {backLink}
+        <Skeleton className="h-24 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
     );
@@ -76,21 +77,28 @@ export function ApplicationDetailPage() {
     rollback_target,
   } = detail.data;
   const nextSteps = NEXT_STEPS[application.status] ?? [];
+  const appliedOn = new Date(application.applied_at).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
     <div className="space-y-6">
       {backLink}
 
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-[var(--ink)]">{candidate_headline ?? "Candidate"}</h1>
-          <p className="text-sm text-[var(--slate)]">
-            {job_title} · {company_name}
+      <header className="flex flex-wrap items-start justify-between gap-4 rounded-[var(--r-lg)] border border-[var(--rule)] bg-[var(--panel)] p-5 shadow-[var(--shadow-panel)]">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--ink)]">
+            {candidate_headline ?? "Candidate"}
+          </h1>
+          <p className="mt-1 text-sm text-[var(--slate)]">
+            {job_title} · {company_name} · Applied {appliedOn}
           </p>
           {/* Both scores, on the surface where the shortlisting decision is
               actually taken. `size="lg"` because here the score is a headline
               figure rather than one line of a dense card. */}
-          <div className="mt-2">
+          <div className="mt-3">
             <ScoreWithDrift
               scoreAtApply={drift.score_at_apply}
               liveScore={drift.live_score}
@@ -150,21 +158,24 @@ export function ApplicationDetailPage() {
       </header>
 
       {application.cover_note ? (
-        <div className="rounded-2xl border border-[var(--rule)] bg-[var(--panel)] p-5">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Cover note</p>
-          <p className="whitespace-pre-wrap text-sm text-[var(--ink)]">{application.cover_note}</p>
-        </div>
+        <Card title="Cover note">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)]">
+            {application.cover_note}
+          </p>
+        </Card>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <EvidenceCard candidateProfileId={candidate_profile_id} />
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="min-w-0">
+          <h2 className="mb-3 font-display text-lg font-semibold text-[var(--ink)]">Why this candidate qualifies</h2>
+          <EvidenceCard candidateProfileId={candidate_profile_id} />
+        </div>
 
         <div className="space-y-6">
           <NotesPanel applicationId={applicationId} />
-          <div>
-            <p className="mb-2 text-sm font-semibold text-[var(--ink)]">Messages</p>
+          <Card title="Messages" subtitle="Conversation with this candidate about this application.">
             <MessageThread rolePrefix="recruiter" applicationId={applicationId} />
-          </div>
+          </Card>
         </div>
       </div>
     </div>
