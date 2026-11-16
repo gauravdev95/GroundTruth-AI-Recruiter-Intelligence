@@ -57,12 +57,22 @@ def dispatch(job: AsyncJob, task: Any, *, queue: str, args: list[Any] | None = N
             headers={"request_id": get_request_id()},
         )
     except Exception as exc:  # noqa: BLE001 — broker faults must not fail the request
-        logger.error(
-            "job_dispatch_failed",
-            async_job_id=str(job.id),
-            job_type=job.job_type,
-            error=str(exc),
-        )
+        # The failure path must never raise itself. Callers may hand us a
+        # duck-type stand-in (evidence.dispatch_all passes _AsyncJobRef,
+        # which defines only `.id`), so every attribute read here is
+        # defensive; and the log call itself is guarded, because a failure
+        # in the logging subsystem must not fail a request whose durable
+        # side effect already landed. The PENDING row remains the durable
+        # signal that the job was never published.
+        try:
+            logger.error(
+                "job_dispatch_failed",
+                async_job_id=str(getattr(job, "id", None)),
+                job_type=getattr(job, "job_type", "unknown"),
+                error=str(exc),
+            )
+        except Exception:  # noqa: BLE001 — logging must never fail the request
+            pass
 
 
 def get_job(db: Session, job_id: uuid.UUID) -> AsyncJob | None:
