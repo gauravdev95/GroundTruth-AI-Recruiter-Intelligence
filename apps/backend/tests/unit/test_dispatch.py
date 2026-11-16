@@ -125,6 +125,10 @@ def test_dispatch_all_does_not_raise_when_broker_is_down(monkeypatch) -> None:
     dispatch_all(queued)
 
     failing.apply_async.assert_called_once()
+    # Fix 2: the fire-and-forget publish must also skip the Celery result
+    # backend, or a dead broker burns ~19 s per publish in the
+    # result-consumer reconnect loop before the publish even runs.
+    assert failing.apply_async.call_args.kwargs["ignore_result"] is True
 
 
 def _fake_job() -> AsyncJob:
@@ -154,3 +158,150 @@ def test_dispatch_sends_a_null_request_id_outside_a_request_lifecycle(monkeypatc
 
     _, kwargs = task.apply_async.call_args
     assert kwargs["headers"] == {"request_id": None}
+
+
+# --- Fix 2 regression tests (16 Nov 2026, FIX2_STALL_REPORT.md) ------------
+# With the default ignore_result=False, Celery's send_task calls
+# backend.on_task_call() BEFORE the broker publish, subscribing the Redis
+# result consumer; when Redis is down that subscribe burns ~19 s per publish
+# in the reconnect loop (retry_policy max_retries=20 x 1 s) inside the HTTP
+# request. dispatch() is fire-and-forget — job status lives in the
+# async_jobs table — so it must pass ignore_result=True. The wall-time proof
+# is the local UP/DOWN/UP run (FIX2_PATCH_REPORT.md); these tests pin the
+# mechanism (the flag is passed, every other argument preserved) and that
+# the worker-side completion tracking it replaces nothing of still works.
+
+
+def test_dispatch_passes_ignore_result_true(monkeypatch) -> None:
+    """(a) The publish call skips the Celery result backend; all other
+    arguments are preserved exactly."""
+    monkeypatch.setattr(dispatch_module, "get_request_id", lambda: "req-fix2-1")
+    task = MagicMock()
+    job = _fake_job()
+
+    dispatch_module.dispatch(job, task, queue="verification", args=["extra"])
+
+    task.apply_async.assert_called_once()
+    _, kwargs = task.apply_async.call_args
+    assert kwargs["ignore_result"] is True
+    assert kwargs["retry"] is False
+    assert kwargs["queue"] == "verification"
+    assert kwargs["args"] == [str(job.id), "extra"]
+    assert kwargs["headers"] == {"request_id": "req-fix2-1"}
+
+
+def test_dispatch_passes_ignore_result_true_when_broker_is_down(monkeypatch) -> None:
+    """(a) With the broker down, dispatch still passes the flag and does not
+    raise — the fast failure path, not the ~19 s drainer loop."""
+    logger = MagicMock()
+    monkeypatch.setattr(dispatch_module, "logger", logger)
+    ref = _JobRefWithoutJobType(uuid.uuid4())
+
+    dispatch_module.dispatch(ref, _failing_task(), queue="verification")  # must not raise
+
+    logger.error.assert_called_once()
+    _, kwargs = logger.error.call_args
+    assert kwargs["job_type"] == "unknown"
+
+
+class _FakeSession:
+    """Minimal stand-in for a SQLAlchemy session for DatabaseTask tests."""
+
+    def __init__(self, job) -> None:
+        self.job = job
+        self.committed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        return False
+
+    def get(self, _model: object, _key: object):
+        return self.job
+
+    def commit(self) -> None:
+        self.committed = True
+
+
+def _fake_db_task(monkeypatch, job):
+    """A DatabaseTask wired to a fake session; returns (task, session)."""
+    from types import SimpleNamespace
+
+    from src.jobs import celery_app as celery_app_module
+    from src.jobs.celery_app import DatabaseTask
+
+    session = _FakeSession(job)
+    monkeypatch.setattr(celery_app_module, "SessionLocal", lambda: session)
+    task = DatabaseTask()
+    task.name = "src.jobs.tasks.verification.verify_github_account_task"
+    return task, session
+
+
+def test_database_task_on_success_marks_job_succeeded(monkeypatch) -> None:
+    """(b) on_success still fires with ignore_result=True: the row reaches
+    SUCCEEDED with the result stored — completion tracking is the Postgres
+    row, not the Celery result backend."""
+    from types import SimpleNamespace
+
+    job = SimpleNamespace(status=None, result=None, error=None, finished_at=None)
+    task, session = _fake_db_task(monkeypatch, job)
+
+    task.on_success({"verified": True}, "task-id-1", (str(uuid.uuid4()),), {})
+
+    assert job.status == AsyncJobStatus.SUCCEEDED
+    assert job.result == {"verified": True}
+    assert job.error is None
+    assert job.finished_at is not None
+    assert session.committed is True
+
+
+def test_database_task_on_failure_marks_job_failed_and_dead_letters(monkeypatch) -> None:
+    """(b) on_failure still fires with ignore_result=True: the row reaches
+    FAILED with the error recorded, and the dead-letter publish runs."""
+    from types import SimpleNamespace
+
+    job = SimpleNamespace(status=None, result=None, error=None, finished_at=None)
+    task, session = _fake_db_task(monkeypatch, job)
+    dead_letter_stub = types.ModuleType("src.jobs.tasks.dead_letter")
+    dead_letter_stub.record_dead_letter = MagicMock()
+    monkeypatch.setitem(sys.modules, "src.jobs.tasks.dead_letter", dead_letter_stub)
+    job_id = str(uuid.uuid4())
+
+    task.on_failure(RuntimeError("boom"), "task-id-2", (job_id,), {}, None)
+
+    assert job.status == AsyncJobStatus.FAILED
+    assert job.error == "RuntimeError: boom"
+    assert job.finished_at is not None
+    assert session.committed is True
+    dead_letter_stub.record_dead_letter.apply_async.assert_called_once()
+    _dl_args, dl_kwargs = dead_letter_stub.record_dead_letter.apply_async.call_args
+    assert dl_kwargs["args"][0] == job_id
+    assert dl_kwargs["queue"] == "dead_letter"
+
+
+def test_database_task_autoretry_policy_preserved(monkeypatch) -> None:
+    """(b) Retries are unchanged by the flag: transient failures still
+    autoretry with backoff, deterministic ones still skip it, and on_retry
+    keeps the row PENDING with the error recorded."""
+    from types import SimpleNamespace
+
+    from src.config.config import get_celery_settings
+    from src.jobs.celery_app import DatabaseTask, NonRetryableJobError
+
+    settings = get_celery_settings()
+    assert DatabaseTask.autoretry_for == (Exception,)
+    assert DatabaseTask.dont_autoretry_for == (NonRetryableJobError,)
+    assert DatabaseTask.max_retries == settings.job_max_retries
+    assert DatabaseTask.retry_backoff == settings.job_retry_backoff_base_seconds
+    assert DatabaseTask.retry_backoff_max == settings.job_retry_backoff_max_seconds
+
+    job = SimpleNamespace(status=None, result=None, error=None, finished_at=None)
+    task, session = _fake_db_task(monkeypatch, job)
+    job_id = str(uuid.uuid4())
+
+    task.on_retry(ConnectionError("flaky"), "task-id-3", (job_id,), {}, None)
+
+    assert job.status == AsyncJobStatus.PENDING
+    assert job.error == "ConnectionError: flaky"
+    assert session.committed is True

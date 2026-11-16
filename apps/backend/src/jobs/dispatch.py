@@ -50,10 +50,13 @@ def dispatch(job: AsyncJob, task: Any, *, queue: str, args: list[Any] | None = N
         # publish to an unreachable broker blocks for tens of seconds inside
         # the request. Failing fast and leaving the row PENDING is strictly
         # better than a hung HTTP call.
+        # Fire-and-forget: job status lives in the async_jobs table, not Celery
+        # results — skipping the result backend keeps a dead broker fast (~0.1 s).
         task.apply_async(
             args=[str(job.id), *(args or [])],
             queue=queue,
             retry=False,
+            ignore_result=True,
             headers={"request_id": get_request_id()},
         )
     except Exception as exc:  # noqa: BLE001 — broker faults must not fail the request
